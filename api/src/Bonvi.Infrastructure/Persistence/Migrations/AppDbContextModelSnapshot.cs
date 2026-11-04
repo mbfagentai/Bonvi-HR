@@ -4449,6 +4449,547 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("position_duties", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessCase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("AnchorDate")
+                        .HasColumnType("date")
+                        .HasColumnName("anchor_date");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<Guid?>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("EmploymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employment_id");
+
+                    b.Property<bool>("Legacy")
+                        .HasColumnType("boolean")
+                        .HasColumnName("legacy");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("outcome");
+
+                    b.Property<Guid?>("ParentCaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_case_id");
+
+                    b.Property<Guid?>("ProbationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("probation_id");
+
+                    b.Property<string>("ProcessCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("process_code");
+
+                    b.Property<Guid?>("StartedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("started_by");
+
+                    b.Property<DateOnly>("StartedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("started_on");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<short>("SubjectKind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("subject_kind");
+
+                    b.Property<string>("SubjectRef")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("subject_ref");
+
+                    b.Property<Guid>("TemplateVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_version_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("VacancyRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vacancy_request_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_cases");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_process_cases_candidate_id");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_process_cases_department_id_active")
+                        .HasFilter("status = 1");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_process_cases_employee_id");
+
+                    b.HasIndex("EmploymentId")
+                        .HasDatabaseName("ix_process_cases_employment_id");
+
+                    b.HasIndex("ParentCaseId")
+                        .HasDatabaseName("ix_process_cases_parent_case_id");
+
+                    b.HasIndex("ProbationId")
+                        .HasDatabaseName("ix_process_cases_probation_id");
+
+                    b.HasIndex("StartedBy")
+                        .HasDatabaseName("ix_process_cases_started_by");
+
+                    b.HasIndex("TemplateVersionId")
+                        .HasDatabaseName("ix_process_cases_template_version_id");
+
+                    b.HasIndex("VacancyRequestId")
+                        .HasDatabaseName("ix_process_cases_vacancy_request_id");
+
+                    b.HasIndex("ProcessCode", "EmploymentId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_process_cases_process_code_employment_id")
+                        .HasFilter("employment_id IS NOT NULL");
+
+                    b.HasIndex("ProcessCode", "SubjectRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_cases_process_code_subject_ref");
+
+                    b.HasIndex("Status", "ProcessCode")
+                        .HasDatabaseName("ix_process_cases_status_process_code");
+
+                    b.ToTable("process_cases", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessCaseStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlockedGateCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("blocked_gate_code");
+
+                    b.Property<string>("BoardColumn")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("board_column");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("case_id");
+
+                    b.Property<DateTimeOffset?>("DoneAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("done_at");
+
+                    b.Property<Guid?>("DoneBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("done_by");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<string>("EvidenceSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("evidence_sha256")
+                        .IsFixedLength();
+
+                    b.Property<Guid?>("HolderEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("holder_employee_id");
+
+                    b.Property<string>("HolderRole")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("holder_role");
+
+                    b.Property<Guid?>("LinkedBlankSubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_blank_submission_id");
+
+                    b.Property<Guid?>("LinkedRecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_record_id");
+
+                    b.Property<int>("OrderNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_no");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<short?>("Resolution")
+                        .HasColumnType("smallint")
+                        .HasColumnName("resolution");
+
+                    b.Property<short>("State")
+                        .HasColumnType("smallint")
+                        .HasColumnName("state");
+
+                    b.Property<string>("StepCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("step_code");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_case_steps");
+
+                    b.HasIndex("DoneBy")
+                        .HasDatabaseName("ix_process_case_steps_done_by");
+
+                    b.HasIndex("DueDate")
+                        .HasDatabaseName("ix_process_case_steps_due_date_open")
+                        .HasFilter("state IN (2, 4)");
+
+                    b.HasIndex("HolderEmployeeId")
+                        .HasDatabaseName("ix_process_case_steps_holder_employee_id_open")
+                        .HasFilter("state IN (2, 4)");
+
+                    b.HasIndex("LinkedBlankSubmissionId")
+                        .HasDatabaseName("ix_process_case_steps_linked_blank_submission_id");
+
+                    b.HasIndex("CaseId", "StepCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_case_steps_case_id_step_code");
+
+                    b.HasIndex("State", "HolderRole")
+                        .HasDatabaseName("ix_process_case_steps_state_holder_role_open")
+                        .HasFilter("state IN (2, 4)");
+
+                    b.ToTable("process_case_steps", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessGateOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<Guid?>("CaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("case_id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<string>("ConsumedOperation")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("consumed_operation");
+
+                    b.Property<Guid?>("EmploymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employment_id");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("ForUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("for_user_id");
+
+                    b.Property<string>("GateCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("gate_code");
+
+                    b.Property<DateTimeOffset>("GrantedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("granted_at");
+
+                    b.Property<Guid>("GrantedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("granted_by");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("StepCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("step_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_gate_overrides");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_process_gate_overrides_candidate_id");
+
+                    b.HasIndex("CaseId")
+                        .HasDatabaseName("ix_process_gate_overrides_case_id");
+
+                    b.HasIndex("EmploymentId")
+                        .HasDatabaseName("ix_process_gate_overrides_employment_id");
+
+                    b.HasIndex("ForUserId")
+                        .HasDatabaseName("ix_process_gate_overrides_for_user_id");
+
+                    b.HasIndex("GrantedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_process_gate_overrides_granted_at");
+
+                    b.HasIndex("GrantedBy")
+                        .HasDatabaseName("ix_process_gate_overrides_granted_by");
+
+                    b.HasIndex("GateCode", "ExpiresAt")
+                        .HasDatabaseName("ix_process_gate_overrides_gate_code_expires_at_unused")
+                        .HasFilter("consumed_at IS NULL");
+
+                    b.ToTable("process_gate_overrides", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessHoliday", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<short>("Kind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_holidays");
+
+                    b.HasIndex("Date")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_holidays_date");
+
+                    b.ToTable("process_holidays", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessStageBinding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BindingCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("binding_code");
+
+                    b.Property<Guid?>("PipelineStageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pipeline_stage_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_stage_bindings");
+
+                    b.HasIndex("BindingCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_stage_bindings_binding_code");
+
+                    b.HasIndex("PipelineStageId")
+                        .HasDatabaseName("ix_process_stage_bindings_pipeline_stage_id");
+
+                    b.ToTable("process_stage_bindings", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("source");
+
+                    b.Property<short>("SubjectKind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("subject_kind");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_templates");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_templates_code");
+
+                    b.ToTable("process_templates", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessTemplateVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("definition");
+
+                    b.Property<string>("DefinitionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("definition_sha256")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_process_template_versions");
+
+                    b.HasIndex("TemplateId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_process_template_versions_published")
+                        .HasFilter("status = 2");
+
+                    b.HasIndex("TemplateId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_template_versions_template_id_version");
+
+                    b.ToTable("process_template_versions", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.PublicApi.ApiKey", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6021,6 +6562,145 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_position_duties_positions_position_id");
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessCase", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_process_cases_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_employees_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employment", null)
+                        .WithMany()
+                        .HasForeignKey("EmploymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_employments_employment_id");
+
+                    b.HasOne("Bonvi.Domain.Processes.ProcessCase", null)
+                        .WithMany()
+                        .HasForeignKey("ParentCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_process_cases_parent_case_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Probation", null)
+                        .WithMany()
+                        .HasForeignKey("ProbationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_probations_probation_id");
+
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("StartedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_users_started_by");
+
+                    b.HasOne("Bonvi.Domain.Processes.ProcessTemplateVersion", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_process_cases_process_template_versions_template_version_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.VacancyRequest", null)
+                        .WithMany()
+                        .HasForeignKey("VacancyRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_cases_vacancy_requests_vacancy_request_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessCaseStep", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Processes.ProcessCase", null)
+                        .WithMany("Steps")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_process_case_steps_process_cases_case_id");
+
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("DoneBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_case_steps_users_done_by");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("HolderEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_case_steps_employees_holder_employee_id");
+
+                    b.HasOne("Bonvi.Domain.Blanks.BlankSubmission", null)
+                        .WithMany()
+                        .HasForeignKey("LinkedBlankSubmissionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_process_case_steps_blank_submissions_linked_blank_submissio");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessGateOverride", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_gate_overrides_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Processes.ProcessCase", null)
+                        .WithMany()
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_gate_overrides_process_cases_case_id");
+
+                    b.HasOne("Bonvi.Domain.Employees.Employment", null)
+                        .WithMany()
+                        .HasForeignKey("EmploymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_gate_overrides_employments_employment_id");
+
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ForUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_process_gate_overrides_users_for_user_id");
+
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("GrantedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_process_gate_overrides_users_granted_by");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessStageBinding", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.PipelineStage", null)
+                        .WithMany()
+                        .HasForeignKey("PipelineStageId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_process_stage_bindings_pipeline_stages_pipeline_stage_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessTemplateVersion", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Processes.ProcessTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_process_template_versions_process_templates_template_id");
+                });
+
             modelBuilder.Entity("Bonvi.Domain.PublicApi.ApiKey", b =>
                 {
                     b.HasOne("Bonvi.Domain.Organization.Department", null)
@@ -6185,6 +6865,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Bonvi.Domain.Organization.Position", b =>
                 {
                     b.Navigation("Duties");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Processes.ProcessCase", b =>
+                {
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.Candidate", b =>

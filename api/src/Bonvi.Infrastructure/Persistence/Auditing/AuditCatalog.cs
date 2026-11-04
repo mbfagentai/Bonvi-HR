@@ -10,6 +10,7 @@ using Bonvi.Domain.Identity;
 using Bonvi.Domain.Mcp;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Processes;
 using Bonvi.Domain.PublicApi;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
@@ -85,6 +86,7 @@ public static class AuditCatalog
     {
         SystemSettingKeys.AttendanceEmploymentChangesCheckedAt,
         SystemSettingKeys.AttendanceFrozenThrough,
+        SystemSettingKeys.ProcessesReconcileWatermark,
     };
 
     /// <summary>
@@ -363,6 +365,62 @@ public static class AuditCatalog
         Audit<BlankRoleAssignment>(AccessModuleKeys.Blanks)
             .Label(row => row.RoleCode)
             .Ref(AuditRefTarget.User, nameof(BlankRoleAssignment.UserId)),
+
+        // ---------- Jarayonlar — «Mening ishlarim» (SPEC-mening-ishlarim §14) ----------
+        // Fact-driven changes are NOT audited: the reconciler only derives them and the source change
+        // is audited where it happened. A case is written when it is created, cancelled or reopened;
+        // a step when a user closes or undoes it — `HasAuditedChange`, set by the aggregate.
+        // Parent identifiers (template, version, case, vacancy request, probation, parent case,
+        // linked blank / record) have no reference type and never change after they are set
+        // (the blanks pattern above); the process code and subject reference are in the label.
+        Audit<ProcessTemplate>(AccessModuleKeys.Processes).Label(row => row.Code + " — " + row.Title),
+
+        Audit<ProcessTemplateVersion>(AccessModuleKeys.Processes)
+            .Label(row => row.Version)
+            .Exclude(
+                nameof(ProcessTemplateVersion.TemplateId),
+                nameof(ProcessTemplateVersion.Definition),
+                nameof(ProcessTemplateVersion.DefinitionSha256)),
+
+        Audit<ProcessCase>(AccessModuleKeys.Processes)
+            .Subject(nameof(ProcessCase.EmployeeId))
+            .Label(row => row.ProcessCode + " — " + row.SubjectRef)
+            .Exclude(
+                nameof(ProcessCase.Version),
+                nameof(ProcessCase.TemplateVersionId),
+                nameof(ProcessCase.VacancyRequestId),
+                nameof(ProcessCase.ProbationId),
+                nameof(ProcessCase.ParentCaseId))
+            .Ref(AuditRefTarget.Employee, nameof(ProcessCase.EmployeeId))
+            .Ref(AuditRefTarget.Candidate, nameof(ProcessCase.CandidateId))
+            .Ref(AuditRefTarget.Employment, nameof(ProcessCase.EmploymentId))
+            .Ref(AuditRefTarget.Department, nameof(ProcessCase.DepartmentId))
+            .Ref(AuditRefTarget.User, nameof(ProcessCase.StartedBy))
+            .SkipWhen(row => !row.HasAuditedChange),
+
+        Audit<ProcessCaseStep>(AccessModuleKeys.Processes)
+            .Label(row => row.StepCode)
+            .Exclude(
+                nameof(ProcessCaseStep.CaseId),
+                nameof(ProcessCaseStep.LinkedBlankSubmissionId),
+                nameof(ProcessCaseStep.LinkedRecordId))
+            .Ref(AuditRefTarget.User, nameof(ProcessCaseStep.DoneBy))
+            .Ref(AuditRefTarget.Employee, nameof(ProcessCaseStep.HolderEmployeeId))
+            .SkipWhen(row => !row.HasAuditedChange),
+
+        Audit<ProcessGateOverride>(AccessModuleKeys.Processes)
+            .Label(row => row.GateCode)
+            .Exclude(nameof(ProcessGateOverride.CaseId))
+            .Ref(AuditRefTarget.User, nameof(ProcessGateOverride.GrantedBy), nameof(ProcessGateOverride.ForUserId))
+            .Ref(AuditRefTarget.Employment, nameof(ProcessGateOverride.EmploymentId))
+            .Ref(AuditRefTarget.Candidate, nameof(ProcessGateOverride.CandidateId)),
+
+        Audit<ProcessStageBinding>(AccessModuleKeys.Processes)
+            .Label(row => row.BindingCode)
+            .Ref(AuditRefTarget.PipelineStage, nameof(ProcessStageBinding.PipelineStageId)),
+
+        Audit<ProcessHoliday>(AccessModuleKeys.Processes)
+            .Label(row => row.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + " — " + row.Title),
 
         // ---------- Davomat (SPEC §14.5) ----------
         Audit<AbsenceRequest>(AccessModuleKeys.Attendance)

@@ -67,6 +67,15 @@ public static class PermissionCatalog
             full: [Permissions.BlanksManage],
             actions: [Permissions.BlanksApprove]),
 
+        // Jarayonlar (SPEC-mening-ishlarim §9.2): a gate override is a separate action — granted
+        // independently of running the cases.
+        Module(
+            AccessModuleKeys.Processes,
+            view: [Permissions.ProcessesView],
+            edit: [Permissions.ProcessesWork],
+            full: [Permissions.ProcessesManage],
+            actions: [Permissions.ProcessesOverride]),
+
         // Davomat (verifikatsiya) — SPEC-rollar-va-audit §14.2: «o'zgartirish» —
         // so'rovlar bo'yicha qaror (yo'qlik VA jadvalni o'zgartirish — bitta xodimning
         // bitta sanasi); «to'liq» — qurilma, jadval va moslik (tabelning MA'NOSINI

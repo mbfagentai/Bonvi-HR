@@ -815,6 +815,31 @@ public static class SystemSettingKeys
     /// <summary><see cref="HrMentorBlanksSource"/> qiymati: eski <c>/blanks</c> ro'yxati.</summary>
     public const string HrMentorBlanksFromLegacy = "legacy";
 
+    /// <summary>
+    /// Tashkent date (<c>yyyy-MM-dd</c>) the process engine went live (docs/SPEC-mening-ishlarim.md §6.6, §7.6).
+    /// Written once by the seeder; absent → the engine is dormant (no cases, gates off). Subjects whose
+    /// start fact is older become legacy cases.
+    /// </summary>
+    public const string ProcessesStartedOn = "processes.startedOn";
+
+    /// <summary>Gate kill switch (§6.6): <c>enforce</c>, <c>warn</c> (every block becomes a warning) or <c>off</c>.</summary>
+    public const string ProcessesGatesMode = "processes.gates.mode";
+
+    /// <summary><see cref="ProcessesGatesMode"/> value: gates block.</summary>
+    public const string ProcessesGatesEnforce = "enforce";
+
+    /// <summary>Allowed values of <see cref="ProcessesGatesMode"/>.</summary>
+    public const string ProcessesGatesModePattern = "^(enforce|warn|off)$";
+
+    /// <summary>ISO weekday (1 = Monday … 5 = Friday) of the hiring council — the <c>nextCouncilDay</c> due rule (§3.1).</summary>
+    public const string ProcessesCouncilWeekday = "processes.councilWeekday";
+
+    /// <summary>Default <see cref="ProcessesCouncilWeekday"/> — Thursday.</summary>
+    public const int DefaultProcessesCouncilWeekday = 4;
+
+    /// <summary>Time of the last reconciler pass (ISO 8601, «o») — diagnostics only, every pass is full (§7.4).</summary>
+    public const string ProcessesReconcileWatermark = "processes.reconcile.watermark";
+
     /// <summary>HRMentor API kalitining shakli: <c>hrm_</c> + 256 bit (43 belgi, URL-xavfsiz base64).</summary>
     public const string HrMentorApiKeyPattern = @"^hrm_[A-Za-z0-9_-]{43}$";
 
@@ -1139,6 +1164,20 @@ public static class SystemSettingKeys
             Min: 1,
             Max: 120),
 
+        // Jarayonlar (SPEC-mening-ishlarim §6.6).
+        new(
+            ProcessesGatesMode,
+            SystemSettingKind.Text,
+            ProcessesGatesEnforce,
+            MaxLength: 7,
+            Pattern: ProcessesGatesModePattern),
+        new(
+            ProcessesCouncilWeekday,
+            SystemSettingKind.Number,
+            Number(DefaultProcessesCouncilWeekday),
+            Min: 1,
+            Max: 5),
+
         // HRMentor ulanishi (SPEC-blankalar-hrmentor §2): manzil va faqat `forms:sync` kaliti.
         new(HrMentorBaseUrl, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: HrMentorUrlPattern),
         new(
@@ -1173,6 +1212,10 @@ public static class SystemSettingKeys
 
         // Blankalar manbai (SPEC-hujjat-manbai §2) — «platform» yoki «legacy».
         new(HrMentorBlanksSource, SystemSettingKind.Hidden, string.Empty, MaxLength: 10),
+
+        // Jarayonlar (SPEC-mening-ishlarim §6.6): «2026-11-04» — 10 belgi; oxirgi o'tish vaqti — 33 belgi.
+        new(ProcessesStartedOn, SystemSettingKind.Hidden, string.Empty, MaxLength: 10),
+        new(ProcessesReconcileWatermark, SystemSettingKind.Hidden, string.Empty, MaxLength: 40),
     ];
 
     /// <summary>

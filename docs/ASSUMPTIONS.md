@@ -1425,3 +1425,7 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-04] Mening ishlarim: AKT (empty F09 sections) → warning only → blocking would change the blank engine
 - [2026-11-04] Mening ishlarim: pipeline steps bind to stages → by owner-configured stage id (`process_stage_bindings`), never by name → stages are HR-editable
 - [2026-11-04] Mening ishlarim: F03 before or after council → after (prototype, owner 2026-11-01) → newer than INTAKE/R02
+- [2026-11-04] Mening ishlarim: key of `process_stage_bindings` / `process_holidays` → Guid `id` PK plus UNIQUE `binding_code` / `date` → audit coverage needs a single Guid key on every audited entity
+- [2026-11-04] Mening ishlarim: what Complete / Reopen do to open steps → Complete marks every open step Skipped(caseEnded), Reopen relocks every caseEnded step and the next pass recomputes it → one rule for both end paths (all steps closed, or an end fact), Reopen is its exact inverse
+- [2026-11-04] Mening ishlarim: where the reopen reason lives → in the reopen audit event, no column on `process_cases` → it is history only; `cancel_reason` is cleared on reopen
+- [2026-11-04] Mening ishlarim: error codes for a wrong case status and an unusable override → new `jarayon.holat_notogri` and `jarayon.istisno_yaroqsiz` (409) → distinct from `jarayon.qadam_holati_notogri` so the UI can say which one failed

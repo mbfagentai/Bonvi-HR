@@ -23,6 +23,7 @@ using Bonvi.Infrastructure.Identity;
 using Bonvi.Infrastructure.Persistence.Auditing;
 using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Persistence.Seed;
+using Bonvi.Infrastructure.Processes;
 using Bonvi.Infrastructure.Reports;
 using Bonvi.Infrastructure.Reports.Pdf;
 using Bonvi.Infrastructure.Security;
@@ -77,6 +78,7 @@ public static class DependencyInjection
         services.AddAttendanceServices();
         services.AddRecruitingServices();
         services.AddBlanksInfrastructure();
+        services.AddProcessesInfrastructure();
         services.AddNotificationServices();
         services.AddSettingsServices(configuration);
         services.AddPublicApiServices();

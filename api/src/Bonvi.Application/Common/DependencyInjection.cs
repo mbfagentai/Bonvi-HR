@@ -26,6 +26,7 @@ using Bonvi.Application.Identity.Users.Queries.ListUsers;
 using Bonvi.Application.Mcp;
 using Bonvi.Application.Me;
 using Bonvi.Application.Notifications;
+using Bonvi.Application.Processes;
 using Bonvi.Application.PublicApi;
 using Bonvi.Application.Recruiting;
 using Bonvi.Application.Reports.Queries;
@@ -230,6 +231,9 @@ public static class DependencyInjection
 
         // «Blankalar» — HR qog'oz blankalari onlayn (docs/SPEC-blankalar.md).
         services.AddBlanks();
+
+        // «Mening ishlarim» — process engine over the HR blanks (docs/SPEC-mening-ishlarim.md).
+        services.AddProcessesApplication();
 
         // Tizim sozlamalari — bot matni va bildirishnoma chegaralari.
         // Bildirishnomalardan OLDIN turadi, chunki yig'uvchi shu bo'limning
