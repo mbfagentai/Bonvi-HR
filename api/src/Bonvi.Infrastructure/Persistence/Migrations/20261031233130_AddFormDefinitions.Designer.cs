@@ -895,7 +895,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.ToTable("schedule_assignments", null, t =>
                         {
-                            t.HasCheckConstraint("ck_schedule_assignments_scope", "(scope = 1 AND employee_id IS NOT NULL AND position_id IS NULL AND department_id IS NULL) OR\r\n(scope = 2 AND position_id IS NOT NULL AND employee_id IS NULL AND department_id IS NULL) OR\r\n(scope = 3 AND department_id IS NOT NULL AND employee_id IS NULL AND position_id IS NULL) OR\r\n(scope = 4 AND employee_id IS NULL AND position_id IS NULL AND department_id IS NULL)");
+                            t.HasCheckConstraint("ck_schedule_assignments_scope", "(scope = 1 AND employee_id IS NOT NULL AND position_id IS NULL AND department_id IS NULL) OR\n(scope = 2 AND position_id IS NOT NULL AND employee_id IS NULL AND department_id IS NULL) OR\n(scope = 3 AND department_id IS NOT NULL AND employee_id IS NULL AND position_id IS NULL) OR\n(scope = 4 AND employee_id IS NULL AND position_id IS NULL AND department_id IS NULL)");
                         });
                 });
 
@@ -1275,7 +1275,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.ToTable("work_schedule_days", null, t =>
                         {
-                            t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\r\nOR (is_working\r\n    AND break_start IS NOT NULL\r\n    AND break_end IS NOT NULL\r\n    AND break_start <> break_end)");
+                            t.HasCheckConstraint("ck_work_schedule_days_break_window", "(break_start IS NULL AND break_end IS NULL)\nOR (is_working\n    AND break_start IS NOT NULL\n    AND break_end IS NOT NULL\n    AND break_start <> break_end)");
 
                             t.HasCheckConstraint("ck_work_schedule_days_flexible", "(NOT is_flexible AND required_minutes IS NULL) OR (is_flexible AND required_minutes IS NOT NULL AND required_minutes BETWEEN 1 AND 1440)");
                         });
