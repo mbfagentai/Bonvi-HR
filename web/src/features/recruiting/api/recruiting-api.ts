@@ -129,7 +129,7 @@ export const CANDIDATE_NOTE_KINDS = [
   'Withdrawn',
   'Reserved',
   'Blacklisted',
-  // Onlayn anketa F.I. + tug'ilgan sana bo'yicha qo'shilib, telefon anketadagisiga almashdi (2026-10-31)
+  // Online form matched by name + birth date; phone replaced by the form one (2026-10-31)
   'OtherPhone',
 ] as const
 export type CandidateNoteKind = (typeof CANDIDATE_NOTE_KINDS)[number]
