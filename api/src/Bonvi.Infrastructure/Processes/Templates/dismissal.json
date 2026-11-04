@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "code": "dismissal",
+  "version": "1.0",
+  "title": "Bo'shatish va ishlarni topshirish",
+  "source": "HR-R01, 2.4 + HR-R06, 4",
+  "subjectKind": "employment",
+  "board": [
+    {"key": "start", "title": "Ariza"},
+    {"key": "handover", "title": "Topshirish akti"},
+    {"key": "order", "title": "Buyruq"},
+    {"key": "settle", "title": "Hisob-kitob"}
+  ],
+  "steps": [
+    {
+      "id": "ex-1",
+      "title": "Ariza yoki asos hujjatni qabul qiling",
+      "column": "start",
+      "role": "hr2",
+      "signature": "D2",
+      "kind": "auto",
+      "completion": {"fact": "case.started"},
+      "guide": [
+        "Xodim tashabbusi bilan ketishda xodim ariza yozadi.",
+        "Korxona tashabbusida asos hujjat HR-1 tasdig'i bilan rasmiylashtiriladi (rahbar beradi).",
+        "Arizani olgan kuni «Jarayonlar → Bo'shatishni boshlash» bilan jarayonni oching va oxirgi ish kunini kiriting."
+      ],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 1-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "ex-2",
+      "title": "Topshirish aktini (HR-F09) oching",
+      "column": "handover",
+      "role": "hr3",
+      "blank": "HR-F09",
+      "kind": "fact",
+      "prereqs": ["ex-1"],
+      "due": {"from": "case.startedOn", "days": 0},
+      "completion": {"fact": "dis.f09Opened"},
+      "guide": ["Arizadan keyin shu kuni HR-F09 aktini oching va muddatini (oxirgi kundan 5 ish kuni oldin) yozing."],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 2-qadam; HR-R06, 4-bo'lim, 1-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F09", "subject": "employee"}}
+    },
+    {
+      "id": "ex-3",
+      "title": "Chiqish suhbatini o'tkazing va K-kodni belgilang (HR-F08)",
+      "column": "start",
+      "role": "hr4",
+      "blank": "HR-F08",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["ex-1"],
+      "due": {"from": "case.anchorDate", "days": 0},
+      "gate": {"code": "Q13", "mode": "block"},
+      "completion": {"fact": "dis.f08Approved"},
+      "guide": [
+        "Xodim bilan chiqish suhbatini o'tkazing va HR-F08 ni to'ldiring.",
+        "Asosiy sababni K01–K12 kodlaridan bittasi bilan belgilang; «o'z xohishi» — kod emas.",
+        "Qaytishga rozi bo'lsa, xodimni zaxira bazaga kiriting."
+      ],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 3-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F08", "subject": "employee"}}
+    },
+    {
+      "id": "ex-4",
+      "title": "Xodim va qabul qiluvchi aktni to'ldiradi",
+      "column": "handover",
+      "role": "subjectEmployee",
+      "fallbackRole": "hr3",
+      "blank": "HR-F09",
+      "kind": "fact",
+      "prereqs": ["ex-2"],
+      "due": {"from": "case.anchorDate", "workingDays": -5},
+      "gate": {"code": "AKT", "mode": "warn"},
+      "completion": {"fact": "dis.f09Step:handedOver", "args": {"allOf": ["dis.f09Step:received"]}},
+      "guide": [
+        "Oddiy ishchi (stanokchi, ishchi va h.k.) faqat qisqa aktni to'ldiradi: asbob-uskuna, ish kiyimi, kalit/propusk.",
+        "Topshiruvchi va qabul qiluvchi (zaxira, yangi xodim yoki rahbar) aktning 1–5 bo'limlarini lavozim pasportining 2–4 bo'limlari bo'yicha to'ldiradi.",
+        "Har fayl, kirish huquqi va kontakt qabul qiluvchi imzosi bilan topshiriladi.",
+        "Xodim aktni to'ldirishdan bosh tortsa — 2 guvoh bilan dalolatnoma (HR-F13, 3-qism) tuziladi.",
+        "Xodimning tizimga kirishi bo'lmasa, aktni HR planshetida u bilan birga imzolang."
+      ],
+      "sourceRef": "HR-R06, 4-bo'lim, 2-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F09", "subject": "employee"}}
+    },
+    {
+      "id": "ex-5",
+      "title": "Bo'lim rahbari aktni tekshiradi va imzolaydi",
+      "column": "handover",
+      "role": "departmentHead",
+      "fallbackRole": "hr3",
+      "blank": "HR-F09",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["ex-4"],
+      "due": {"from": "case.anchorDate", "workingDays": -5},
+      "gate": {"code": "AKT", "mode": "warn"},
+      "completion": {"fact": "dis.f09Step:signHead"},
+      "guide": ["Bo'lim rahbari aktni tekshiradi va imzolaydi."],
+      "sourceRef": "HR-R06, 4-bo'lim, 3-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F09", "subject": "employee"}}
+    },
+    {
+      "id": "ex-6",
+      "title": "Aktni tekshiring va tasdiqlang",
+      "column": "handover",
+      "role": "hr3",
+      "blank": "HR-F09",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["ex-5"],
+      "due": {"from": "case.anchorDate", "workingDays": -5},
+      "gate": {"code": "AKT", "mode": "warn"},
+      "completion": {"fact": "dis.f09Step:hr3Control"},
+      "guide": [
+        "Rahbar tasdiqlagan aktni ko'rib chiqing va «Tasdiqlayman» ni bosing — bu bir vaqtda «akt bor» belgisi bo'ladi.",
+        "Oddiy ishchida qisqa akt (asbob, ish kiyimi, kalit) yetarli; mutaxassis, rahbar va moddiy javobgarda to'liq akt.",
+        "Lavozim pasporti o'zgargan bo'lsa (aktning 6-bo'limi), o'zgarishlarni HR-1 ga bering."
+      ],
+      "sourceRef": "HR-R06, 4-bo'lim, 4-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F09", "subject": "employee"}}
+    },
+    {
+      "id": "ex-7",
+      "title": "«Akt bor» belgisi",
+      "column": "handover",
+      "role": "system",
+      "blank": "HR-F09",
+      "kind": "auto",
+      "prereqs": ["ex-6"],
+      "completion": {"fact": "dis.f09Approved"},
+      "guide": [
+        "Tizim o'zi bajaradi: HR-3 aktni tasdiqlashi — shu «akt bor» belgisi; HR-2 ga o'zi boradi.",
+        "Belgi bo'lmasa bo'shatish buyrug'i chiqmaydi (oxirgi kuni HR-1 istisno bilan ochishi mumkin)."
+      ],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 4-qadam; HR-R06, 4-bo'lim, 5-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F09", "subject": "employee"}}
+    },
+    {
+      "id": "ex-8",
+      "title": "Bo'shatish buyrug'ini imzolating va bo'shatishni «Buyruqlar» da yozing",
+      "column": "order",
+      "role": "hr2",
+      "signature": "D3",
+      "kind": "fact",
+      "prereqs": ["ex-7", "ex-3"],
+      "due": {"from": "case.anchorDate", "days": 0},
+      "gate": {"code": "Q12", "mode": "block"},
+      "completion": {"fact": "dis.terminated"},
+      "guide": [
+        "«Akt bor» belgisini tekshiring; belgisiz buyruq imzoga qo'yilmaydi.",
+        "Bo'shatish buyrug'ini tayyorlab imzolating, shaxsiy ishni yoping."
+      ],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 5-qadam",
+      "link": {"screen": "employment"}
+    },
+    {
+      "id": "ex-8b",
+      "title": "Xodimni mehnat.uz dan chiqaring",
+      "column": "order",
+      "role": "hr2",
+      "kind": "manual",
+      "prereqs": ["ex-8"],
+      "due": {"from": "employment.terminationDate", "workingDays": 3},
+      "gate": {"code": "Q05", "mode": "warn"},
+      "manual": {
+        "allowed": true,
+        "inputs": [{"id": "removedOn", "label": "mehnat.uz dan chiqarilgan sana", "type": "date", "required": true}]
+      },
+      "guide": ["Xodimni mehnat.uz dan chiqaring."],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 5-qadam",
+      "link": {"screen": "external", "args": {"url": "https://mehnat.uz"}}
+    },
+    {
+      "id": "ex-9",
+      "title": "Ketgan xodim ma'lumotini hisobchiga bering",
+      "column": "settle",
+      "role": "hr2",
+      "blank": "HR-F18",
+      "kind": "manual",
+      "prereqs": ["ex-8"],
+      "due": {"from": "employment.terminationDate", "days": 0},
+      "manual": {"allowed": true, "inputs": []},
+      "guide": [
+        "Xodim ketganlar ro'yxatiga o'zi tushadi (bo'shatish yozilgach).",
+        "Ish haqi hisobchisiga xabar bering; HR-F18 orqali topshirish keyinroq qo'shiladi."
+      ],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 6-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "ex-10",
+      "title": "Yakuniy hisob-kitobni qiling",
+      "column": "settle",
+      "role": "payrollAccountant",
+      "fallbackRole": "hr2",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["ex-8"],
+      "due": {"from": "employment.terminationDate", "days": 0},
+      "gate": {"code": "Q12", "mode": "block"},
+      "manual": {"allowed": true, "inputs": [{"id": "paidOn", "label": "Hisob-kitob sanasi", "type": "date", "required": true}]},
+      "guide": ["Yakuniy hisob-kitob faqat HR-2 buyrug'i va HR-3 «akt bor» belgisi bilan qilinadi."],
+      "sourceRef": "HR-R01, 2.4-bo'lim, 7-qadam; HR-R06, 4-bo'lim, 6-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "ex-11",
+      "title": "Aktni aktlar ro'yxatiga kiritish",
+      "column": "settle",
+      "role": "system",
+      "kind": "auto",
+      "prereqs": ["ex-7", "ex-8"],
+      "completion": {"fact": "dis.f09Approved", "args": {"allOf": ["dis.terminated"]}},
+      "guide": ["Tizim o'zi bajaradi: tugallangan akt aktlar ro'yxatiga kiritiladi."],
+      "sourceRef": "HR-R06, 4-bo'lim, 7-qadam",
+      "link": {"screen": "none"}
+    }
+  ]
+}

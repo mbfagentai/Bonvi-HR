@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "code": "hire-request",
+  "version": "1.0",
+  "title": "Bo'sh o'rin so'rovi",
+  "source": "HR-R02",
+  "subjectKind": "vacancyRequest",
+  "board": [
+    {"key": "request", "title": "So'rov"},
+    {"key": "approve", "title": "Tasdiq"},
+    {"key": "search", "title": "Qidiruv"},
+    {"key": "closed", "title": "Yopildi"}
+  ],
+  "steps": [
+    {
+      "id": "r02-1",
+      "title": "Bo'sh o'rin so'rovini yuboring",
+      "column": "request",
+      "role": "departmentHead",
+      "fallbackRole": "hr4",
+      "signature": "D1",
+      "kind": "fact",
+      "completion": {"fact": "vr.created"},
+      "guide": [
+        "Bo'lim rahbari «Vakansiya so'rovlari» orqali so'rov yuboradi: lavozim, o'rinlar soni, sabab va nomzodga talablar.",
+        "Tayyor so'rov HR-4 ga topshiriladi."
+      ],
+      "sourceRef": "HR-R02, 3-bo'lim, 1-qadam",
+      "link": {"screen": "vacancyRequests"}
+    },
+    {
+      "id": "r02-2",
+      "title": "So'rovni jurnalga kiritish",
+      "column": "request",
+      "role": "system",
+      "kind": "auto",
+      "prereqs": ["r02-1"],
+      "completion": {"fact": "vr.created"},
+      "guide": ["Tizim o'zi bajaradi: so'rovga raqam beradi, jurnalga yozadi va HR-1 ga yuboradi."],
+      "sourceRef": "HR-R02, 3-bo'lim, 2-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "r02-3",
+      "title": "So'rovni tasdiqlang yoki rad eting",
+      "column": "approve",
+      "role": "hr1",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["r02-2"],
+      "due": {"from": "case.startedOn", "workingDays": 2},
+      "completion": {"fact": "vr.decided", "args": {"equals": "approved"}},
+      "guide": [
+        "HR-1 so'rovni ko'rib chiqadi va tasdiqlaydi yoki rad etadi.",
+        "Yangi lavozim ochilsa, bosh buxgalter shtat jadvaliga mosligini tasdiqlaydi (hozircha tizimdan tashqarida)."
+      ],
+      "sourceRef": "HR-R02, 3-bo'lim, 3-qadam",
+      "link": {"screen": "vacancyRequests"}
+    },
+    {
+      "id": "r02-4",
+      "title": "Nomzod qidiring va e'lon joylang",
+      "column": "search",
+      "role": "hr4",
+      "kind": "fact",
+      "prereqs": ["r02-3"],
+      "due": {"from": "step:r02-3.doneOn", "workingDays": 1},
+      "completion": {"fact": "vr.firstCandidate"},
+      "manual": {"allowed": true, "inputs": [{"id": "channels", "label": "Qayerga joylandi", "type": "text", "required": true}]},
+      "guide": [
+        "Avval HR-X02 «Zaxira baza» varag'idagi tayyor nomzodlarni chaqiring.",
+        "E'lonni shablon (HR-X02, «E'lonlar») bo'yicha Telegram, ish saytlari, kollejlar va ichki tavsiya orqali joylang.",
+        "E'lon joylangan sana va manbalarni shu qadamda «Bajarildi» bilan yozing."
+      ],
+      "sourceRef": "HR-R02, 3-bo'lim, 4-qadam",
+      "link": {"screen": "vacancyRequests"}
+    },
+    {
+      "id": "r02-14",
+      "title": "So'rovni yopish",
+      "column": "closed",
+      "role": "system",
+      "kind": "auto",
+      "prereqs": ["r02-3"],
+      "completion": {"fact": "vr.filled"},
+      "guide": [
+        "Tizim o'zi bajaradi: xodim ishga chiqqan kuni so'rov yopiladi va necha kunda yopilgani hisoblanadi.",
+        "Me'yor: ishchi ≤ 14, mutaxassis ≤ 30, rahbar ≤ 60 kun."
+      ],
+      "sourceRef": "HR-R02, 3-bo'lim, 14-qadam",
+      "link": {"screen": "none"}
+    }
+  ]
+}

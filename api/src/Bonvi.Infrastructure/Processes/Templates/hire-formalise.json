@@ -1,0 +1,272 @@
+{
+  "schema": 1,
+  "code": "hire-formalise",
+  "version": "1.0",
+  "title": "Ishga qabulni rasmiylashtirish",
+  "source": "HR-R01, 2.1",
+  "subjectKind": "employment",
+  "board": [
+    {"key": "docs", "title": "Hujjatlar"},
+    {"key": "order", "title": "Shartnoma va buyruq"},
+    {"key": "firstDay", "title": "Birinchi kun"},
+    {"key": "after", "title": "Keyingi 5 kun"}
+  ],
+  "steps": [
+    {
+      "id": "r01-2",
+      "title": "Hujjatlar to'liqligini tekshiring (HR-F05, 2-qism)",
+      "column": "docs",
+      "role": "hr2",
+      "blank": "HR-F05",
+      "signature": "D1",
+      "kind": "fact",
+      "due": {"from": "case.anchorDate", "workingDays": -1},
+      "completion": {"fact": "cand.f05Step:docsHr2"},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {
+            "id": "docs",
+            "label": "Hujjatlar (HR-F05, 2-qism)",
+            "type": "checklist",
+            "required": true,
+            "options": [
+              {"value": "passport", "label": "Pasport yoki ID-karta"},
+              {"value": "pinfl", "label": "JSHSHIR (ПИНФЛ)"},
+              {"value": "diploma", "label": "Ma'lumot to'g'risidagi diplom / attestat"},
+              {"value": "certificates", "label": "Malaka sertifikatlari (payvandchi, elektrik, haydovchi va h.k.)"},
+              {"value": "workBook", "label": "Mehnat daftarchasi (qog'oz, bo'lsa) / elektron — mehnat.uz orqali"},
+              {"value": "military", "label": "Harbiy hisob hujjati (erkaklar)"},
+              {
+                "value": "medical",
+                "label": "Tibbiy ko'rik xulosasi (xavfli ishlab chiqarish va oziq-ovqat uchun majburiy)"
+              },
+              {"value": "photo", "label": "3×4 fotosurat — 2 dona"},
+              {"value": "application", "label": "Ariza (ishga qabul qilish to'g'risida)"},
+              {"value": "bankCard", "label": "Bank kartasi rekvizitlari (ish haqi uchun)"},
+              {
+                "value": "liability",
+                "label": "Moddiy javobgarlik shartnomasi (omborchi, kassir, inkassator, haydovchi-ekspeditor uchun)"
+              },
+              {"value": "councilMinutes", "label": "Kengash bayonnomasi nusxasi (HR-4 dan)"}
+            ]
+          }
+        ]
+      },
+      "guide": [
+        "HR-F05 ning 2-qismi bo'yicha har bir hujjatni tekshiring va «HR-2 belgisi» ustuniga belgi qo'ying.",
+        "Yetishmayotgan hujjat bo'lsa, uni nomini va topshirish muddatini yozing.",
+        "Hujjati to'liq bo'lmagan xodimni rasmiylashtirishni to'xtatib turishga haqlisiz (HR-1 ga xabar bilan)."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 2-qadam",
+      "link": {"screen": "blank", "args": {"template": "HR-F05", "subject": "candidate"}}
+    },
+    {
+      "id": "r01-3",
+      "title": "Mehnat shartnomasini tayyorlang va imzolating",
+      "column": "order",
+      "role": "hr2",
+      "signature": "D3",
+      "kind": "manual",
+      "prereqs": ["r01-2"],
+      "due": {"from": "case.anchorDate", "days": 0},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {"id": "contractNo", "label": "Shartnoma raqami", "type": "text"},
+          {
+            "id": "term",
+            "label": "Shartnoma muddati",
+            "type": "choice",
+            "required": true,
+            "options": [{"value": "permanent", "label": "muddatsiz"}, {"value": "fixed", "label": "muddatli"}]
+          },
+          {
+            "id": "basis",
+            "label": "Muddatli shartnoma asosi",
+            "type": "text",
+            "requiredWhen": {"input": "term", "equals": "fixed"}
+          }
+        ]
+      },
+      "guide": [
+        "HR-1 tasdiqlagan shablon bo'yicha mehnat shartnomasini tayyorlang.",
+        "Muddatsiz yoki muddatli ekanini belgilang (muddatli — asos bilan); sinov muddati 3 oy."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 3-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "r01-4",
+      "title": "Ishga qabul buyrug'ini direktorga imzolating",
+      "column": "order",
+      "role": "hr2",
+      "signature": "D3",
+      "kind": "fact",
+      "prereqs": ["r01-3"],
+      "due": {"from": "case.anchorDate", "days": 0},
+      "completion": {"fact": "emp.hireOrder"},
+      "manual": {"allowed": true, "inputs": [{"id": "orderNo", "label": "Buyruq raqami", "type": "text", "required": true}]},
+      "guide": ["Ishga qabul buyrug'ini tayyorlang va direktorga imzolating.", "Imzolangan buyruq bilan xodimni tanishtiring."],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 4-qadam",
+      "link": {"screen": "employment"}
+    },
+    {
+      "id": "r01-5",
+      "title": "Xodimlar ro'yxatiga (reestrga) kiritish",
+      "column": "order",
+      "role": "system",
+      "kind": "auto",
+      "completion": {"fact": "emp.hired"},
+      "guide": [
+        "Tizim o'zi bajaradi: ishga qabul «Buyruqlar» bo'limida yozilgach xodim ro'yxatga qo'shiladi.",
+        "Excel ro'yxat faqat avtomatik nusxa — qo'lda yozilmaydi."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 5-qadam",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "mm",
+      "title": "Mehnat muhofazasi yo'riqnomasini o'tkazing",
+      "column": "firstDay",
+      "role": "safetyEngineer",
+      "fallbackRole": "hr2",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["r01-5"],
+      "due": {"from": "employment.hireDate", "days": 0, "fallback": {"from": "case.anchorDate", "days": 0}},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {
+            "id": "topics",
+            "label": "Yo'riqnoma mavzulari",
+            "type": "checklist",
+            "required": true,
+            "options": [
+              {"value": "machine", "label": "stanok"},
+              {"value": "gas", "label": "gaz"},
+              {"value": "electricity", "label": "elektr"},
+              {"value": "fire", "label": "yong'in"}
+            ]
+          }
+        ]
+      },
+      "guide": [
+        "Yangi xodimga ish joyidagi xavfsizlik yo'riqnomasini o'tkazing (stanok, gaz, elektr, yong'in).",
+        "Yo'riqnoma o'tkazilganini shu yerda tasdiqlang: platformadagi yozuv qog'oz jurnal o'rnini bosadi.",
+        "Xodimning o'z tasdig'i (kod bilan) keyinroq qo'shiladi."
+      ],
+      "sourceRef": "HR-R01 3-bo'lim (taqiq), HR-F05 (ishga chiqish kuni), HR-R03 (1-kun); HR-01 1.5 (mazmuni — mehnat muhofazasi xizmatida)",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "r01-8a",
+      "title": "Xodimni davomat tizimiga kiriting (Face ID)",
+      "column": "firstDay",
+      "role": "hr3",
+      "kind": "fact",
+      "prereqs": ["r01-5"],
+      "due": {"from": "employment.hireDate", "days": 0},
+      "gate": {"code": "Q02", "mode": "warn"},
+      "completion": {"fact": "emp.attendance"},
+      "guide": [
+        "Xodim ishga chiqqan kuni uni davomat terminaliga qo'shing — yuz rasmi xodim kartasidagi rasmdan olinadi.",
+        "Birinchi kirishda terminal xodimni taniganini tekshiring; tanimasa, terminalda bir marta qayta rasmga oling.",
+        "Shaxsiy ishda hujjat yetishmasa ham kiritasiz: kunlari hisoblanib boradi, faqat oylik ro'yxati kutib turadi."
+      ],
+      "sourceRef": "HR-LY-3 (egasi qarori: davomatni HR-3 kiritadi, BonviHR Face ID)",
+      "link": {"screen": "attendanceMapping"}
+    },
+    {
+      "id": "r01-6",
+      "title": "Xodimni mehnat.uz ga kiriting",
+      "column": "after",
+      "role": "hr2",
+      "kind": "manual",
+      "prereqs": ["r01-4"],
+      "due": {"from": "employment.hireOrderDate", "workingDays": 3},
+      "gate": {"code": "Q05", "mode": "warn"},
+      "manual": {
+        "allowed": true,
+        "inputs": [{"id": "enteredOn", "label": "mehnat.uz ga kiritilgan sana", "type": "date", "required": true}]
+      },
+      "guide": [
+        "Xodimni elektron mehnat daftarchasiga — mehnat.uz ga kiriting.",
+        "Kiritilgan sanani F05 ning 3-qismida belgilang."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 6-qadam",
+      "link": {"screen": "external", "args": {"url": "https://mehnat.uz"}}
+    },
+    {
+      "id": "r01-7",
+      "title": "Shaxsiy ishni oching va to'liq yig'ing",
+      "column": "after",
+      "role": "hr2",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["r01-5"],
+      "due": {"from": "employment.hireDate", "workingDays": 5},
+      "gate": {"code": "Q06", "mode": "warn"},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {
+            "id": "items",
+            "label": "Shaxsiy ish hujjatlari",
+            "type": "checklist",
+            "required": true,
+            "options": [
+              {"value": "contract", "label": "Mehnat shartnomasi"},
+              {"value": "hireOrder", "label": "Ishga qabul buyrug'i"},
+              {"value": "formF02", "label": "Anketa HR-F02"},
+              {"value": "docCopies", "label": "Hujjat nusxalari (HR-F05, 2-qism)"},
+              {"value": "sheetF11", "label": "HR-F11 tanishuv varag'i"},
+              {"value": "medical", "label": "Tibbiy ko'rik xulosasi (tashxissiz)"},
+              {"value": "safetyMark", "label": "Mehnat muhofazasi belgisi"}
+            ]
+          }
+        ]
+      },
+      "guide": [
+        "Xodimga shaxsiy ish oching va majburiy ro'yxatni to'liq yig'ing: shartnoma, buyruq, anketa F02, hujjat nusxalari, F11 tanishuv varag'i, tibbiy ko'rik xulosasi.",
+        "Tibbiy ma'lumotdan faqat xulosa saqlanadi — tashxis saqlanmaydi."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 7-qadam",
+      "link": {"screen": "employee"}
+    },
+    {
+      "id": "r01-9",
+      "title": "Buyruq va oylik ma'lumotini hisobchiga bering",
+      "column": "firstDay",
+      "role": "hr2",
+      "blank": "HR-F18",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["r01-4"],
+      "due": {"from": "employment.hireOrderDate", "days": 0},
+      "gate": {"code": "Q03", "mode": "block"},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {
+            "id": "payment",
+            "label": "Ish haqi to'lovi",
+            "type": "choice",
+            "required": true,
+            "options": [
+              {"value": "card", "label": "Bank kartasi rekvizitlari berildi"},
+              {"value": "cash", "label": "Karta yo'q, naqd"}
+            ]
+          }
+        ]
+      },
+      "guide": [
+        "Ishga qabul buyrug'i nusxasini ish haqi hisobchisiga bering va shu qadamda karta yoki naqd ekanini belgilang.",
+        "Xodim ma'lumotlari to'liq bo'lmasa, u ish haqi ro'yxatiga kirmaydi."
+      ],
+      "sourceRef": "HR-R01, 2.1-bo'lim, 9-qadam",
+      "link": {"screen": "employee"}
+    }
+  ]
+}

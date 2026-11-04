@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "code": "probation",
+  "version": "1.0",
+  "title": "Moslashtirish va sinov muddati",
+  "source": "HR-R03",
+  "subjectKind": "employment",
+  "board": [
+    {"key": "start", "title": "Boshlanish"},
+    {"key": "d7", "title": "7–14 kun"},
+    {"key": "d30", "title": "30–60 kun"},
+    {"key": "final", "title": "Yakuniy baho"},
+    {"key": "decision", "title": "Qaror"}
+  ],
+  "steps": [
+    {
+      "id": "p03-0",
+      "title": "Ustoz tanlang va moslashtirish rejasini (HR-F06) oching",
+      "column": "start",
+      "role": "hr4",
+      "blank": "HR-F06",
+      "kind": "fact",
+      "due": {"from": "probation.startDate", "days": -1},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06"},
+      "legacySkippable": true,
+      "guide": [
+        "Ustozni bo'lim rahbari bilan birga tanlang: shu lavozimda kamida 1 yil ishlagan, jazosiz xodim.",
+        "Ish joyi va jihoz tayyorligini tekshiring.",
+        "HR-F06 ni oching va ustozni belgilang — ustozsiz yangi xodim ishlamaydi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 0-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-1",
+      "title": "HR-F06 ni xodim, ustoz va rahbarga imzolating",
+      "column": "start",
+      "role": "hr4",
+      "blank": "HR-F06",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-0"],
+      "due": {"from": "probation.startDate", "days": 0},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06Group1"},
+      "legacySkippable": true,
+      "guide": [
+        "Birinchi kuni rejani xodim, ustoz, bo'lim rahbari va siz imzolaysiz (planshetda yoki tizimda).",
+        "Ustoz birinchi 30 kun har kuni kamida 15 daqiqa xodim bilan ishlaydi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 1-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-7",
+      "title": "7-kun testini o'tkazing (kamida 70%)",
+      "column": "d7",
+      "role": "hr4",
+      "blank": "HR-F06",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-1"],
+      "due": {"from": "probation.startDate", "days": 7},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06Step:day7", "args": {"valueField": "day7Pass"}},
+      "legacySkippable": true,
+      "guide": [
+        "7-kun testini o'tkazing; o'tish chegarasi — 70%.",
+        "Natijani HR-F06 ning 7-kun bo'limiga yozing.",
+        "7-kun testisiz xodim 8-kunga o'tmaydi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 7-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-14",
+      "title": "14-kunda qayta test o'tkazing",
+      "column": "d7",
+      "role": "hr4",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["p03-7"],
+      "when": {"fact": "prob.f06Step:day7", "equals": false},
+      "due": {"from": "probation.startDate", "days": 14},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "manual": {
+        "allowed": true,
+        "inputs": [{"id": "percent", "label": "Qayta test natijasi, %", "type": "int", "required": true, "min": 0, "max": 100}]
+      },
+      "legacySkippable": true,
+      "guide": [
+        "7-kun testidan o'tmagan xodim 14-kunda qayta topshiradi.",
+        "Ikkinchi marta ham o'tmasa — natija HR-1 ga boradi (88-kun qarorida ko'rinadi)."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 14-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-30",
+      "title": "30-kun suhbatini o'tkazing",
+      "column": "d30",
+      "role": "departmentHead",
+      "fallbackRole": "hr4",
+      "blank": "HR-F06",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-7"],
+      "due": {"from": "probation.startDate", "days": 30},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06Step:day30"},
+      "legacySkippable": true,
+      "guide": [
+        "Bo'lim rahbari 30-kun suhbatini o'tkazadi: davom / o'qitish / to'xtatish.",
+        "Natija HR-F06 ning 30-kun bo'limiga yoziladi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 30-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-60",
+      "title": "60-kun suhbatini o'tkazing va 1–5 baho qo'ying",
+      "column": "d30",
+      "role": "departmentHead",
+      "fallbackRole": "hr4",
+      "blank": "HR-F06",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-30"],
+      "due": {"from": "probation.startDate", "days": 60},
+      "skipIfDueOnOrAfter": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06Step:day60"},
+      "legacySkippable": true,
+      "guide": ["Bo'lim rahbari 60-kun suhbatini o'tkazadi va 1–5 baho qo'yadi."],
+      "sourceRef": "HR-R03, 3-bo'lim, 60-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F06", "subject": "employee"}}
+    },
+    {
+      "id": "p03-85",
+      "title": "85-kun testi va yakuniy baho (HR-F07)",
+      "column": "final",
+      "role": "hr4",
+      "blank": "HR-F07",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-60"],
+      "due": {"from": "probation.endDate", "days": -5},
+      "completion": {"fact": "prob.f06Step:day85", "args": {"allOf": ["prob.f07Submitted"]}},
+      "guide": [
+        "85-kun testini (nazariy + amaliy) o'tkazing va HR-F06 ning 85-kun bo'limini to'ldiring.",
+        "Bo'lim rahbari va ustoz HR-F07 yakuniy bahosini to'ldiradi; xodim natija bilan tanishadi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 85-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F07", "subject": "employee"}}
+    },
+    {
+      "id": "p03-88",
+      "title": "Sinov natijasi bo'yicha qaror qiling",
+      "column": "decision",
+      "role": "hr1",
+      "blank": "HR-F07",
+      "signature": "D1",
+      "kind": "fact",
+      "prereqs": ["p03-85"],
+      "due": {"from": "probation.endDate", "days": -2},
+      "completion": {"fact": "prob.f07Step:hr1Decision"},
+      "guide": [
+        "HR-1 HR-F07 da qaror qabul qiladi.",
+        "O'tmasa — yuristga (ogohlantirish muddati). Natijani xodimga tanishtirmasdan qaror qabul qilinmaydi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 88-kun",
+      "link": {"screen": "blank", "args": {"template": "HR-F07", "subject": "employee"}}
+    },
+    {
+      "id": "p03-90",
+      "title": "Sinov yakuni bo'yicha buyruq va natijani «Sinov» bo'limida yozing",
+      "column": "decision",
+      "role": "hr2",
+      "signature": "D3",
+      "kind": "fact",
+      "prereqs": ["p03-88"],
+      "due": {"from": "probation.endDate", "days": 0},
+      "completion": {"fact": "prob.resolved"},
+      "guide": [
+        "HR-2 sinov yakuni bo'yicha buyruq tayyorlaydi (yoki qonun tartibida shartnoma bekor qilinadi).",
+        "Natijani «Sinov» bo'limida yozing — sinov o'zi «o'tdi» bo'lmaydi."
+      ],
+      "sourceRef": "HR-R03, 3-bo'lim, 90-kun",
+      "link": {"screen": "probations"}
+    }
+  ]
+}

@@ -46,6 +46,7 @@
   -->
   <ItemGroup>
     <EmbeddedResource Include="Blanks/Templates/*.json" />
+    <EmbeddedResource Include="Processes/Templates/*.json" />
   </ItemGroup>
 
   <ItemGroup>
