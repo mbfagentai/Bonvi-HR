@@ -243,13 +243,13 @@ public sealed class ProcessTemplatesTests
                 new ProcessDueRule(ProcessAnchors.StepDoneOn("r02-11"), ProcessDueKind.WorkingDays, 3)));
 
     [Fact]
-    public void Auto_steps_are_held_by_the_system_except_ex_1()
+    public void Auto_steps_are_held_by_the_system()
     {
-        // §3.7 table gives ex-1 (auto, «case started») role hr2 — the person who took the application
+        // §3.1: an auto step is never a task; its holder is «Tizim» (ex-1 included, decided 2026-11-04)
         var auto = Codes.SelectMany(code => Load(code).Steps).Where(step => step.Kind == ProcessStepKind.Auto).ToList();
 
         auto.Select(step => step.Id).ShouldBe(["r02-2", "r02-14", "r01-5", "ex-1", "ex-7", "ex-11"], ignoreOrder: true);
-        auto.Where(step => step.Id != "ex-1").ShouldAllBe(step => step.Role == ProcessRoles.System);
+        auto.ShouldAllBe(step => step.Role == ProcessRoles.System);
         auto.Single(step => step.Id == "ex-1").Completion!.Fact.ShouldBe(ProcessFactNames.CaseStarted);
     }
 }

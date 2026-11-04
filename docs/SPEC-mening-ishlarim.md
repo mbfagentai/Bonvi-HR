@@ -237,7 +237,7 @@ p03-90 «HR-2 sinov yakuni bo'yicha buyruq tayyorlaydi (yoki qonun tartibida sha
 `case.anchorDate` = last working day: manual start input `lastWorkDay` > F08 `answers.leaveDate` > `employments.termination_date`.
 | Id | Title | Role | Blank / record | Sig | Kind | Prereqs | Due | Gate | Closes when (fact) | Link |
 |---|---|---|---|---|---|---|---|---|---|---|
-| ex-1 | «Ariza yoki asos hujjatni qabul qiling» | hr2 | — (paper) | D2→paper | auto | — | — | — | case started (manual start = the application record; starters (b)/(c) imply it) | none |
+| ex-1 | «Ariza yoki asos hujjatni qabul qiling» | system | — (paper) | D2→paper | auto | — | — | — | case started (manual start = the application record; starters (b)/(c) imply it) | none |
 | ex-2 | «Topshirish aktini (HR-F09) oching» | hr3 | HR-F09 | — | fact | ex-1 | `case.startedOn` | — | `dis.f09Opened` | blank `{HR-F09, employee}` |
 | ex-3 | «Chiqish suhbatini o'tkazing va K-kodni belgilang (HR-F08)» | hr4 | HR-F08 | D1 | fact | ex-1 | `case.anchorDate` | **Q13 block** (hook) | `dis.f08Approved` | blank `{HR-F08, employee}` |
 | ex-4 | «Xodim va qabul qiluvchi aktni to'ldiradi» | subjectEmployee (fallback hr3) | HR-F09 | in person | fact | ex-2 | `case.anchorDate` −5 wd | AKT warn | `dis.f09Step:handedOver` AND `dis.f09Step:received` | blank (the F09) |

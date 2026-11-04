@@ -16,7 +16,7 @@
       "id": "ex-1",
       "title": "Ariza yoki asos hujjatni qabul qiling",
       "column": "start",
-      "role": "hr2",
+      "role": "system",
       "signature": "D2",
       "kind": "auto",
       "completion": {"fact": "case.started"},
