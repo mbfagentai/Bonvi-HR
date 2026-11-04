@@ -31,6 +31,12 @@ public static class BlankActorRoles
     public const string Director = "director";
     public const string Lawyer = "lawyer";
 
+    /// <summary>Occupational safety engineer — safety briefing steps (docs/SPEC-mening-ishlarim.md §9.1).</summary>
+    public const string SafetyEngineer = "safetyEngineer";
+
+    /// <summary>Hiring council (members assigned in «Rollar») — the chair step of HR-F04 (docs/SPEC-mening-ishlarim.md §9.1).</summary>
+    public const string Council = "council";
+
     /// <summary>Blankaning sub'yekti — xodimning o'zi.</summary>
     public const string SubjectEmployee = "subjectEmployee";
 
@@ -50,6 +56,7 @@ public static class BlankActorRoles
     public static IReadOnlyList<string> OfficeRoles { get; } =
     [
         Hr1, Hr2, Hr3, Hr4, Hr5, Hr8, PayrollAccountant, ChiefAccountant, Director, Lawyer,
+        SafetyEngineer, Council,
     ];
 
     /// <summary>Lavozim roli (biriktiriladigan) mi.</summary>

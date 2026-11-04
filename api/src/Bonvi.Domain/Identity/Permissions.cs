@@ -238,6 +238,23 @@ public static class Permissions
     /// <summary>Lavozim rollari qadamlarini elektron imzolash, qaytarish, rad etish (amal).</summary>
     public const string BlanksApprove = "blanks.approve";
 
+    // ---------- Jarayonlar — «Mening ishlarim» (docs/SPEC-mening-ishlarim.md §9.2) ----------
+
+    /// <summary>The three tabs (own tasks, board, «Kim kechikdi»), case detail and the MCP read tools.</summary>
+    public const string ProcessesView = "processes.view";
+
+    /// <summary>
+    /// Manual «Bajarildi», «Kerak emas» (skippable / legacy), undo of one's own manual step within 24 h,
+    /// starting a dismissal case; the user lands on «Mening ishlarim» after login.
+    /// </summary>
+    public const string ProcessesWork = "processes.work";
+
+    /// <summary>Cancel / reopen cases, stage bindings, holidays, act on any manual step, process settings.</summary>
+    public const string ProcessesManage = "processes.manage";
+
+    /// <summary>Gate overrides (action) — together with the hr1 assignment rule (§8.4).</summary>
+    public const string ProcessesOverride = "processes.override";
+
     // ---------- Davomat (verifikatsiya) ----------
 
     /// <summary>
@@ -407,6 +424,7 @@ public static class Permissions
         SafetyView, SafetyManage,
         RecruitingView, RecruitingManage,
         BlanksView, BlanksFill, BlanksManage, BlanksApprove,
+        ProcessesView, ProcessesWork, ProcessesManage, ProcessesOverride,
         AttendanceView, AttendanceManage, AttendanceRequestsManage,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
@@ -635,6 +653,10 @@ public static class SystemRoles
                 // Blankalar (SPEC-blankalar §6.3): HR to'ldiradi va imzolaydi; rollarni
                 // biriktirish va boshqaning blankasini bekor qilish (`blanks.manage`) — egasi beradi.
                 Permissions.BlanksView, Permissions.BlanksFill, Permissions.BlanksApprove,
+
+                // Jarayonlar (SPEC-mening-ishlarim §9.2): HR runs the cases; gate overrides
+                // (`processes.override`) are the owner's to grant.
+                Permissions.ProcessesView, Permissions.ProcessesWork, Permissions.ProcessesManage,
 
                 /*
                   Davomat IKKALA ruxsati ham HR menejerida — ataylab

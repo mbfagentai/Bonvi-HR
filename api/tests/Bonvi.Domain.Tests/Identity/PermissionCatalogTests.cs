@@ -133,10 +133,18 @@ public sealed class PermissionCatalogTests
             [Permissions.BlanksView, Permissions.BlanksFill, Permissions.BlanksManage]);
         blankalar.Actions.ShouldBe([Permissions.BlanksApprove]);
 
+        var jarayonlar = Bolim("processes");
+        jarayonlar.Levels.Select(level => level.Key).ShouldBe([PermissionCatalog.View, PermissionCatalog.Edit, PermissionCatalog.Full]);
+        Daraja(jarayonlar, PermissionCatalog.View).ShouldBe([Permissions.ProcessesView]);
+        Daraja(jarayonlar, PermissionCatalog.Edit).ShouldBe([Permissions.ProcessesView, Permissions.ProcessesWork]);
+        Daraja(jarayonlar, PermissionCatalog.Full).ShouldBe(
+            [Permissions.ProcessesView, Permissions.ProcessesWork, Permissions.ProcessesManage]);
+        jarayonlar.Actions.ShouldBe([Permissions.ProcessesOverride]);
+
         PermissionCatalog.Modules.Select(module => module.Key).ShouldBe(
         [
             "employees", "employment", "lists", "incentives", "feedback", "safety",
-            "recruiting", "blanks", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
+            "recruiting", "blanks", "processes", "attendance", "catalog", "reports", "users", "roles", "audit", "settings",
         ]);
 
         PermissionCatalog.Extras.ShouldBe(

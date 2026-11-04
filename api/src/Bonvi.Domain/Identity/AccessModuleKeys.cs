@@ -27,6 +27,7 @@ public static class AccessModuleKeys
     public const string Safety = "safety";
     public const string Recruiting = "recruiting";
     public const string Blanks = "blanks";
+    public const string Processes = "processes";
     public const string Attendance = "attendance";
     public const string Catalog = "catalog";
     public const string Reports = "reports";
@@ -39,6 +40,6 @@ public static class AccessModuleKeys
     public static IReadOnlyList<string> All { get; } =
     [
         Employees, Employment, Lists, Incentives, Feedback, Safety, Recruiting, Blanks,
-        Attendance, Catalog, Reports, Users, Roles, Audit, Settings,
+        Processes, Attendance, Catalog, Reports, Users, Roles, Audit, Settings,
     ];
 }

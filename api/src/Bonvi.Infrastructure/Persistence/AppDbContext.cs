@@ -12,6 +12,7 @@ using Bonvi.Domain.Identity;
 using Bonvi.Domain.Mcp;
 using Bonvi.Domain.Notifications;
 using Bonvi.Domain.Organization;
+using Bonvi.Domain.Processes;
 using Bonvi.Domain.PublicApi;
 using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Safety;
@@ -322,6 +323,31 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Blanka raqamlari hisoblagichi (<c>blank_number_counters</c>).</summary>
     public DbSet<BlankNumberCounter> BlankNumberCounters => Set<BlankNumberCounter>();
+
+    // ────────────────────────────────────────────────────────────
+    //  Jarayonlar — «Mening ishlarim» (docs/SPEC-mening-ishlarim.md §6)
+    // ────────────────────────────────────────────────────────────
+
+    /// <summary>Process templates (<c>process_templates</c>).</summary>
+    public DbSet<ProcessTemplate> ProcessTemplates => Set<ProcessTemplate>();
+
+    /// <summary>Template versions — JSON definition (<c>process_template_versions</c>).</summary>
+    public DbSet<ProcessTemplateVersion> ProcessTemplateVersions => Set<ProcessTemplateVersion>();
+
+    /// <summary>Process cases (<c>process_cases</c>).</summary>
+    public DbSet<ProcessCase> ProcessCases => Set<ProcessCase>();
+
+    /// <summary>Case steps (<c>process_case_steps</c>) — written only through the case aggregate.</summary>
+    public DbSet<ProcessCaseStep> ProcessCaseSteps => Set<ProcessCaseStep>();
+
+    /// <summary>Gate overrides (<c>process_gate_overrides</c>).</summary>
+    public DbSet<ProcessGateOverride> ProcessGateOverrides => Set<ProcessGateOverride>();
+
+    /// <summary>Pipeline stage bindings (<c>process_stage_bindings</c>).</summary>
+    public DbSet<ProcessStageBinding> ProcessStageBindings => Set<ProcessStageBinding>();
+
+    /// <summary>Working-day calendar (<c>process_holidays</c>).</summary>
+    public DbSet<ProcessHoliday> ProcessHolidays => Set<ProcessHoliday>();
 
     // ────────────────────────────────────────────────────────────
     //  DAVOMAT / VERIFIKATSIYA (3-bosqich)

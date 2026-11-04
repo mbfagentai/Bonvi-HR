@@ -70,6 +70,7 @@ public static class ApiKeyScopes
         Identity.Permissions.SafetyView,
         Identity.Permissions.RecruitingView,
         Identity.Permissions.BlanksView,
+        Identity.Permissions.ProcessesView,
         Identity.Permissions.AttendanceView,
         Identity.Permissions.CatalogView,
     ];

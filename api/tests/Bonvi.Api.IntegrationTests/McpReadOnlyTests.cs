@@ -44,6 +44,10 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         // SPEC-blankalar §11: fayl kaliti/nomi va imzo kaliti naqsh bilan yopiq.
         "blank_attachments", "blank_role_assignments", "blank_submission_steps", "blank_submissions",
         "blank_template_versions", "blank_templates",
+
+        // SPEC-mening-ishlarim §12: the process_* tables for the MCP read tools.
+        "process_case_steps", "process_cases", "process_gate_overrides", "process_holidays",
+        "process_stage_bindings", "process_template_versions", "process_templates",
     ];
 
     /// <summary>§4 — faqat ustun darajasida ochiq jadvallar va ULARDA YOPIQ bo'lishi shart ustunlar.</summary>
