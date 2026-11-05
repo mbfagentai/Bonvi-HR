@@ -450,7 +450,8 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
     public async Task An_override_on_Q03_lifts_the_jshshir_block_but_not_the_payment()
     {
         var (_, processCase) = await FormaliseAsync(withPinfl: false);
-        using var grantor = await ClientAsync(Permissions.ProcessesView, Permissions.ProcessesOverride);
+        await ClearRolesAsync();
+        using var grantor = await ClientAsync(Permissions.ProcessesOverride, Permissions.ProcessesManage); // §8.4: nobody holds hr1, so manage decides.
         var grant = await PostAsync(grantor, $"{Root}/cases/{processCase.Id}/gates/{ProcessGateCodes.Q03}/override", new { reason = "Rahbar yozma ruxsat berdi" });
         grant.Status.ShouldNotBe(HttpStatusCode.BadRequest, grant.Raw);
         ((int)grant.Status).ShouldBeLessThan(300, grant.Raw);
