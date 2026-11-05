@@ -124,7 +124,6 @@ export interface EmploymentSummary {
   salary: MoneyValue | null
   hireOrderNo: string | null
   /** The import's question about this job; saving its hire record in the labour history answers it. */
-  needsReview: boolean
   reviewNote: string | null
   hireOrderDate: string | null
   terminationDate: string | null
@@ -855,7 +854,6 @@ function toEmployment(raw: unknown): EmploymentSummary {
     isPrimary: bool(box['isPrimary']),
     salary: money(box['salary']),
     hireOrderNo: text(box['hireOrderNo']),
-    needsReview: bool(box['needsReview']),
     reviewNote: text(box['reviewNote']),
     hireOrderDate: text(box['hireOrderDate']),
     terminationDate: text(box['terminationDate']),
