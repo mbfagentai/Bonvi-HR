@@ -87,14 +87,15 @@ export function ProcessLegacyBadge() {
   return <Badge tone="neutral">{t('processes.legacy')}</Badge>
 }
 
-/** Code plus short title («HR-F06 · Ishga qabul»); nothing for a step without a blank. */
+/** Short title plus the code in small type («Ishga qabul HR-F06»); nothing for a step without a blank. */
 export function ProcessBlankChip({ code, title }: { code: string | null; title: string | null }) {
   if (code === null) return null
 
   return (
-    <Badge tone="info">
+    <Badge tone="neutral">
       <FileText aria-hidden className="size-3" />
-      {title === null ? code : `${code} · ${title}`}
+      {title}
+      <span className="font-mono text-caption2 text-[var(--fg-tertiary)]">{code}</span>
     </Badge>
   )
 }

@@ -4049,6 +4049,43 @@
       "Q06": "Muddat o‘tdi yoki ro‘yxat to‘liq emas",
       "AKT": "Topshirish akti bo‘sh"
     },
+    "my": {
+      "today": "Bugun: {{date}}",
+      "summary": "{{n}} ta ish, {{k}} tasi kechikkan",
+      "summaryNoLate": "{{n}} ta ish",
+      "emptyTitle": "Hozir sizda ochiq ish yo‘q",
+      "emptyText": "Sizga yangi ish tushishi bilan shu yerda ko‘rinadi.",
+      "urgentEmpty": "Bugunga va kechikkan ish yo‘q",
+      "open": "Ochish",
+      "holder": "Bajaradi",
+      "resolver": "Hal qiladi",
+      "sections": {
+        "urgent": "Bugun va kechikkan",
+        "later": "Keyinroq",
+        "held": "To‘xtatilgan — boshqasi hal qilishi kerak",
+        "waiting": "Kutilmoqda — avval boshqalar bajarishi kerak",
+        "tartib": "Tartib"
+      },
+      "link": {
+        "blank": "Blankani ochish",
+        "screen": "Bo‘limga o‘tish",
+        "external": "Havolani ochish"
+      },
+      "tartib": {
+        "unmatchedTerminalPersons": {
+          "title": "Terminalda moslashtirilmaganlar",
+          "text": "{{n}} kishi hali xodimga bog‘lanmagan"
+        },
+        "employeesWithoutPhoto": {
+          "title": "Rasmsiz xodimlar",
+          "text": "{{n}} nafar faol xodimning rasmi yo‘q"
+        },
+        "employeesWithoutSchedule": {
+          "title": "Jadvalsiz xodimlar",
+          "text": "{{n}} nafar faol xodimga ish jadvali biriktirilmagan"
+        }
+      }
+    },
     "roles": {
       "system": "Tizim",
       "hr1": "HR-1",
