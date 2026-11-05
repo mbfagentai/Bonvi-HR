@@ -131,7 +131,7 @@ export function ProcessTaskCard({
             <p className="mt-1 text-subhead text-[var(--fg-secondary)]">{subjectLine}</p>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 [&>*]:h-7 [&>*]:max-w-full [&>*]:px-3 [&>*]:text-footnote">
+          <div className="mt-3 flex flex-wrap items-center gap-2 [&>*]:h-auto [&>*]:min-h-7 [&>*]:py-0.5 [&>*]:max-w-full [&>*]:px-3 [&>*]:text-footnote">
             <Badge
               tone={task.holder.unassigned ? 'warning' : 'brand'}
               title={t('processes.my.holder')}

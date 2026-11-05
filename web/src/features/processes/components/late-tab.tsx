@@ -234,7 +234,7 @@ export function LateTab() {
 
       <Card className="overflow-hidden rounded-lg">
         <CardHeader
-          className="px-5 pb-3"
+          className="flex-wrap px-5 pb-3"
           title={t('processes.late.overridesTitle')}
           subtitle={t('processes.late.overridesHint')}
           action={

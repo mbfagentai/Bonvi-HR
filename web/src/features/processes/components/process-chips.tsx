@@ -135,8 +135,8 @@ export function ProcessWarningChips({ codes }: { codes: readonly string[] }) {
   return (
     <>
       {codes.map((code) => (
-        <Badge key={code} tone="warning">
-          <TriangleAlert aria-hidden className="size-3" />
+        <Badge key={code} tone="warning" className="h-auto min-h-6 max-w-full py-0.5 whitespace-normal">
+          <TriangleAlert aria-hidden className="size-3 shrink-0" />
           {t(`processes.warnings.${code}`, { defaultValue: code })}
         </Badge>
       ))}

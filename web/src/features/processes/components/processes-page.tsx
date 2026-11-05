@@ -44,7 +44,7 @@ function ProcessTabs({
     <div
       role="tablist"
       aria-label={t('processes.tabs.label')}
-      className="flex w-full gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-card sm:w-fit"
+      className="flex w-full flex-wrap gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-card sm:w-fit"
     >
       {tabs.map((tab) => {
         const selected = tab.value === value
