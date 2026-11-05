@@ -59,6 +59,9 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         ["attendance_passes"] = ["photo_key", "raw_event", "raw_person_id", "dedupe_key"],
         ["attendance_devices"] = [],
         ["users"] = ["login", "password_hash"],
+
+        // SPEC-mening-ishlarim §12: only the title, for a hire-request case's subject name.
+        ["vacancy_requests"] = ["note", "decision_note", "requested_by_employee_id", "decided_by", "created_by"],
     };
 
     /// <summary>Rol yozishga urinadigan buyruqlar — hammasi rad etilishi shart.</summary>
@@ -91,6 +94,8 @@ public sealed class McpReadOnlyTests : IClassFixture<McpHost>
         "SELECT login FROM users LIMIT 1",
         "SELECT password_hash FROM users LIMIT 1",
         "SELECT * FROM users LIMIT 1",
+        "SELECT * FROM vacancy_requests LIMIT 1",
+        "SELECT note FROM vacancy_requests LIMIT 1",
         "SELECT * FROM system_settings LIMIT 1",
         "SELECT * FROM audit_logs LIMIT 1",
         "SELECT * FROM api_keys LIMIT 1",

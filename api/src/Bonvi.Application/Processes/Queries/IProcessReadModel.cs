@@ -64,7 +64,11 @@ public sealed record ProcessCaseFilter(
     string? Search,
     DateOnly Today,
     int Page,
-    int PageSize);
+    int PageSize)
+{
+    /// <summary>Any of these departments; the MCP tools filter a department with its branch (§12).</summary>
+    public IReadOnlyCollection<Guid>? DepartmentIds { get; init; }
+}
 
 public sealed record ProcessCasePage(IReadOnlyList<ProcessCaseRow> Items, int Total);
 
