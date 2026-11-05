@@ -30,6 +30,9 @@ public sealed class McpToolsTests : IClassFixture<McpHost>
 
         // docs/SPEC-blankalar.md §11.
         "blank_templates", "blanks", "blank", "blank_gaps",
+
+        // docs/SPEC-mening-ishlarim.md §12.
+        "process_cases", "process_case", "process_stuck",
     ];
 
     private readonly McpHost _host;

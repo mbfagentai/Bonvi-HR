@@ -161,6 +161,11 @@ public sealed class ProcessReadModel : IProcessReadModel
             query = query.Where(row => row.DepartmentId == department);
         }
 
+        if (filter.DepartmentIds is { } departments)
+        {
+            query = query.Where(row => row.DepartmentId != null && departments.Contains(row.DepartmentId.Value));
+        }
+
         if (filter.EmployeeId is { } employee)
         {
             query = query.Where(row => row.EmployeeId == employee);
