@@ -141,6 +141,54 @@ public sealed class CandidateRepository : Repository<Candidate>, ICandidateRepos
     public CandidateRepository(AppDbContext context) : base(context) { }
 
     /// <inheritdoc />
+    public async Task<Candidate?> FindByTelegramLinkTokenAsync(
+        string token,
+        CancellationToken cancellationToken = default)
+        => await Set
+            .FirstOrDefaultAsync(candidate => candidate.TelegramLinkToken == token, cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Candidate>> ListTelegramLinkableAsync(
+        string? phoneDigits,
+        string? username,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Guid>? matching = null;
+
+        if (!string.IsNullOrEmpty(phoneDigits))
+        {
+            matching = CandidateSearchQuery.WithPhone(Context, phoneDigits);
+        }
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            // The form stores the name without «@»; Telegram names ignore case.
+            var name = username.ToLowerInvariant();
+            var byName = Context.Database
+                .SqlQuery<Guid>(
+                    $"""SELECT candidate_id AS "Value" FROM candidate_forms WHERE lower(answers->>'telegram') = {name}""");
+
+            matching = matching is null ? byName : matching.Union(byName);
+        }
+
+        if (matching is null)
+        {
+            return [];
+        }
+
+        return await Set
+            .Where(candidate => candidate.TelegramChatId == null
+                && candidate.ClosedAt == null
+                && matching.Contains(candidate.Id))
+            .OrderByDescending(candidate => candidate.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// <para>
     /// Tartib <c>Include</c> ichida ATAYLAB beriladi: aks holda PostgreSQL

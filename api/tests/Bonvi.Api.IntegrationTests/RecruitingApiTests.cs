@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.Organization;
@@ -2219,6 +2220,296 @@ public sealed class RecruitingApiTests : IClassFixture<BonviApiFactory>
 
         yozuv.RejectionNoticeSentAt.ShouldNotBeNull();
         yozuv.RejectionNoticeDelivered.ShouldBe(false);
+    }
+
+    /// <summary>
+    /// A candidate from outside the bot gets a chat through HR's link, once; the invitation that
+    /// waited for it then enters the queue by itself.
+    /// </summary>
+    [Fact]
+    public async Task Bot_link_gives_a_chat_once_and_releases_the_waiting_invitation()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        using (var hisobot = await bot.PutAsJsonAsync(
+            new Uri("/api/settings/bot/username", UriKind.Relative), new { username = "bonvi_test_bot" }, ct))
+        {
+            hisobot.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(hisobot));
+        }
+
+        using (var yaroqsiz = await bot.PutAsJsonAsync(
+            new Uri("/api/settings/bot/username", UriKind.Relative), new { username = "a b" }, ct))
+        {
+            yaroqsiz.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await MatnAsync(yaroqsiz));
+        }
+
+        var bosqichlar = await BosqichlarAsync(admin);
+        var kengash = bosqichlar.First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ҳаволачи", telefon: Raqam());
+
+        using (var taklif = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/interview-invite", UriKind.Relative),
+            new { interviewAt = DateTimeOffset.UtcNow.AddDays(3), stageId = kengash.Id },
+            ct))
+        {
+            taklif.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(taklif));
+        }
+
+        (await NavbatdaAsync(bot, "interview-notices", nomzod.Id)).ShouldBeFalse("no chat yet");
+        (await KartaBoolAsync(admin, nomzod.Id, "telegramLinked")).ShouldBeFalse();
+
+        var havola = await HavolaAsync(admin, nomzod.Id);
+        havola.ShouldStartWith("https://t.me/bonvi_test_bot?start=");
+        (await HavolaAsync(admin, nomzod.Id)).ShouldBe(havola, "a link already handed out keeps working");
+
+        var token = havola[(havola.IndexOf('=', StringComparison.Ordinal) + 1)..];
+        var chat = SuhbatRaqami();
+
+        (await UlashAsync(bot, "ffffffffffffffffffffffffffffffff", chat)).ShouldBeFalse("unknown token");
+        (await UlashAsync(bot, token, chat)).ShouldBeTrue();
+        (await UlashAsync(bot, token, SuhbatRaqami())).ShouldBeFalse("the token works once");
+
+        (await KartaBoolAsync(admin, nomzod.Id, "telegramLinked")).ShouldBeTrue();
+        (await NavbatdaAsync(bot, "interview-notices", nomzod.Id)).ShouldBeTrue("the waiting invitation goes out now");
+
+        using var qayta = await admin.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/telegram-link", UriKind.Relative), null, ct);
+        qayta.StatusCode.ShouldBe(HttpStatusCode.Conflict, await MatnAsync(qayta));
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await kontekst.Candidates.AsNoTracking().Where(c => c.Id == nomzod.Id).Select(c => c.TelegramChatId).SingleAsync(ct))
+            .ShouldBe(chat);
+    }
+
+    [Fact]
+    public async Task Verified_phone_binds_open_candidates_only()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var telefon = Raqam();
+        var ochiq = await NomzodAsync(admin, vakansiya.Id, familiya: "Очиқтелефон", telefon: telefon);
+
+        var boshqaVakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var yopilganTelefon = Raqam();
+        var yopilgan = await NomzodAsync(admin, boshqaVakansiya.Id, familiya: "Ёпиқтелефон", telefon: yopilganTelefon);
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{yopilgan.Id}/reject", UriKind.Relative), new { reason = "Тест" }, ct))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        (await MoslashAsync(bot, SuhbatRaqami(), null, "+998" + telefon)).ShouldBe(1);
+        (await MoslashAsync(bot, SuhbatRaqami(), null, "+998" + yopilganTelefon)).ShouldBe(0);
+        (await MoslashAsync(bot, SuhbatRaqami(), "not valid name", null)).ShouldBe(0);
+
+        (await KartaBoolAsync(admin, ochiq.Id, "telegramLinked")).ShouldBeTrue();
+        (await KartaBoolAsync(admin, yopilgan.Id, "telegramLinked")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Bot_link_endpoints_are_closed_to_others()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var hr = await RuxsatliMijozAsync(Permissions.RecruitingManage, Permissions.RecruitingView);
+        using var koruvchi = await RuxsatliMijozAsync(Permissions.RecruitingView);
+        using var admin = await AdminMijozAsync();
+
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ёпиқйўл", telefon: Raqam());
+
+        foreach (var yol in new[] { "telegram-link", "telegram-match" })
+        {
+            using var javob = await hr.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{yol}", UriKind.Relative), new { token = "x", chatId = 1 }, ct);
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden, yol);
+        }
+
+        using (var javob = await hr.GetAsync(new Uri("/api/recruiting/candidates/interview-reminders", UriKind.Relative), ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var javob = await hr.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/interview-reminder-sent", UriKind.Relative), null, ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using (var javob = await hr.PutAsJsonAsync(
+            new Uri("/api/settings/bot/username", UriKind.Relative), new { username = "someone_else" }, ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using var korish = await koruvchi.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/telegram-link", UriKind.Relative), null, ct);
+        korish.StatusCode.ShouldBe(HttpStatusCode.Forbidden, "issuing the link needs recruiting.manage");
+    }
+
+    /// <summary>Who the day-before reminder picks, from the real query.</summary>
+    [Fact]
+    public async Task Reminder_query_picks_only_those_still_to_be_reminded()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+
+        var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var bir = DateTimeOffset.UtcNow;
+        var ertaga = bir.AddDays(2);
+
+        async Task<Guid> ChaqirilganAsync(string familiya)
+        {
+            var nomzod = await NomzodAsync(
+                admin, vakansiya.Id, familiya: familiya, telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+            using var taklif = await admin.PostAsJsonAsync(
+                new Uri($"/api/recruiting/candidates/{nomzod.Id}/interview-invite", UriKind.Relative),
+                new { interviewAt = ertaga, stageId = kengash.Id },
+                ct);
+            taklif.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(taklif));
+
+            return nomzod.Id;
+        }
+
+        var kerak = await ChaqirilganAsync("Эслатмакерак");
+        var bugunChaqirilgan = await ChaqirilganAsync("Эслатмабугун");
+        var yuborilgan = await ChaqirilganAsync("Эслатмаюборилган");
+        var yetmagan = await ChaqirilganAsync("Эслатмаетмаган");
+        var kochgan = await ChaqirilganAsync("Эслатмакўчган");
+        var yopilgan = await ChaqirilganAsync("Эслатмаёпилган");
+        var uzoq = await ChaqirilganAsync("Эслатмаузоқ");
+
+        using (var rad = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{yopilgan}/reject", UriKind.Relative), new { reason = "Тест" }, ct))
+        {
+            rad.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(rad));
+        }
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Invited «yesterday»: after every stage row above, before the window's cut.
+        var kecha = bir.AddHours(1);
+        var kesish = bir.AddHours(2);
+
+        foreach (var id in new[] { kerak, yuborilgan, yopilgan })
+        {
+            await kontekst.Database.ExecuteSqlAsync(
+                $"UPDATE candidates SET interview_notice_sent_at = {kecha}, interview_notice_delivered = true WHERE id = {id}", ct);
+        }
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_notice_sent_at = {bir.AddHours(3)}, interview_notice_delivered = true WHERE id = {bugunChaqirilgan}", ct);
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_reminder_sent_at = {kecha}, interview_reminder_delivered = true WHERE id = {yuborilgan}", ct);
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_notice_sent_at = {kecha}, interview_notice_delivered = false WHERE id = {yetmagan}", ct);
+
+        // HR moved this one on after the invitation: the stage row is newer than the notice.
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_notice_sent_at = {bir.AddHours(-1)}, interview_notice_delivered = true WHERE id = {kochgan}", ct);
+
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_at = {bir.AddDays(9)}, interview_notice_sent_at = {kecha}, interview_notice_delivered = true WHERE id = {uzoq}", ct);
+
+        var readModel = qamrov.ServiceProvider.GetRequiredService<IRecruitingReadModel>();
+        var rows = await readModel.ListPendingInterviewRemindersAsync(
+            ertaga.AddHours(-1), ertaga.AddHours(1), kesish, 50, ct);
+        var ids = rows.Select(row => row.CandidateId).ToList();
+
+        ids.ShouldContain(kerak);
+        ids.ShouldNotContain(bugunChaqirilgan);
+        ids.ShouldNotContain(yuborilgan);
+        ids.ShouldNotContain(yetmagan);
+        ids.ShouldNotContain(kochgan);
+        ids.ShouldNotContain(yopilgan);
+        ids.ShouldNotContain(uzoq);
+    }
+
+    [Fact]
+    public async Task A_past_interview_is_no_longer_announced()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var admin = await AdminMijozAsync();
+        using var bot = await BotMijozAsync();
+
+        var kengash = (await BosqichlarAsync(admin)).First(b => b.Name == "Кенгаш");
+        var vakansiya = await VakansiyaAsync(admin, VakansiyaNomi());
+        var nomzod = await NomzodAsync(admin, vakansiya.Id, familiya: "Ўтганкенгаш", telefon: Raqam(), suhbatId: SuhbatRaqami());
+
+        using (var taklif = await admin.PostAsJsonAsync(
+            new Uri($"/api/recruiting/candidates/{nomzod.Id}/interview-invite", UriKind.Relative),
+            new { interviewAt = DateTimeOffset.UtcNow.AddDays(1), stageId = kengash.Id },
+            ct))
+        {
+            taklif.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(taklif));
+        }
+
+        (await NavbatdaAsync(bot, "interview-notices", nomzod.Id)).ShouldBeTrue();
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET interview_at = {DateTimeOffset.UtcNow.AddMinutes(-5)} WHERE id = {nomzod.Id}", ct);
+
+        (await NavbatdaAsync(bot, "interview-notices", nomzod.Id)).ShouldBeFalse();
+    }
+
+    private static async Task<bool> KartaBoolAsync(HttpClient mijoz, Guid nomzodId, string maydon)
+    {
+        using var karta = await mijoz.GetAsync(
+            new Uri($"/api/recruiting/candidates/{nomzodId}", UriKind.Relative), TestContext.Current.CancellationToken);
+        karta.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(karta));
+
+        using var hujjat = JsonDocument.Parse(await karta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        return hujjat.RootElement.GetProperty(maydon).GetBoolean();
+    }
+
+    private static async Task<string> HavolaAsync(HttpClient mijoz, Guid nomzodId)
+    {
+        using var javob = await mijoz.PostAsync(
+            new Uri($"/api/recruiting/candidates/{nomzodId}/telegram-link", UriKind.Relative),
+            null,
+            TestContext.Current.CancellationToken);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        using var hujjat = JsonDocument.Parse(await javob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        return hujjat.RootElement.GetProperty("url").GetString()!;
+    }
+
+    private static async Task<bool> UlashAsync(HttpClient bot, string token, long chatId)
+    {
+        using var javob = await bot.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates/telegram-link", UriKind.Relative),
+            new { token, chatId },
+            TestContext.Current.CancellationToken);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        using var hujjat = JsonDocument.Parse(await javob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        return hujjat.RootElement.GetProperty("linked").GetBoolean();
+    }
+
+    private static async Task<int> MoslashAsync(HttpClient bot, long chatId, string? username, string? phone)
+    {
+        using var javob = await bot.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates/telegram-match", UriKind.Relative),
+            new { chatId, username, phone },
+            TestContext.Current.CancellationToken);
+        javob.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(javob));
+
+        return int.Parse(await javob.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), CultureInfo.InvariantCulture);
     }
 
     // ────────────────────────────────────────────────────────────

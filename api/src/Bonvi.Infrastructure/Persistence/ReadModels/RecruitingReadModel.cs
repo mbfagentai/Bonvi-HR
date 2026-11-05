@@ -590,6 +590,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
     public async Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewNoticesAsync(
         int limit,
+        DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
         /*
@@ -606,6 +607,7 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 && candidate.TelegramChatId != null
                 && candidate.InterviewNoticeSentAt == null
                 && candidate.ClosedAt == null
+                && candidate.InterviewAt > now
             join vacancy in _context.Vacancies.AsNoTracking()
                 on candidate.VacancyId equals vacancy.Id into vacancyGroup
             from vacancy in vacancyGroup.DefaultIfEmpty()
@@ -623,6 +625,48 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
         return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewRemindersAsync(
+        DateTimeOffset interviewFrom,
+        DateTimeOffset interviewTo,
+        DateTimeOffset invitedBefore,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var rows =
+            from candidate in _context.Candidates.AsNoTracking()
+            where candidate.TelegramChatId != null
+                && candidate.ClosedAt == null
+                && candidate.InterviewAt >= interviewFrom
+                && candidate.InterviewAt < interviewTo
+                && candidate.InterviewNoticeDelivered == true
+                && candidate.InterviewNoticeSentAt < invitedBefore
+                && candidate.InterviewReminderSentAt == null
+                && !_context.CandidateStageEntries.Any(entry =>
+                    entry.CandidateId == candidate.Id && entry.RecordedAt > candidate.InterviewNoticeSentAt)
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            orderby candidate.InterviewAt
+            select new InterviewNoticeDto(
+                candidate.Id,
+                candidate.TelegramChatId!.Value,
+                candidate.TelegramLanguage,
+                candidate.FullName.LastName + " " + candidate.FullName.FirstName,
+                vacancy.Title ?? string.Empty,
+                candidate.InterviewAt!.Value);
+
+        return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string?> FindTelegramLinkTokenAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken = default)
+        => await _context.Candidates.AsNoTracking()
+            .Where(candidate => candidate.Id == candidateId)
+            .Select(candidate => candidate.TelegramLinkToken)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     public async Task<VacancyPage> ListVacanciesAsync(
         VacancyListFilter filter,

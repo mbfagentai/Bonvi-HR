@@ -54,7 +54,12 @@ public sealed record TelegramMessage(
     [property: JsonPropertyName("chat")] TelegramChat Chat,
     [property: JsonPropertyName("text")] string? Text,
     [property: JsonPropertyName("contact")] TelegramContact? Contact,
-    [property: JsonPropertyName("photo")] IReadOnlyList<TelegramPhotoSize>? Photo = null);
+    [property: JsonPropertyName("photo")] IReadOnlyList<TelegramPhotoSize>? Photo = null,
+    [property: JsonPropertyName("from")] TelegramUser? From = null);
+
+/// <summary>The sender. Only the username is read: it can match a name written on the online form.</summary>
+public sealed record TelegramUser(
+    [property: JsonPropertyName("username")] string? Username);
 
 /// <summary>
 /// Yuborilgan rasmning BITTA o'lchamdagi ko'rinishi.

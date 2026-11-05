@@ -105,6 +105,16 @@ public static class RecruitingErrors
     public static Error CandidateNotFound { get; } =
         Error.NotFound("nomzod.topilmadi", "Nomzod topilmadi.");
 
+    /// <summary>The candidate already has a Telegram chat, so no link is needed.</summary>
+    public static Error TelegramAlreadyLinked { get; } = Error.Conflict(
+        "nomzod.telegram_ulangan",
+        "Nomzod botga allaqachon ulangan.");
+
+    /// <summary>The bot hasn't reported its username yet, so no link can be built.</summary>
+    public static Error BotUsernameUnknown { get; } = Error.Conflict(
+        "nomzod.bot_nomi_yoq",
+        "Bot hali ishga tushmagan, havola tuzib bo'lmaydi.");
+
     /// <summary>
     /// «Umumiy anketa» vakansiyasi ishlatib bo'lmaydigan holatda.
     /// </summary>

@@ -35,7 +35,7 @@ type Phase =
   | { name: 'wizard'; draft: KioskDraft }
   /** The constructor's form (SPEC-anketa-konstruktori §7), pinned for the whole walk. */
   | { name: 'dynamic'; definition: KioskDefinition; draft: DynamicDraft }
-  | { name: 'done'; formNumber: number }
+  | { name: 'done'; formNumber: number; telegramLink: string | null }
 
 /**
  * `/anketa` — the public HR-F02 form (SPEC §7): start screen, wizard,
@@ -160,7 +160,7 @@ export function KioskPage({
           onDone={(result) => {
             draftStorage.clear()
             setSavedDraft(null)
-            setPhase({ name: 'done', formNumber: result.formNumber })
+            setPhase({ name: 'done', formNumber: result.formNumber, telegramLink: result.telegramLink })
             window.scrollTo({ top: 0 })
           }}
           onCancel={reset}
@@ -178,7 +178,7 @@ export function KioskPage({
         rules={rules}
         onDone={(result) => {
           dropDrafts()
-          setPhase({ name: 'done', formNumber: result.formNumber })
+          setPhase({ name: 'done', formNumber: result.formNumber, telegramLink: result.telegramLink })
           window.scrollTo({ top: 0 })
         }}
         onCancel={reset}
@@ -187,7 +187,14 @@ export function KioskPage({
   }
 
   if (phase.name === 'done') {
-    return <KioskDone formNumber={phase.formNumber} returnAfter={rules.doneReturnSeconds} onFinish={reset} />
+    return (
+      <KioskDone
+        formNumber={phase.formNumber}
+        telegramLink={phase.telegramLink}
+        returnAfter={rules.doneReturnSeconds}
+        onFinish={reset}
+      />
+    )
   }
 
   const preset = presetVacancy(session.data, vacancyId)

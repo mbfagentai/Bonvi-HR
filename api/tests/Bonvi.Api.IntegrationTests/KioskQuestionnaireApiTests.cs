@@ -150,6 +150,77 @@ public sealed partial class KioskQuestionnaireApiTests : IClassFixture<BonviApiF
     //  Yuborish
     // ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The form ends with the bot link once the bot has reported its name, a lost answer repeats
+    /// the same link, and the username written on the form binds the chat when that person
+    /// opens the bot on their own.
+    /// </summary>
+    [Fact]
+    public async Task Form_answer_carries_the_bot_link_and_the_written_username_matches()
+    {
+        using var admin = await PublicApiHarness.AdminMijozAsync(_factory);
+        var vakansiya = await VakansiyaAsync(admin);
+        using var bot = _factory.CreateClient();
+        using (var kirish = await bot.PostAsJsonAsync(
+            new Uri("/api/auth/login", UriKind.Relative),
+            new { login = BonviApiFactory.TestBotLogin, password = BonviApiFactory.TestBotPassword },
+            Ct))
+        {
+            kirish.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(kirish));
+            using var token = JsonDocument.Parse(await MatnAsync(kirish));
+            bot.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                "Bearer", token.RootElement.GetProperty("accessToken").GetString());
+        }
+
+
+        using (var hisobot = await bot.PutAsJsonAsync(
+            new Uri("/api/settings/bot/username", UriKind.Relative), new { username = "bonvi_test_bot" }, Ct))
+        {
+            hisobot.StatusCode.ShouldBe(HttpStatusCode.NoContent, await MatnAsync(hisobot));
+        }
+
+        using var mehmon = Mehmon("203.0.113.48");
+        var telefon = Telefon();
+        var nomi = "Candidate_" + telefon[1..];
+        var javoblar = QuestionnaireSamples.Full(Bugun, telefon) with { VacancyId = vakansiya, Telegram = nomi };
+        var yuborish = Guid.NewGuid();
+
+        using var javob = await YuborAsync(mehmon, javoblar, yuborish);
+        javob.StatusCode.ShouldBe(HttpStatusCode.Created, await MatnAsync(javob));
+
+        var havola = JsonDocument.Parse(await MatnAsync(javob)).RootElement.GetProperty("telegramLink").GetString();
+        havola.ShouldNotBeNull();
+        havola.ShouldStartWith("https://t.me/bonvi_test_bot?start=");
+
+        using var takror = await YuborAsync(mehmon, javoblar, yuborish);
+        takror.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(takror));
+        JsonDocument.Parse(await MatnAsync(takror)).RootElement.GetProperty("telegramLink").GetString().ShouldBe(havola);
+
+        var chat = 880_000_000 + long.Parse(telefon[^6..], CultureInfo.InvariantCulture);
+
+        using var moslash = await bot.PostAsJsonAsync(
+            new Uri("/api/recruiting/candidates/telegram-match", UriKind.Relative),
+            new { chatId = chat, username = nomi.ToUpperInvariant() },
+            Ct);
+        moslash.StatusCode.ShouldBe(HttpStatusCode.OK, await MatnAsync(moslash));
+        (await MatnAsync(moslash)).ShouldBe("1");
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var db = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+        var nomzod = await db.Candidates.AsNoTracking()
+            .Where(c => c.TelegramChatId == chat)
+            .Select(c => new { c.TelegramLanguage, c.TelegramLinkToken })
+            .SingleAsync(Ct);
+
+        nomzod.TelegramLanguage.ShouldBe("uz-Latn", "the bot answers in the language of the form");
+        nomzod.TelegramLinkToken.ShouldBeNull();
+
+        // Linked now: the next form from this person has nothing to ask.
+        using var ikkinchi = await YuborAsync(mehmon, javoblar, Guid.NewGuid());
+        ikkinchi.StatusCode.ShouldBe(HttpStatusCode.Created, await MatnAsync(ikkinchi));
+        JsonDocument.Parse(await MatnAsync(ikkinchi)).RootElement.GetProperty("telegramLink").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
     [Fact]
     public async Task Yangi_nomzod_anketa_PDF_va_anketasi_bilan_yaratiladi()
     {

@@ -355,6 +355,12 @@ public sealed record HireCandidateRequest(
     Guid? ResponsibleEmployeeId = null,
     int? ProbationDays = null);
 
+/// <summary>Body of «/telegram-link», sent by the bot.</summary>
+public sealed record LinkCandidateTelegramRequest(string? Token, long ChatId);
+
+/// <summary>Body of «/telegram-match», sent by the bot.</summary>
+public sealed record MatchCandidateTelegramRequest(long ChatId, string? Username = null, string? Phone = null);
+
 /// <summary>
 /// Nomzodlar va voronka — rekrutingning asosiy ekrani (2-bosqich).
 /// </summary>
@@ -1129,6 +1135,118 @@ public static class CandidateEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/interview-reminders", async (
+                int? limit,
+                ListPendingInterviewRemindersQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ListPendingInterviewRemindersQuery(limit ?? 20), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("ListPendingInterviewReminders")
+            .WithSummary("Candidates awaiting the day-before interview reminder, bot only")
+            .WithDescription(
+                "Interviews falling on tomorrow (Tashkent), from 10:00 to 20:00 Tashkent; empty outside " +
+                "those hours. Only candidates invited before today whose invitation was delivered and who " +
+                "have no stage recorded since. Same row shape as «interview-notices». «limit»: at most 50.")
+            .Produces<IReadOnlyList<InterviewNoticeDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/{id:guid}/interview-reminder-sent", async (
+                Guid id,
+                bool? delivered,
+                MarkInterviewReminderSentCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new MarkInterviewReminderSentCommand(id, delivered ?? true), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("MarkInterviewReminderSent")
+            .WithSummary("Interview reminder sent, bot only")
+            .WithDescription(
+                "One attempt per interview: «?delivered=false» means Telegram refused it. Moving the " +
+                "interview clears the mark. Error: «nomzod.topilmadi» (404).")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/telegram-link", async (
+                LinkCandidateTelegramRequest request,
+                LinkCandidateTelegramCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new LinkCandidateTelegramCommand(request.Token, request.ChatId), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("LinkCandidateTelegram")
+            .WithSummary("Bind a chat to the candidate holding this bot-link token, bot only")
+            .WithDescription(
+                "The token works once. Unknown token: «linked: false» with 200, the bot starts as usual. " +
+                "A pending invitation goes out on the bot's next round.")
+            .Produces<TelegramLinkResultDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/telegram-match", async (
+                MatchCandidateTelegramRequest request,
+                MatchCandidateTelegramCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new MatchCandidateTelegramCommand(request.ChatId, request.Username, request.Phone),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("MatchCandidateTelegram")
+            .WithSummary("Bind a chat by Telegram username or verified phone, bot only")
+            .WithDescription(
+                "Candidates in the funnel with no chat, whose online form names this username or whose " +
+                "phone is this one (the bot sends only a contact Telegram confirmed as the sender's). " +
+                "Answers with how many were bound.")
+            .Produces<int>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/{id:guid}/telegram-link", async (
+                Guid id,
+                IssueCandidateTelegramLinkCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new IssueCandidateTelegramLinkCommand(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.RecruitingManage)
+            .WithName("IssueCandidateTelegramLink")
+            .WithSummary("The candidate's bot link, for HR to pass on")
+            .WithDescription(
+                "Keeps a link issued earlier. Errors: «nomzod.topilmadi» (404), «nomzod.telegram_ulangan» " +
+                "(409, already linked), «nomzod.bot_nomi_yoq» (409, the bot hasn't started yet).")
+            .Produces<CandidateTelegramLinkDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/{id:guid}/reject", async (
                 Guid id,

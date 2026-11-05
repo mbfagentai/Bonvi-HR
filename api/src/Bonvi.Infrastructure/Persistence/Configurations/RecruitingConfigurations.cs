@@ -252,6 +252,14 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(candidate => candidate.TelegramLanguage)
             .HasMaxLength(16);
 
+        // 32 hex characters; a Telegram start payload takes up to 64.
+        builder.Property(candidate => candidate.TelegramLinkToken)
+            .HasMaxLength(32);
+
+        builder.HasIndex(candidate => candidate.TelegramLinkToken)
+            .IsUnique()
+            .HasFilter("telegram_link_token IS NOT NULL");
+
         builder.Property(candidate => candidate.ReferralDetail)
             .HasMaxLength(Candidate.MaxReferralDetailLength);
 

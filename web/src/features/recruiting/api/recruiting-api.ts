@@ -494,6 +494,12 @@ export interface Candidate {
    * urinilmagan yoki eski yozuv (o'shanda faqat yetkazilganlar belgilanardi).
    */
   interviewNoticeDelivered: boolean | null
+  /** The bot knows this candidate's chat, so it can write to them. */
+  telegramLinked: boolean
+  /** When the day-before reminder went out; empty — not yet. */
+  interviewReminderSentAt: string | null
+  /** `false` — Telegram refused the reminder. */
+  interviewReminderDelivered: boolean | null
   /** Yozilgan tartibda. */
   stages: CandidateStageEntry[]
   /**
@@ -1025,6 +1031,10 @@ function toCandidate(raw: unknown): Candidate {
     interviewNoticeSentAt: text(box['interviewNoticeSentAt']),
     interviewNoticeDelivered:
       typeof box['interviewNoticeDelivered'] === 'boolean' ? box['interviewNoticeDelivered'] : null,
+    telegramLinked: box['telegramLinked'] === true,
+    interviewReminderSentAt: text(box['interviewReminderSentAt']),
+    interviewReminderDelivered:
+      typeof box['interviewReminderDelivered'] === 'boolean' ? box['interviewReminderDelivered'] : null,
     stages: (Array.isArray(box['stages']) ? box['stages'] : []).map(toStageEntry),
     // Massiv kelmasa BO'SH ro'yxat: «fayl yo'q» va «javob kutilmagan
     // shaklda» ekranda bir xil ko'rinadi va ikkalasi ham kartani
@@ -1375,6 +1385,12 @@ export async function reassignCandidate(
  *
  * `nextContactDate` / `clearNextContact` — yuqoridagi uch holatli qoida.
  */
+/** The candidate's bot link, for HR to pass on by hand. */
+export async function issueCandidateTelegramLink(id: string): Promise<string> {
+  const { data } = await api.post<{ url: string }>(`${CANDIDATES}/${id}/telegram-link`)
+  return data.url
+}
+
 export async function inviteCandidateToInterview(
   id: string,
   body: {

@@ -4,6 +4,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Common.Documents;
 using Bonvi.Application.Common.Photos;
 using Bonvi.Application.Recruiting.Abstractions;
+using Bonvi.Application.Recruiting.Candidates;
 using Bonvi.Application.Recruiting.Common;
 using Bonvi.Application.Recruiting.Forms.Dynamic;
 using Bonvi.Application.Recruiting.Forms.Texts;
@@ -62,7 +63,11 @@ public sealed record SubmitQuestionnaireFormCommand(
 /// <summary>Formaga qaytadigan javob — nomzod yozuvi haqida HECH NARSA yo'q (endpoint ochiq).</summary>
 /// <param name="FormNumber">«Anketa №».</param>
 /// <param name="SubmittedAt">Qabul qilingan lahza (UTC).</param>
-public sealed record QuestionnaireSubmittedDto(int FormNumber, DateTimeOffset SubmittedAt);
+/// <param name="TelegramLink">
+/// The bot link that lets the bot write to this person; <c>null</c> when they already have a chat
+/// or the bot hasn't started. Holds a token only, nothing about the candidate.
+/// </param>
+public sealed record QuestionnaireSubmittedDto(int FormNumber, DateTimeOffset SubmittedAt, string? TelegramLink = null);
 
 /// <summary>Natija va u yangimi (201) yoki takroriy yuborishmi (200).</summary>
 public sealed record QuestionnaireSubmission(QuestionnaireSubmittedDto Result, bool Created);
@@ -259,7 +264,7 @@ public sealed class SubmitQuestionnaireFormCommandHandler
         var earlier = await _forms.FindBySubmissionAsync(submissionId, cancellationToken).ConfigureAwait(false);
         if (earlier is not null)
         {
-            return Repeated(earlier);
+            return await RepeatedAsync(earlier, cancellationToken).ConfigureAwait(false);
         }
 
         // ── Bot tekshiruvi — boshqa har qanday ishdan OLDIN (sinf izohi, «Tekshiruvlar tartibi») ──
@@ -365,6 +370,9 @@ public sealed class SubmitQuestionnaireFormCommandHandler
         }
 
         var (candidate, isNew, vacancyTitle) = target.Value;
+
+        // Without a chat the bot can't deliver the council invitation (`TelegramLinks`).
+        var telegramToken = candidate.IssueTelegramLink(TelegramLinks.NewToken(), language);
 
         // ── Fayllar diskka — saqlash yiqilsa hammasi o'chiriladi ──
         var stored = new List<string>();
@@ -545,7 +553,7 @@ public sealed class SubmitQuestionnaireFormCommandHandler
                     throw;
                 }
 
-                return Repeated(winner);
+                return await RepeatedAsync(winner, cancellationToken).ConfigureAwait(false);
             }
 
             // Almashtirilgan profil surati — saqlangandan KEYIN (yuqoridagi izoh). Shu yerdan
@@ -553,7 +561,9 @@ public sealed class SubmitQuestionnaireFormCommandHandler
             stored.Clear();
             await DeleteReplacedPhotoAsync(candidate.Id, replacedPhotoKey, CancellationToken.None).ConfigureAwait(false);
 
-            return new QuestionnaireSubmission(new QuestionnaireSubmittedDto(number, submittedAt), Created: true);
+            return new QuestionnaireSubmission(
+                new QuestionnaireSubmittedDto(number, submittedAt, await TelegramLinkAsync(telegramToken, cancellationToken).ConfigureAwait(false)),
+                Created: true);
         }
         catch
         {
@@ -906,8 +916,25 @@ public sealed class SubmitQuestionnaireFormCommandHandler
     /// Identifikatorning o'zi yetadi (taqqoslaydigan qurilma yo'q): uuid v4 ni taxmin qilib
     /// bo'lmaydi, javobda esa faqat raqam va vaqt — nomzod haqida hech narsa.
     /// </remarks>
-    private static QuestionnaireSubmission Repeated(CandidateForm earlier)
-        => new(new QuestionnaireSubmittedDto(earlier.Number, earlier.SubmittedAt), Created: false);
+    /// <remarks>The first answer was lost, so the repeat must carry the same link.</remarks>
+    private async Task<QuestionnaireSubmission> RepeatedAsync(CandidateForm earlier, CancellationToken cancellationToken)
+    {
+        var token = await _readModel.FindTelegramLinkTokenAsync(earlier.CandidateId, cancellationToken).ConfigureAwait(false);
+
+        return new QuestionnaireSubmission(
+            new QuestionnaireSubmittedDto(
+                earlier.Number,
+                earlier.SubmittedAt,
+                await TelegramLinkAsync(token, cancellationToken).ConfigureAwait(false)),
+            Created: false);
+    }
+
+    private async Task<string?> TelegramLinkAsync(string? token, CancellationToken cancellationToken)
+    {
+        var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        return TelegramLinks.Url(settings.Hidden(SystemSettingKeys.BotUsername), token);
+    }
 
     /// <summary>
     /// Anketaning HR matnlari: forma ko'rsatgan reviziya (bazada bo'lsa) yoki hozirgisi.

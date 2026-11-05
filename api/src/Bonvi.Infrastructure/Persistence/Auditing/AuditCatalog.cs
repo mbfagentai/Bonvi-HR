@@ -275,6 +275,9 @@ public static class AuditCatalog
 
         Audit<Candidate>(AccessModuleKeys.Recruiting)
             .Label(row => row.FullName.Full)
+
+            // Whoever holds the token receives this candidate's invitations.
+            .Mask(nameof(Candidate.TelegramLinkToken))
             .Ref(AuditRefTarget.Vacancy, nameof(Candidate.VacancyId))
             .Ref(AuditRefTarget.PipelineStage, nameof(Candidate.CurrentStageId))
             .Ref(AuditRefTarget.ReferralChannel, nameof(Candidate.ReferralChannelId)),

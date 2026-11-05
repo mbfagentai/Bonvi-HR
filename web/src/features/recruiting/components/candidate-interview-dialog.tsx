@@ -192,7 +192,7 @@ export function CandidateInterviewDialog({
           yo'q. HR buni bosishdan oldin bilishi kerak.
         */}
         <p className="text-subhead text-[var(--fg-secondary)]">
-          {candidate.source === 'TelegramBot'
+          {candidate.telegramLinked
             ? t('recruiting.interviewText')
             : t('recruiting.interviewNoTelegram')}
         </p>

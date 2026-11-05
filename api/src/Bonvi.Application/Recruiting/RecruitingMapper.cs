@@ -225,7 +225,10 @@ public sealed class RecruitingMapper
             ToDto(candidate.Questionnaire),
             candidate.ReferralChannelId,
             referral?.Name,
-            candidate.ReferralDetail);
+            candidate.ReferralDetail,
+            candidate.TelegramChatId is not null,
+            candidate.InterviewReminderSentAt,
+            candidate.InterviewReminderDelivered);
     }
 
     /// <summary>Anketa — qo'shimcha so'rovsiz, nomzod bilan birga yuklangan.</summary>

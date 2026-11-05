@@ -68,6 +68,19 @@ public interface IVacancyRequestRepository : IRepository<VacancyRequest>;
 /// <summary>Nomzodlar uchun saqlash porti.</summary>
 public interface ICandidateRepository : IRepository<Candidate>
 {
+    /// <summary>Finds the candidate a bot-link token was issued to, tracked for writing.</summary>
+    Task<Candidate?> FindByTelegramLinkTokenAsync(string token, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Candidates still in the funnel with no Telegram chat whose phone is this (verified by
+    /// Telegram) or whose online form names this Telegram username, tracked for writing.
+    /// </summary>
+    Task<IReadOnlyList<Candidate>> ListTelegramLinkableAsync(
+        string? phoneDigits,
+        string? username,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Nomzodni BUTUN kartasi bilan yuklaydi: bosqichlar tarixi, fayllari,
     /// izohlari va anketasi.

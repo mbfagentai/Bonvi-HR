@@ -29,6 +29,7 @@ internal static class SettingsRegistration
         services.AddScoped<GetSettingsQueryHandler>();
         services.AddScoped<GetBotSettingsQueryHandler>();
         services.AddScoped<GetBotTokenQueryHandler>();
+        services.AddScoped<ReportBotUsernameCommandHandler>();
         services.AddScoped<UpdateSettingsCommandHandler>();
 
         services.AddScoped<GetBotLogoQueryHandler>();

@@ -900,6 +900,73 @@ public static class BotTexts
         };
     }
 
+    /// <summary>
+    /// The day-before reminder of the interview: time, contact and place again, the map point
+    /// follows as its own message.
+    /// </summary>
+    public static string InterviewReminder(
+        BotLanguage language,
+        string fullName,
+        string vacancy,
+        DateTimeOffset interviewAt,
+        string phone,
+        string address)
+    {
+        var when = BotClock.Local(interviewAt).ToString("dd.MM.yyyy, HH:mm", CultureInfo.InvariantCulture);
+
+        var contact = string.IsNullOrWhiteSpace(phone)
+            ? string.Empty
+            : language switch
+            {
+                BotLanguage.Cyrillic => $"📞 Масъул: Кадрлар бўлими {Escape(phone)}\n",
+                BotLanguage.Russian => $"📞 Контакты: Отдел кадров {Escape(phone)}\n",
+                _ => $"📞 Mas’ul: Kadrlar bo‘limi {Escape(phone)}\n",
+            };
+
+        var place = string.IsNullOrWhiteSpace(address)
+            ? string.Empty
+            : $"📍 {Escape(address)}\n";
+
+        return language switch
+        {
+            BotLanguage.Cyrillic =>
+                $"Ассалому алайкум, {Escape(fullName)}!\n\n"
+                + $"Эслатма: эртага «{Escape(vacancy)}» вакансияси бўйича суҳбатга кутамиз.\n\n"
+                + $"🗓 Суҳбат санаси ва вақти: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nКела олмасангиз, илтимос, кўрсатилган рақамга қўнғироқ қилинг.\n\n"
+                + Signature(language),
+            BotLanguage.Russian =>
+                $"Здравствуйте, {Escape(fullName)}!\n\n"
+                + $"Напоминаем: завтра ждём Вас на интервью по вакансии «{Escape(vacancy)}».\n\n"
+                + $"🗓 Дата и время интервью: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nЕсли не сможете прийти, пожалуйста, позвоните по указанному номеру.\n\n"
+                + Signature(language),
+            _ =>
+                $"Assalomu alaykum, {Escape(fullName)}!\n\n"
+                + $"Eslatma: ertaga «{Escape(vacancy)}» vakansiyasi bo‘yicha suhbatga kutamiz.\n\n"
+                + $"🗓 Suhbat sanasi va vaqti: <b>{when}</b>\n"
+                + contact
+                + place
+                + "\nKela olmasangiz, iltimos, ko‘rsatilgan raqamga qo‘ng‘iroq qiling.\n\n"
+                + Signature(language),
+        };
+    }
+
+    /// <summary>The candidate opened the link from the form: from now on the bot can reach them.</summary>
+    public static string TelegramLinked(BotLanguage language) => language switch
+    {
+        BotLanguage.Cyrillic =>
+            "✅ Аризангиз шу Telegram ҳисобига уланди. Кенгашга чақирилсангиз, сана, вақт ва манзил шу ерга келади.",
+        BotLanguage.Russian =>
+            "✅ Ваша анкета привязана к этому Telegram. Если Вас пригласят на совет, дата, время и адрес придут сюда.",
+        _ =>
+            "✅ Arizangiz shu Telegram hisobiga ulandi. Kengashga chaqirilsangiz, sana, vaqt va manzil shu yerga keladi.",
+    };
+
     /// <summary>Suhbat unutilgan yoki tushunilmagan xabar.</summary>
     public static string Restart(BotLanguage language) => language switch
     {

@@ -707,6 +707,39 @@ public sealed class CandidateTests
     }
 
     [Fact]
+    public void A_moved_interview_earns_a_new_reminder()
+    {
+        var nomzod = Nomzod();
+        var bugun = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        nomzod.InviteToInterview(DateTimeOffset.UtcNow.AddDays(2), bugun).IsSuccess.ShouldBeTrue();
+        nomzod.MarkInterviewReminderSent(DateTimeOffset.UtcNow, delivered: false);
+        nomzod.InterviewReminderDelivered.ShouldBe(false);
+
+        nomzod.InviteToInterview(DateTimeOffset.UtcNow.AddDays(3), bugun).IsSuccess.ShouldBeTrue();
+
+        nomzod.InterviewReminderSentAt.ShouldBeNull();
+        nomzod.InterviewReminderDelivered.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_bot_link_token_survives_reissue_and_ends_with_the_chat()
+    {
+        var nomzod = Nomzod();
+
+        nomzod.IssueTelegramLink("first", "uz-Cyrl").ShouldBe("first");
+        nomzod.IssueTelegramLink("second").ShouldBe("first", "a link already handed out keeps working");
+        nomzod.TelegramLanguage.ShouldBe("uz-Cyrl");
+
+        nomzod.SetTelegram(77, null);
+
+        nomzod.TelegramChatId.ShouldBe(77);
+        nomzod.TelegramLinkToken.ShouldBeNull("the token works once");
+        nomzod.IssueTelegramLink("third").ShouldBeNull("a linked candidate needs no link");
+        nomzod.TelegramLinkToken.ShouldBeNull();
+    }
+
+    [Fact]
     public void Suhbat_kochirilsa_taklif_natijasi_ham_tozalanadi()
     {
         var nomzod = Nomzod();

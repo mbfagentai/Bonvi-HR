@@ -69,6 +69,15 @@ public sealed partial class BotWorker : BackgroundService
         Message = "Bonvi API ga kirib bo'lmadi — birinchi arizada qayta uriniladi")]
     private partial void LogApiUnavailable();
 
+    [LoggerMessage(EventId = 3291, Level = LogLevel.Information, Message = "Interview reminder sent: {Vacancy}")]
+    private partial void LogInterviewReminderSent(string vacancy);
+
+    [LoggerMessage(EventId = 3292, Level = LogLevel.Warning, Message = "Interview map point not sent: {Vacancy}")]
+    private partial void LogLocationNotSent(string vacancy);
+
+    [LoggerMessage(EventId = 3293, Level = LogLevel.Warning, Message = "Interview message went without a map point: bot.location is empty or unreadable")]
+    private partial void LogNoMapPoint();
+
     [LoggerMessage(EventId = 3203, Level = LogLevel.Information, Message = "Bot ishga tushdi: @{Username}")]
     private partial void LogStarted(string username);
 
@@ -314,6 +323,9 @@ public sealed partial class BotWorker : BackgroundService
     /// </remarks>
     private string? _activeToken;
 
+    /// <summary>The username still to pass to the server; <c>null</c> once it took it.</summary>
+    private string? _usernameToReport;
+
     /// <summary>Tizimdan oxirgi marta muvaffaqiyatli o'qilgan token.</summary>
     /// <remarks>
     /// <c>null</c> ikki xil ma'no tashiydi va ular
@@ -526,8 +538,10 @@ public sealed partial class BotWorker : BackgroundService
     /// <remarks>⭐ <c>internal</c> — TESTLAR uchun (<c>InternalsVisibleTo</c>).</remarks>
     internal async Task SendNoticesAsync(CancellationToken cancellationToken)
     {
+        await ReportUsernameAsync(cancellationToken).ConfigureAwait(false);
         await SendRejectionNoticesAsync(cancellationToken).ConfigureAwait(false);
         await SendInterviewNoticesAsync(cancellationToken).ConfigureAwait(false);
+        await SendInterviewRemindersAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -668,15 +682,9 @@ public sealed partial class BotWorker : BackgroundService
             // ekranida «yetkazilmadi — telefon qiling» chiqadi.
             var delivered = outcome == TelegramDelivery.Delivered;
 
-            if (delivered && point is { } place)
+            if (delivered)
             {
-                await _telegram
-                    .SendLocationAsync(
-                        notice.ChatId,
-                        place.Latitude,
-                        place.Longitude,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                await SendPlaceAsync(notice, point, cancellationToken).ConfigureAwait(false);
             }
 
             await _bonvi
@@ -690,6 +698,99 @@ public sealed partial class BotWorker : BackgroundService
             }
 
             LogInterviewNoticeSent(notice.VacancyTitle);
+        }
+    }
+
+    /// <summary>
+    /// The day-before reminder: same text parts and map point as the invitation, one attempt.
+    /// </summary>
+    private async Task SendInterviewRemindersAsync(CancellationToken cancellationToken)
+    {
+        var pending = await _bonvi.GetPendingInterviewRemindersAsync(cancellationToken).ConfigureAwait(false);
+
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var settings = await SettingsAsync(cancellationToken).ConfigureAwait(false);
+        var point = MapPoint.TryParse(settings?.Location);
+
+        foreach (var notice in pending)
+        {
+            var language = BotLanguages.Parse(notice.Language);
+
+            var outcome = await _telegram
+                .SendNoticeAsync(
+                    notice.ChatId,
+                    BotTexts.InterviewReminder(
+                        language,
+                        notice.FullName,
+                        notice.VacancyTitle,
+                        notice.InterviewAt,
+                        settings?.InterviewPhone ?? string.Empty,
+                        settings?.InterviewAddress ?? string.Empty),
+                    await NoticeMenuAsync(language, cancellationToken).ConfigureAwait(false),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (outcome == TelegramDelivery.Unreachable)
+            {
+                continue;
+            }
+
+            var delivered = outcome == TelegramDelivery.Delivered;
+
+            if (delivered)
+            {
+                await SendPlaceAsync(notice, point, cancellationToken).ConfigureAwait(false);
+            }
+
+            await _bonvi
+                .MarkInterviewReminderSentAsync(notice.CandidateId, cancellationToken, delivered)
+                .ConfigureAwait(false);
+
+            if (delivered)
+            {
+                LogInterviewReminderSent(notice.VacancyTitle);
+            }
+            else
+            {
+                LogNoticeUndelivered(notice.VacancyTitle);
+            }
+        }
+    }
+
+    /// <summary>The map point as its own message; the time already reached them, so a failure is only logged.</summary>
+    private async Task SendPlaceAsync(InterviewNotice notice, MapPoint? point, CancellationToken cancellationToken)
+    {
+        if (point is not { } place)
+        {
+            LogNoMapPoint();
+            return;
+        }
+
+        var sent = await _telegram
+            .SendLocationAsync(notice.ChatId, place.Latitude, place.Longitude, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!sent)
+        {
+            LogLocationNotSent(notice.VacancyTitle);
+        }
+    }
+
+    /// <summary>Passes on the username <c>getMe</c> gave, retrying each round until the server took it.</summary>
+    private async Task ReportUsernameAsync(CancellationToken cancellationToken)
+    {
+        if (_usernameToReport is not { } username)
+        {
+            return;
+        }
+
+        if (await _bonvi.ReportBotUsernameAsync(username, cancellationToken).ConfigureAwait(false))
+        {
+            _usernameToReport = null;
         }
     }
 
@@ -1504,6 +1605,43 @@ public sealed partial class BotWorker : BackgroundService
                 [new InlineButton(vacancy.Title, VacancyPrefix + vacancy.Id.ToString("N"))]),
         ];
 
+    /// <summary>
+    /// Connects the person to their application: by the token in <c>/start token</c> (the link
+    /// from the online form or HR), otherwise by the username they wrote on the form.
+    /// </summary>
+    /// <returns><c>true</c> when the token linked them and the usual start isn't needed.</returns>
+    private async Task<bool> LinkFromStartAsync(long chatId, TelegramMessage message, CancellationToken cancellationToken)
+    {
+        var parts = message.Text!.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length == 2)
+        {
+            var result = await _bonvi.LinkTelegramAsync(parts[1], chatId, cancellationToken).ConfigureAwait(false);
+
+            if (result is { Linked: true })
+            {
+                var language = BotLanguages.Parse(result.Language);
+
+                await _telegram
+                    .SendNoticeAsync(
+                        chatId,
+                        BotTexts.TelegramLinked(language),
+                        await NoticeMenuAsync(language, cancellationToken).ConfigureAwait(false),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(message.From?.Username))
+        {
+            await _bonvi.MatchTelegramAsync(chatId, message.From.Username, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        return false;
+    }
+
     private async Task HandleMessageAsync(TelegramMessage message, CancellationToken cancellationToken)
     {
         var chatId = message.Chat.Id;
@@ -1512,6 +1650,11 @@ public sealed partial class BotWorker : BackgroundService
         // adashib qolgan odam uchun yagona ishonchli chiqish yo'li.
         if (message.Text?.StartsWith("/start", StringComparison.OrdinalIgnoreCase) == true)
         {
+            if (await LinkFromStartAsync(chatId, message, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             _conversations.Save(chatId, new ConversationState { Step = ConversationStep.Language });
             await AskLanguageAsync(chatId, cancellationToken).ConfigureAwait(false);
             return;
@@ -1817,6 +1960,10 @@ public sealed partial class BotWorker : BackgroundService
           olardi (prod jurnali, 2026-09-29). Endi shu yerning o'zida
           aytiladi va o'zbek raqamini qo'lda yozish so'raladi.
         */
+        // The contact is confirmed as the sender's own: an online-form application under this
+        // number now has a chat, so its invitation can reach them.
+        await _bonvi.MatchTelegramAsync(chatId, null, contact.PhoneNumber, cancellationToken).ConfigureAwait(false);
+
         if (UzbekPhone.Normalize(contact.PhoneNumber) is not { } phone)
         {
             _conversations.Save(chatId, state with { PhoneTypingAllowed = true });
@@ -2390,6 +2537,7 @@ public sealed partial class BotWorker : BackgroundService
         _complainedAbout = null;
 
         LogStarted(username);
+        _usernameToReport = username;
         return true;
     }
 
