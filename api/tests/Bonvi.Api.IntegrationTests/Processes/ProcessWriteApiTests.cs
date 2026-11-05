@@ -374,13 +374,16 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
         var hire = await HireAsync(orderNo: null, Today);
         await StartEngineAsync();
         await BlankAsync(ProcessBlanks.F09, hire, F09WithARow);
+
+        // subjectEmployee holds a step only when that employee has a user; without one the pass gives it to the fallback role.
+        var subject = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
+        await LinkUserAsync(subject.UserId, hire.EmployeeId);
+
         await RunAsync();
         var processCase = await CaseAsync(ProcessCodes.Dismissal, ProcessSubjectRefs.Dismissal(hire.EmploymentId));
         processCase.FindStep("ex-4")!.State.ShouldBe(ProcessStepState.Active);
         processCase.FindStep("ex-4")!.HolderEmployeeId.ShouldBe(hire.EmployeeId);
 
-        var subject = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
-        await LinkUserAsync(subject.UserId, hire.EmployeeId);
         var other = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
         await LinkUserAsync(other.UserId, (await HireAsync(orderNo: null, Today)).EmployeeId);
         using var subjectClient = ClientWith(subject.AccessToken);
