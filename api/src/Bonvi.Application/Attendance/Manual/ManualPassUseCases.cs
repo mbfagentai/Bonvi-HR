@@ -73,6 +73,7 @@ public sealed class AddManualPassCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDatabaseFault _databaseFault;
     private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
     public AddManualPassCommandHandler(
         IEmployeeRepository employees,
@@ -83,7 +84,8 @@ public sealed class AddManualPassCommandHandler
         AttendanceDayRecomputer recomputer,
         IUnitOfWork unitOfWork,
         IDatabaseFault databaseFault,
-        IClock clock)
+        IClock clock,
+        IAttendanceScope scope)
     {
         _employees = employees;
         _employments = employments;
@@ -94,6 +96,7 @@ public sealed class AddManualPassCommandHandler
         _unitOfWork = unitOfWork;
         _databaseFault = databaseFault;
         _clock = clock;
+        _scope = scope;
     }
 
     public async Task<Result<AttendancePassDto>> HandleAsync(
@@ -102,8 +105,12 @@ public sealed class AddManualPassCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // Scope comes before every other rule, so a date error cannot confirm that someone
+        // outside it exists. It also keeps `FindPassAsync` below, which applies the same
+        // scope, from returning null on a row this request has just written.
         if (command.EmployeeId == Guid.Empty
-            || !await _employees.ExistsAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
+            || !await _employees.ExistsAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false)
+            || !await _scope.CanAccessEmployeeAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.EmployeeNotFound;
         }
@@ -182,17 +189,20 @@ public sealed class DeleteManualPassCommandHandler
     private readonly IAttendanceManualPassRepository _manual;
     private readonly AttendanceDayRecomputer _recomputer;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAttendanceScope _scope;
 
     public DeleteManualPassCommandHandler(
         IAttendancePassRepository passes,
         IAttendanceManualPassRepository manual,
         AttendanceDayRecomputer recomputer,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAttendanceScope scope)
     {
         _passes = passes;
         _manual = manual;
         _recomputer = recomputer;
         _unitOfWork = unitOfWork;
+        _scope = scope;
     }
 
     public async Task<Result> HandleAsync(
@@ -203,6 +213,15 @@ public sealed class DeleteManualPassCommandHandler
 
         var pass = await _passes.GetByIdAsync(command.PassId, cancellationToken).ConfigureAwait(false);
         if (pass is null)
+        {
+            return ManualPassErrors.PassNotFound;
+        }
+
+        // Before the «not manual» rule: a 400 on someone else's terminal pass would confirm
+        // that the id exists. Unmatched passes are hidden from a scoped user in the same way.
+        if (_scope.IsScoped
+            && (pass.ResolvedEmployeeId is not { } owner
+                || !await _scope.CanAccessEmployeeAsync(owner, cancellationToken).ConfigureAwait(false)))
         {
             return ManualPassErrors.PassNotFound;
         }

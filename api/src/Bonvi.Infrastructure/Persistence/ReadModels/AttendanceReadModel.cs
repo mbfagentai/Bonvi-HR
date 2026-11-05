@@ -3403,6 +3403,67 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<AttendanceEmployeeLookupItemDto>> LookupEmployeesAsync(
+        string? search,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var today = _clock.Today;
+        var employees = EmployeeSearchQuery.MatchingName(_context, search);
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            employees = employees.Where(employee => inScope.Contains(employee.Id));
+        }
+
+        // «Active» is `PrimaryEmployment.Covers` in SQL. It must hold before `Take`, or former
+        // staff would use up the limit and hide active people with the same name.
+        var people = await employees
+            .Where(employee => _context.Employments.Any(employment =>
+                employment.EmployeeId == employee.Id &&
+                employment.HireDate <= today &&
+                (employment.TerminationDate == null || employment.TerminationDate >= today)))
+            .OrderBy(employee => employee.FullName.LastName)
+            .ThenBy(employee => employee.FullName.FirstName)
+            .ThenBy(employee => employee.Id)
+            .Take(limit)
+            .Select(employee => new
+            {
+                employee.Id,
+                employee.FullName.LastName,
+                employee.FullName.FirstName,
+                employee.FullName.MiddleName,
+                HasPhoto = employee.PhotoKey != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var employments = await EmploymentsAsync([.. people.Select(person => person.Id)], cancellationToken)
+            .ConfigureAwait(false);
+
+        var primaries = people.ToDictionary(
+            person => person.Id,
+            person => PrimaryEmployment.Select(employments.GetValueOrDefault(person.Id) ?? [], today));
+
+        var names = await CatalogNamesAsync(
+                primaries.Values.Select(employment => employment?.DepartmentId),
+                primaries.Values.Select(employment => employment?.PositionId),
+                [],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. people.Select(person => new AttendanceEmployeeLookupItemDto(
+                person.Id,
+                FullName.FromTrusted(person.LastName, person.FirstName, person.MiddleName).Full,
+                names.Department(primaries[person.Id]?.DepartmentId),
+                names.Position(primaries[person.Id]?.PositionId),
+                person.HasPhoto)),
+        ];
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlySet<Guid>> ExistingEmployeeIdsAsync(
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken = default)

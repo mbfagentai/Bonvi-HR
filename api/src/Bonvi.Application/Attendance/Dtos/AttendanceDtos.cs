@@ -1705,3 +1705,16 @@ public sealed record DeviceClockDto(int OffsetSeconds, bool Warning);
 /// <summary>Qayta yozish so'raldi.</summary>
 /// <param name="Affected">Nechta qatorda majburiyat belgisi ko'tarildi.</param>
 public sealed record EnrollmentResyncDto(int Affected);
+
+/// <summary>One row of the attendance employee lookup: enough to pick a person, nothing personal.</summary>
+/// <param name="Id">Employee.</param>
+/// <param name="FullName">Full name.</param>
+/// <param name="DepartmentName">Department of today's primary employment.</param>
+/// <param name="PositionName">Position of today's primary employment.</param>
+/// <param name="HasPhoto">Whether <c>/api/attendance/employees/{id}/photo</c> has anything to give.</param>
+public sealed record AttendanceEmployeeLookupItemDto(
+    Guid Id,
+    string FullName,
+    string? DepartmentName,
+    string? PositionName,
+    bool HasPhoto);
