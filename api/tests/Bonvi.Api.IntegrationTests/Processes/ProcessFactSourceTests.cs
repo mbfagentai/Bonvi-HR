@@ -546,20 +546,7 @@ public sealed class ProcessFactSourceTests : IClassFixture<BonviApiFactory>
         ? """{"leaveDate":"2026-12-31"}"""
         : $$$"""{"leaveDate":"2026-12-31","mainReason":{"value":"{{{kCode}}}"}}""";
 
-    private static string CouncilAnswers(params (Guid Candidate, string Decision)[] rows)
-    {
-        var table = new JsonArray();
-        foreach (var (candidate, decision) in rows)
-        {
-            table.Add(new JsonObject
-            {
-                ["candidate"] = new JsonObject { ["id"] = candidate.ToString(), ["label"] = "Test" },
-                ["decision"] = new JsonObject { ["value"] = decision },
-            });
-        }
-
-        return new JsonObject { ["meetingDate"] = "2026-11-05", ["candidates"] = table }.ToJsonString();
-    }
+    private static string CouncilAnswers(params (Guid Candidate, string Decision)[] rows) => ProcessTestBlanks.CouncilAnswers(rows);
 
     private async Task<ProcessFactSnapshot> LoadAsync(ProcessFactQuery query)
     {
@@ -670,111 +657,11 @@ public sealed class ProcessFactSourceTests : IClassFixture<BonviApiFactory>
         bool submit = true,
         string[]? sign = null,
         IReadOnlyDictionary<string, string>? decisions = null,
-        bool cancel = false) => DbAsync(async db =>
-    {
-        var template = await db.BlankTemplates.SingleAsync(row => row.Code == code, Ct);
-        var version = await db.BlankTemplateVersions
-            .SingleAsync(row => row.TemplateId == template.Id && row.Status == BlankTemplateVersionStatus.Published, Ct);
+        bool cancel = false)
+        => DbAsync(db => ProcessTestBlanks.CreateAsync(db, code, subject, answers, computed, submit, sign, decisions, cancel, Ct));
 
-        var state = new BlankAnswersState(answers, computed, "[]", 0, null);
-        var blank = BlankSubmission.Create(template, version, subject, state).Value;
-        var now = DateTimeOffset.UtcNow;
+    private Task<int> SignAsync(Guid blankId, params string[] stepCodes)
+        => DbAsync(db => ProcessTestBlanks.SignAsync(db, blankId, stepCodes, Ct));
 
-        if (submit)
-        {
-            blank.Submit(RandomNumberGenerator.GetInt32(100_000, int.MaxValue), StepPlan(version.Definition), state, now)
-                .IsSuccess.ShouldBeTrue();
-
-            foreach (var stepCode in sign ?? [])
-            {
-                SignOpenStep(blank, stepCode, decisions?.GetValueOrDefault(stepCode), now);
-            }
-        }
-
-        if (cancel)
-        {
-            blank.Cancel("test", now).IsSuccess.ShouldBeTrue();
-        }
-
-        db.BlankSubmissions.Add(blank);
-        await db.SaveChangesAsync(Ct);
-        return blank.Id;
-    });
-
-    private Task<int> SignAsync(Guid blankId, params string[] stepCodes) => DbAsync(async db =>
-    {
-        var blank = await db.BlankSubmissions.Include(row => row.Steps).SingleAsync(row => row.Id == blankId, Ct);
-        foreach (var stepCode in stepCodes)
-        {
-            SignOpenStep(blank, stepCode, decision: null, DateTimeOffset.UtcNow);
-        }
-
-        return await db.SaveChangesAsync(Ct);
-    });
-
-    private static void SignOpenStep(BlankSubmission blank, string stepCode, string? decision, DateTimeOffset at)
-    {
-        var step = blank.Steps.Single(row => row.StepCode == stepCode);
-        var act = step.Mode == BlankStepMode.InPerson
-            ? new BlankStepAct(BlankSignMethod.InPerson, null, SignatureStorageKey: "test/signature.png", Decision: decision)
-            : new BlankStepAct(BlankSignMethod.Electronic, null, Decision: decision);
-
-        blank.SignStep(step.Id, act, state: null, at).IsSuccess.ShouldBeTrue($"step {stepCode} should be open");
-    }
-
-    /// <summary>The step plan of a template version: its definition's <c>steps</c> (id, order, actor, mode).</summary>
-    private static List<BlankStepPlan> StepPlan(string definition)
-    {
-        var steps = JsonNode.Parse(definition)!["steps"]!.AsArray();
-        return steps.Select(node => new BlankStepPlan(
-                (string)node!["id"]!,
-                (int)node["order"]!,
-                (string?)node["title"] ?? (string)node["id"]!,
-                (string)node["actor"]!,
-                (string)node["mode"]! switch
-                {
-                    "electronic" => BlankStepMode.Electronic,
-                    "inPerson" => BlankStepMode.InPerson,
-                    _ => BlankStepMode.Either,
-                }))
-            .ToList();
-    }
-
-    /// <summary>
-    /// HR-F03/F04/F05/F11 stand-ins (only the §5.2 step ids — the facts read nothing else of the
-    /// definition). Lives in this class's database only; idempotent across the class's tests.
-    /// </summary>
-    private Task<int> EnsureStandInTemplatesAsync() => DbAsync(async db =>
-    {
-        (string Code, BlankSubjectKind Subject, string Steps)[] standIns =
-        [
-            (ProcessBlanks.F03, BlankSubjectKind.Candidate,
-                """[{"id":"consent","order":1,"actor":"candidate","mode":"inPerson"},{"id":"hr4Check","order":2,"actor":"hr4","mode":"electronic"},{"id":"hr1Approve","order":3,"actor":"hr1","mode":"electronic"}]"""),
-            (ProcessBlanks.F04, BlankSubjectKind.None,
-                """[{"id":"secretary","order":1,"actor":"hr1","mode":"electronic"},{"id":"chair","order":2,"actor":"council","mode":"either"}]"""),
-            (ProcessBlanks.F05, BlankSubjectKind.Candidate,
-                """[{"id":"offerHr4","order":1,"actor":"hr4","mode":"electronic"},{"id":"offerCandidate","order":2,"actor":"candidate","mode":"inPerson"},{"id":"docsHandover","order":3,"actor":"hr4","mode":"electronic"},{"id":"docsHr2","order":4,"actor":"hr2","mode":"electronic"},{"id":"docsCandidate","order":4,"actor":"candidate","mode":"inPerson"}]"""),
-            (ProcessBlanks.F11, BlankSubjectKind.Employee,
-                """[{"id":"signEmployee","order":1,"actor":"subjectEmployee","mode":"either"},{"id":"signIntroducer","order":1,"actor":"hr4","mode":"electronic"}]"""),
-        ];
-
-        foreach (var (code, subject, steps) in standIns)
-        {
-            if (await db.BlankTemplates.AnyAsync(row => row.Code == code, Ct))
-            {
-                continue;
-            }
-
-            var template = BlankTemplate.Create(code, code + " (test stand-in)", subject).Value;
-            db.BlankTemplates.Add(template);
-
-            var definition = $$$"""{"schema":1,"code":"{{{code}}}","version":"1.0","steps":{{{steps}}}}""";
-            var sha = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(definition)));
-            var version = BlankTemplateVersion.Create(template.Id, "1.0", definition, sha, BlankTemplateSource.Imported).Value;
-            version.Publish(null, DateTimeOffset.UtcNow).IsSuccess.ShouldBeTrue();
-            db.BlankTemplateVersions.Add(version);
-        }
-
-        return await db.SaveChangesAsync(Ct);
-    });
+    private Task<int> EnsureStandInTemplatesAsync() => DbAsync(db => ProcessTestBlanks.EnsureStandInsAsync(db, Ct));
 }

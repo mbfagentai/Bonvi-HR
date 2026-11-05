@@ -20,14 +20,14 @@ namespace Bonvi.Api.IntegrationTests.Processes;
 
 /// <summary>
 /// The reconciler against real PostgreSQL (docs/SPEC-mening-ishlarim.md §3.2, §6.9, §7.3–§7.5): starters, batch
-/// reconcile and the pass around them, driven directly. DI and the job are not wired yet, so the test builds it.
+/// reconcile and the pass around them, driven directly. <c>.Flows.cs</c> walks each flow end to end, <c>.Inline.cs</c> covers the job and the inline wrapper.
 /// </summary>
 /// <remarks>
 /// A pass sweeps the whole database and the database is shared by the tests of the class, so each test
 /// asserts only on its own subjects. Run counts are asserted only by tests that run a pass first to settle
 /// what the others left.
 /// </remarks>
-public sealed class ProcessReconcilerTests : IClassFixture<BonviApiFactory>
+public sealed partial class ProcessReconcilerTests : IClassFixture<BonviApiFactory>
 {
     private const string F08Answers = """{"leaveDate":"2026-12-31"}""";
 
@@ -597,13 +597,13 @@ public sealed class ProcessReconcilerTests : IClassFixture<BonviApiFactory>
 
         public List<string> MissingTemplates { get; } = [];
 
+        public List<Exception> Failures { get; } = [];
+
         public void PassFinished(int started, int changedRows)
         {
         }
 
-        public void PassFailed(Exception exception)
-        {
-        }
+        public void PassFailed(Exception exception) => Failures.Add(exception);
 
         public void CaseProblem(Guid caseId, string processCode, string problem) => Problems.Add((caseId, problem));
 
@@ -616,35 +616,21 @@ public sealed class ProcessReconcilerTests : IClassFixture<BonviApiFactory>
 
     private static string Suffix() => Guid.NewGuid().ToString("N")[..8];
 
-    /// <summary>Everything the reconciler needs, on one scope's context.</summary>
-    private static ProcessReconciler Build(IServiceProvider services, IProcessEngineJournal journal)
-    {
-        var context = services.GetRequiredService<AppDbContext>();
-        var cases = services.GetRequiredService<IProcessCaseRepository>();
-        var reader = new EfProcessEngineReader(context);
-
-        return new ProcessReconciler(
-            services.GetRequiredService<IUnitOfWork>(),
-            new ProcessEngineLock(context),
-            journal,
-            services.GetRequiredService<SystemSettingsReader>(),
-            services.GetRequiredService<ISystemSettingRepository>(),
-            new ProcessEnginePassLoader(
-                services.GetRequiredService<IWorkingDayCalendarSource>(),
-                services.GetRequiredService<IProcessStageBindingRepository>(),
-                services.GetRequiredService<IProcessTemplateRepository>(),
-                services.GetRequiredService<IProcessTemplateVersionRepository>(),
+    /// <summary>The reconciler from DI; a test that reads the journal gets the same graph around its own.</summary>
+    private static ProcessReconciler Resolve(IServiceProvider services, IProcessEngineJournal? journal)
+        => journal is null
+            ? services.GetRequiredService<ProcessReconciler>()
+            : ActivatorUtilities.CreateInstance<ProcessReconciler>(
+                services,
                 journal,
-                services.GetRequiredService<IClock>()),
-            cases,
-            new ProcessStarters(reader, cases, journal),
-            new ProcessCaseBatch(services.GetRequiredService<IProcessFactSource>(), reader, cases, journal));
-    }
+                ActivatorUtilities.CreateInstance<ProcessEnginePassLoader>(services, journal),
+                ActivatorUtilities.CreateInstance<ProcessStarters>(services, journal),
+                ActivatorUtilities.CreateInstance<ProcessCaseBatch>(services, journal));
 
     private async Task<T> InScopeAsync<T>(Func<ProcessReconciler, IServiceProvider, Task<T>> work, IProcessEngineJournal? journal = null)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        return await work(Build(scope.ServiceProvider, journal ?? new RecordingJournal()), scope.ServiceProvider);
+        return await work(Resolve(scope.ServiceProvider, journal), scope.ServiceProvider);
     }
 
     private Task<ProcessReconcileResult> RunAsync(IProcessEngineJournal? journal = null)
@@ -784,14 +770,14 @@ public sealed class ProcessReconcilerTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>A hire (optionally of a candidate, who is then marked Hired).</summary>
-    private Task<Hire> HireAsync(Guid? candidateId = null) => DbAsync(async db =>
+    private Task<Hire> HireAsync(Guid? candidateId = null, string? orderNo = null) => DbAsync(async db =>
     {
         var legalEntity = LegalEntity.Create("Engine MChJ " + Suffix()).Value;
         db.LegalEntities.Add(legalEntity);
         var employee = Employee.Create(FullName.Create("Xodimov" + Suffix(), "Test", null).Value).Value;
         db.Employees.Add(employee);
 
-        var employment = Employment.Hire(employee.Id, legalEntity.Id, Today, candidateId: candidateId).Value;
+        var employment = Employment.Hire(employee.Id, legalEntity.Id, Today, orderNo: orderNo, candidateId: candidateId).Value;
         db.Employments.Add(employment);
 
         if (candidateId is { } id)
