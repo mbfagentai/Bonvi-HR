@@ -1,6 +1,8 @@
 import type {
+  ProcessAutoItem,
   ProcessChecklistMark,
   ProcessManualInput,
+  ProcessOption,
   ProcessStepInputs,
   ProcessStepInputValue,
   ProcessStepPayload,
@@ -29,6 +31,50 @@ export type ManualFormErrors = Readonly<Record<string, ManualFieldError>>
 const WHOLE_NUMBER = /^-?\d+$/u
 
 const NO_MARKS: ManualChecklistValue = {}
+
+/** `ProcessCase.MaxCancelReasonLength`, the limit the server holds a missing-data reason to. */
+export const PROCESS_MISSING_REASON_MAX = 1000
+
+/** An option paired with what the system knows about it; `auto` is `null` on a plain tick. */
+export interface ChecklistRow {
+  option: ProcessOption
+  auto: ProcessAutoItem | null
+}
+
+/**
+ * The owner's rule: what the system knows is not asked, what is missing is filled in rather than ticked «yo'q». So the rows
+ * read in that order: what stands in the way, what only a person can answer, what is already settled.
+ */
+export interface ChecklistRows {
+  missing: ChecklistRow[]
+  plain: ChecklistRow[]
+  known: ChecklistRow[]
+  notApplicable: ChecklistRow[]
+}
+
+export function checklistRows(input: ProcessManualInput): ChecklistRows {
+  const rows: ChecklistRows = { missing: [], plain: [], known: [], notApplicable: [] }
+
+  for (const option of input.options) {
+    const auto = input.autoItems?.find((item) => item.value === option.value) ?? null
+    const group =
+      auto === null
+        ? rows.plain
+        : auto.state === 'Missing'
+          ? rows.missing
+          : auto.state === 'Known'
+            ? rows.known
+            : rows.notApplicable
+    group.push({ option, auto })
+  }
+
+  return rows
+}
+
+/** The options a person answers. Anything else the server settles from data and would ignore from here. */
+function plainOptions(input: ProcessManualInput): ProcessOption[] {
+  return checklistRows(input).plain.map((row) => row.option)
+}
 
 export function initialManualValues(inputs: readonly ProcessManualInput[]): ManualFormValues {
   return Object.fromEntries(
@@ -68,7 +114,7 @@ function fieldError(
 
   if (input.type === 'Checklist') {
     const marks = manualMarks(values[input.id])
-    return required && input.options.some((option) => marks[option.value] === undefined)
+    return required && plainOptions(input).some((option) => marks[option.value] === undefined)
       ? 'checklistIncomplete'
       : undefined
   }
@@ -103,6 +149,21 @@ export function validateManualValues(
   )
 }
 
+/**
+ * What keeps «Bajarildi» shut: the missing items of an input that is required right now. An optional input's missing item
+ * blocks nothing, the same as on the server.
+ */
+export function missingRequiredItems(
+  inputs: readonly ProcessManualInput[],
+  values: ManualFormValues,
+): ChecklistRow[] {
+  return inputs.flatMap((input) =>
+    input.type === 'Checklist' && isManualInputRequired(input, values)
+      ? checklistRows(input).missing
+      : [],
+  )
+}
+
 /** The `done` body: empty fields are left out, so the server sees «not answered» rather than an empty string. */
 export function toManualInputs(
   inputs: readonly ProcessManualInput[],
@@ -111,7 +172,12 @@ export function toManualInputs(
   return Object.fromEntries(
     inputs.flatMap<readonly [string, ProcessStepInputValue]>((input) => {
       if (input.type === 'Checklist') {
-        const marks = manualMarks(values[input.id])
+        const marks = Object.fromEntries(
+          plainOptions(input).flatMap((option) => {
+            const mark = manualMarks(values[input.id])[option.value]
+            return mark === undefined ? [] : [[option.value, mark] as const]
+          }),
+        )
         return Object.keys(marks).length === 0 ? [] : [[input.id, marks]]
       }
 

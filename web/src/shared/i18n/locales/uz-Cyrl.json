@@ -4223,6 +4223,24 @@
           "belowMin": "Энг кичик қиймат: {{min}}.",
           "aboveMax": "Энг катта қиймат: {{max}}.",
           "invalidChoice": "Рўйхатдан танланг."
+        },
+        "missing": "Тизимда йўқ",
+        "fill": "Тўлдириш",
+        "known": "Тизимда бор",
+        "notNeeded": "Керак эмас",
+        "notNeededFemale": "Керак эмас (аёл)",
+        "missingHint": "Аввал етишмаётган маълумотларни тўлдиринг — шундан кейин қадам ёпилади.",
+        "closeWithReason": "Сабаб билан ёпиш",
+        "reasonTitle": "Маълумотсиз ёпиш",
+        "reasonText": "Қуйидагилар тизимда йўқ. Сабаб тарихга ёзилади.",
+        "reasonLabel": "Сабаб",
+        "source": {
+          "EmployeeCard": "Ходим картасида",
+          "EmployeeDocument": "Ҳужжатларда",
+          "Employment": "Меҳнат муносабатида",
+          "CandidateCard": "Номзод картасида",
+          "CandidateForm": "Номзод анкетасида",
+          "CaseStep": "Қадамда бажарилган"
         }
       },
       "progress": "{{done}} / {{total}} қадам бажарилди",

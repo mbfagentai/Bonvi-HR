@@ -189,6 +189,42 @@ export interface ProcessRequiredWhen {
   equalsValue: string
 }
 
+export type ProcessAutoItemState = 'Known' | 'Missing' | 'NotApplicable'
+export type ProcessAutoSource =
+  | 'EmployeeCard'
+  | 'EmployeeDocument'
+  | 'Employment'
+  | 'CandidateCard'
+  | 'CandidateForm'
+  | 'CaseStep'
+export type ProcessAutoFillKind = 'EmployeeDocument' | 'EmployeeCard' | 'CandidateCard' | 'CaseStep'
+
+/** `ProcessInputFill`: where «To'ldirish» goes. */
+export interface ProcessAutoFill {
+  kind: ProcessAutoFillKind
+  employeeId: string | null
+  candidateId: string | null
+  /** `null` opens the upload dialog with no type chosen. */
+  documentTypeId: string | null
+  documentTypeName: string | null
+  stepCode: string | null
+}
+
+/** `ProcessAutoItemDto`: one data-backed checklist option. */
+export interface ProcessAutoItem {
+  value: string
+  state: ProcessAutoItemState
+  autoValue: 'done' | 'na' | null
+  /** Known only. */
+  autoSource: ProcessAutoSource | null
+  /** Known only: the document type's name or the step's title. */
+  sourceDetail: string | null
+  /** NotApplicable only. */
+  reason: 'Female' | null
+  /** Missing only. */
+  fill: ProcessAutoFill | null
+}
+
 export interface ProcessManualInput {
   id: string
   label: string
@@ -198,6 +234,11 @@ export interface ProcessManualInput {
   options: ProcessOption[]
   min: number | null
   max: number | null
+  /**
+   * Which options the system answers itself. `null` on /templates, on closed steps and on inputs with nothing data-backed;
+   * an option with no entry here is a plain tick.
+   */
+  autoItems: ProcessAutoItem[] | null
 }
 
 export interface ProcessManual {
@@ -459,7 +500,10 @@ export type ProcessStepInputs = Readonly<Record<string, ProcessStepInputValue>>
 export interface ProcessStepCompleteInput {
   /** `ProcessCaseDetail.version`. */
   version: number
+  /** Plain items only: the server works the data-backed ones out itself and ignores any claim about them. */
   inputs: ProcessStepInputs
+  /** `processes.manage` closing a step whose required data is missing (409 `jarayon.malumot_yetishmaydi` without it). */
+  missingReason?: string
 }
 
 export interface ProcessStepSkipInput {

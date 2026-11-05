@@ -4223,6 +4223,24 @@
           "belowMin": "Eng kichik qiymat: {{min}}.",
           "aboveMax": "Eng katta qiymat: {{max}}.",
           "invalidChoice": "Ro‘yxatdan tanlang."
+        },
+        "missing": "Tizimda yo‘q",
+        "fill": "To‘ldirish",
+        "known": "Tizimda bor",
+        "notNeeded": "Kerak emas",
+        "notNeededFemale": "Kerak emas (ayol)",
+        "missingHint": "Avval yetishmayotgan ma’lumotlarni to‘ldiring — shundan keyin qadam yopiladi.",
+        "closeWithReason": "Sabab bilan yopish",
+        "reasonTitle": "Ma’lumotsiz yopish",
+        "reasonText": "Quyidagilar tizimda yo‘q. Sabab tarixga yoziladi.",
+        "reasonLabel": "Sabab",
+        "source": {
+          "EmployeeCard": "Xodim kartasida",
+          "EmployeeDocument": "Hujjatlarda",
+          "Employment": "Mehnat munosabatida",
+          "CandidateCard": "Nomzod kartasida",
+          "CandidateForm": "Nomzod anketasida",
+          "CaseStep": "Qadamda bajarilgan"
         }
       },
       "progress": "{{done}} / {{total}} qadam bajarildi",

@@ -27,7 +27,7 @@ import {
   useSkipProcessStep,
   useUndoProcessStep,
 } from '../api/processes-queries'
-import { PROCESSES_WORK } from '../lib/permissions'
+import { PROCESSES_MANAGE, PROCESSES_WORK } from '../lib/permissions'
 import { describeDue, longDueDate } from '../lib/process-due'
 import { describeRecordedInputs } from '../lib/process-manual-form'
 import {
@@ -437,6 +437,7 @@ function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: Proc
           detail={detail}
           step={step}
           canWork={hasPermission(PROCESSES_WORK)}
+          canManage={hasPermission(PROCESSES_MANAGE)}
           canFillBlanks={hasPermission(BLANKS_FILL)}
         />
       </div>
@@ -480,11 +481,13 @@ function StepActions({
   detail,
   step,
   canWork,
+  canManage,
   canFillBlanks,
 }: {
   detail: ProcessCaseDetail
   step: ProcessCaseStep
   canWork: boolean
+  canManage: boolean
   canFillBlanks: boolean
 }) {
   const { t } = useLocale()
@@ -521,15 +524,22 @@ function StepActions({
   // The 200 came, the reload has finished and the version has not moved: only a failed reload leaves it like that.
   const reloadFailed = sent && complete.isSuccess
 
-  const submit = (inputs: ProcessStepInputs) => {
+  const submit = (inputs: ProcessStepInputs, missingReason?: string) => {
     if (sentVersion.current === version) return
     sentVersion.current = version
 
     complete.mutate(
-      { ...target, body: { version, inputs } },
       {
-        onError: () => {
+        ...target,
+        body: { version, inputs, ...(missingReason === undefined ? {} : { missingReason }) },
+      },
+      {
+        onError: (error) => {
           sentVersion.current = null
+          // The screen thought the data was there, so it is out of date: show what is really missing.
+          if (problemCode(error) === 'jarayon.malumot_yetishmaydi') {
+            void queryClient.invalidateQueries({ queryKey: processKeys.case(detail.id) })
+          }
         },
       },
     )
@@ -570,6 +580,10 @@ function StepActions({
           inputs={step.manual?.inputs ?? []}
           locked={locked}
           pending={complete.isPending || sent}
+          finished={reloadFailed}
+          canCloseWithReason={canManage}
+          failure={complete.isError ? errorMessage(problemCode(complete.error)) : null}
+          caseId={detail.id}
           onSubmit={submit}
         >
           {skipButton}

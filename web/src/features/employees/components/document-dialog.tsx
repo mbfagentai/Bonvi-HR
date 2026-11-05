@@ -40,6 +40,7 @@ export function DocumentDialog({
   employeeId,
   mode,
   item,
+  initialTypeId = '',
   onClose,
 }: {
   employeeId: string
@@ -47,6 +48,8 @@ export function DocumentDialog({
   mode: 'create' | 'edit' | null
   /** Faqat tahrirlashda to'ldirilgan. */
   item: EmployeeDocument | null
+  /** Yaratishda oldindan tanlangan tur: jarayon qadami aynan qaysi hujjat yetishmayotganini biladi. */
+  initialTypeId?: string
   onClose: () => void
 }) {
   const { t, num } = useLocale()
@@ -73,7 +76,7 @@ export function DocumentDialog({
       setTypeId(item.documentTypeId)
       setNote(item.note ?? '')
     } else {
-      setTypeId('')
+      setTypeId(initialTypeId)
       setNote('')
     }
 

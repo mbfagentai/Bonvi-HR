@@ -93,6 +93,8 @@ export function useProcessCase(caseId: string, enabled = true) {
     queryKey: processKeys.case(caseId),
     queryFn: ({ signal }) => fetchProcessCase(caseId, signal),
     enabled,
+    // Data-backed items answer from other screens: back from uploading a document, 60 fresh seconds would show it missing.
+    refetchOnMount: 'always',
   })
 }
 
@@ -112,6 +114,7 @@ export function useProcessCaseDetails(caseIds: readonly string[], enabled = true
       queryKey: processKeys.case(caseId),
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchProcessCase(caseId, signal),
       enabled,
+      refetchOnMount: 'always' as const,
     })),
   })
 }
