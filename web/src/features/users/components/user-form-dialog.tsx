@@ -4,10 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { useAuth } from '@/features/auth'
+import { isAttendanceScoped, useAuth } from '@/features/auth'
+import type { DepartmentNode } from '@/features/catalog/api/catalog-api'
+import { useDepartmentTree } from '@/features/catalog/api/catalog-queries'
 import type { RoleSummary } from '@/features/roles/api/roles-api'
 import { useRoles } from '@/features/roles/api/roles-queries'
 import { roleDisplayName } from '@/features/roles/lib/role-presentation'
+import {
+  useSaveUserAttendanceScope,
+  useUserAttendanceScope,
+} from '@/features/verification/api/attendance-queries'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
@@ -38,12 +44,15 @@ import {
   toUserFormValues,
   userFormSchema,
 } from '../lib/user-schemas'
+import { UserAttendanceScopeField } from './user-attendance-scope-field'
 import { UserPhotoEditor } from './user-photo-editor'
 
 const FORM_ID = 'user-form'
 
 /** Modul darajasida — har render'da yangi massiv `useMemo` larni buzadi. */
 const NO_ROLES: RoleSummary[] = []
+const NO_DEPARTMENTS: DepartmentNode[] = []
+const NO_IDS: string[] = []
 
 /**
  * `password` maydoni bo'lgan to'liq shakl — tahrirlashda ham TIP darajasida
@@ -83,6 +92,7 @@ export function UserFormDialog({
   const errorMessage = useErrorMessage()
   const { user: currentUser, hasPermission } = useAuth()
   const save = useSaveUser()
+  const saveScope = useSaveUserAttendanceScope()
 
   /*
     Rollar — `GET /api/roles` dan, qo'lda yozilgan ro'yxat emas: ularni
@@ -115,6 +125,18 @@ export function UserFormDialog({
   /** Maydonga bog'lanmagan server xatosi. */
   const [failure, setFailure] = useState<string | null>(null)
 
+  /** Ticks since the dialog opened; `null` — untouched, the server's list applies. */
+  const [pickedIds, setPickedIds] = useState<string[] | null>(null)
+  /** Save was pressed: an empty department list may now be called out. */
+  const [scopeSubmitted, setScopeSubmitted] = useState(false)
+  /** The department list was not saved; the reason as a translatable code. */
+  const [scopeFailure, setScopeFailure] = useState<string | null>(null)
+  /**
+   * The account a failed department save left behind. A retry sends only that save: creating
+   * again would fail on the login that is now taken.
+   */
+  const [createdId, setCreatedId] = useState<string | null>(null)
+
   const schema = useMemo(() => (isCreate ? createSchema : editSchema), [isCreate])
 
   const {
@@ -144,8 +166,13 @@ export function UserFormDialog({
   useEffect(() => {
     if (!open) return
     setFailure(null)
+    setPickedIds(null)
+    setScopeSubmitted(false)
+    setScopeFailure(null)
+    setCreatedId(null)
     reset({ ...toUserFormValues(item), password: '' })
     save.reset()
+    saveScope.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item?.id])
 
@@ -180,8 +207,48 @@ export function UserFormDialog({
     return options
   }, [t, roleList, myRole, known, item])
 
+  const chosenRole = roleList.find((role) => role.code === watch('roleCode'))
+  const scopedRole =
+    chosenRole !== undefined &&
+    isAttendanceScoped({ roles: [chosenRole.code], permissions: chosenRole.permissions })
+
+  const departments = useDepartmentTree(false, open && scopedRole)
+  const savedScope = useUserAttendanceScope(item?.id ?? null, open && scopedRole)
+  const scopeIds = pickedIds ?? savedScope.data?.departmentIds ?? NO_IDS
+
+  /*
+    Save waits for the saved list: saving before it arrives, or after it failed, would send an
+    empty or stale list and wipe the real one. Once the user has ticked something, a background
+    refetch no longer matters, because their list is the one that will be saved.
+  */
+  const scopeLoading =
+    scopedRole &&
+    (departments.isPending || (item !== null && pickedIds === null && savedScope.isFetching))
+  const scopeLoadFailed =
+    scopedRole &&
+    ((departments.isError && departments.data === undefined) ||
+      (item !== null && savedScope.isError))
+  const scopeBlocked = scopeLoading || scopeLoadFailed
+  const scopeMissing = scopedRole && scopeIds.length === 0
+
+  const toggleScope = (departmentId: string, checked: boolean) => {
+    setPickedIds(
+      checked ? [...scopeIds, departmentId] : scopeIds.filter((id) => id !== departmentId),
+    )
+  }
+
+  const retryScopeLoad = () => {
+    void departments.refetch()
+    if (item !== null) void savedScope.refetch()
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)
+    setScopeFailure(null)
+    setScopeSubmitted(true)
+
+    // Enter in a text field submits even while Save is disabled
+    if (scopeBlocked || scopeMissing) return
 
     const body = {
       login: toFullPhone(values.phone),
@@ -191,24 +258,41 @@ export function UserFormDialog({
       roleCode: values.roleCode,
     }
 
-    try {
-      if (item === null) {
-        await save.mutateAsync({ id: null, body: { ...body, password: values.password } })
-      } else {
-        await save.mutateAsync({ id: item.id, body })
-      }
-      onClose()
-    } catch (error) {
-      const code = userErrorCode(error)
-      const field = USER_ERROR_FIELD[code]
+    let userId = item?.id ?? createdId
 
-      if (field !== undefined && field in values) {
-        setError(field as keyof CreateValues, { message: code })
-      } else {
-        setFailure(code)
+    if (createdId === null) {
+      try {
+        const saved =
+          item === null
+            ? await save.mutateAsync({ id: null, body: { ...body, password: values.password } })
+            : await save.mutateAsync({ id: item.id, body })
+        userId = saved.id
+      } catch (error) {
+        const code = userErrorCode(error)
+        const field = USER_ERROR_FIELD[code]
+
+        if (field !== undefined && field in values) {
+          setError(field as keyof CreateValues, { message: code })
+        } else {
+          setFailure(code)
+        }
+        return
       }
     }
-  })
+
+    // The role is saved first: the server reads the department list against the account's role
+    if (scopedRole && userId !== null) {
+      try {
+        await saveScope.mutateAsync({ userId, departmentIds: scopeIds })
+      } catch (error) {
+        if (item === null) setCreatedId(userId)
+        setScopeFailure(userErrorCode(error))
+        return
+      }
+    }
+
+    onClose()
+  }, () => setScopeSubmitted(true))
 
   const message = (name: keyof CreateValues): string | undefined => {
     const raw = errors[name]?.message
@@ -229,6 +313,9 @@ export function UserFormDialog({
       ? errorMessage('foydalanuvchi.rolga_haqqi_yoq')
       : t('users.roleHint')
 
+  /** Once a failed department save has left the account created, only the departments can change. */
+  const accountLocked = isSubmitting || !canTouch || createdId !== null
+
   return (
     <Dialog
       open={open}
@@ -245,7 +332,7 @@ export function UserFormDialog({
             type="submit"
             form={FORM_ID}
             variant="primary"
-            disabled={isSubmitting || !canTouch}
+            disabled={isSubmitting || !canTouch || scopeBlocked}
           >
             {isSubmitting && <LoaderCircle className="animate-spin" />}
             {isSubmitting ? t('users.saving') : t('common.save')}
@@ -257,6 +344,16 @@ export function UserFormDialog({
         {failure !== null && (
           <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
             {errorMessage(failure)}
+          </Alert>
+        )}
+
+        {scopeFailure !== null && (
+          <Alert
+            tone="danger"
+            title={t('users.attendanceScopeSaveFailed')}
+            className="[animation:pop-in_180ms_var(--ease-ios-out)]"
+          >
+            {errorMessage(scopeFailure)}
           </Alert>
         )}
 
@@ -282,7 +379,7 @@ export function UserFormDialog({
           render={({ field }) => (
             <PhoneInput
               label={t('employee.phone')}
-              disabled={isSubmitting || !canTouch}
+              disabled={accountLocked}
               error={message('phone')}
               name={field.name}
               value={field.value}
@@ -296,14 +393,14 @@ export function UserFormDialog({
           <TextField
             label={t('employees.lastName')}
             autoComplete="off"
-            disabled={isSubmitting || !canTouch}
+            disabled={accountLocked}
             error={message('lastName')}
             {...register('lastName')}
           />
           <TextField
             label={t('employees.firstName')}
             autoComplete="off"
-            disabled={isSubmitting || !canTouch}
+            disabled={accountLocked}
             error={message('firstName')}
             {...register('firstName')}
           />
@@ -313,7 +410,7 @@ export function UserFormDialog({
           label={t('employees.middleName')}
           hint={t('employees.middleNameHint')}
           autoComplete="off"
-          disabled={isSubmitting || !canTouch}
+          disabled={accountLocked}
           error={message('middleName')}
           {...register('middleName')}
         />
@@ -324,7 +421,7 @@ export function UserFormDialog({
             hint={t('users.passwordHint')}
             type="password"
             autoComplete="new-password"
-            disabled={isSubmitting}
+            disabled={accountLocked}
             error={message('password')}
             {...register('password')}
           />
@@ -362,7 +459,7 @@ export function UserFormDialog({
               qo'yardi — va saqlaganda rol o'zi o'zgarib ketardi.
             */
             placeholder={t('users.rolePlaceholder')}
-            disabled={isSubmitting || isSelf || !canTouch}
+            disabled={accountLocked || isSelf}
             error={
               message('roleCode') ??
               (roles.isError ? errorMessage(userErrorCode(roles.error)) : undefined)
@@ -379,6 +476,19 @@ export function UserFormDialog({
         */}
         {SINGLE_HOLDER_ROLE_CODES.includes(watch('roleCode')) && (
           <p className="text-footnote text-[var(--fg-tertiary)]">{t('users.singleHolderHint')}</p>
+        )}
+
+        {scopedRole && (
+          <UserAttendanceScopeField
+            departments={departments.data ?? NO_DEPARTMENTS}
+            selected={scopeIds}
+            onToggle={toggleScope}
+            loading={scopeLoading}
+            failed={scopeLoadFailed}
+            onRetry={retryScopeLoad}
+            disabled={isSubmitting || !canTouch}
+            error={scopeSubmitted && scopeMissing ? t('users.attendanceScopeRequired') : undefined}
+          />
         )}
       </form>
     </Dialog>

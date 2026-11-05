@@ -1042,6 +1042,7 @@ export function useUserAttendanceScope(userId: string | null, enabled: boolean) 
     queryFn: ({ signal }) => fetchUserAttendanceScope(userId ?? '', signal),
     enabled: enabled && userId !== null,
     // Always the server's current list: saving a stale one would silently undo a colleague's edit
+    staleTime: 0,
     gcTime: 0,
   })
 }
