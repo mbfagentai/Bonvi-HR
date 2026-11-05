@@ -24,6 +24,11 @@ public sealed record ProcessCaseEnd(string? Outcome);
 /// employment and no F09 yet, so <c>dismissalWasUnderWay</c> carries whether the act or the
 /// termination had counted before this pass.
 /// </para>
+/// <para>
+/// <b>ex-11 does not end a dismissal by itself.</b> It closes on the same facts as ex-8 and ex-7, so in the
+/// pass that records the termination it would skip ex-8b, ex-9 and ex-10 — the final settlement and its Q12
+/// block — before anyone saw them. So <c>terminated</c> is the outcome once every non-optional step is closed.
+/// </para>
 /// </remarks>
 public static class ProcessCaseEndRules
 {
@@ -60,7 +65,7 @@ public static class ProcessCaseEndRules
             ProcessCodes.HireFormalise when processCase.EmploymentId is null => CandidateGone(facts),
 
             ProcessCodes.Probation => ProbationEnd(facts),
-            ProcessCodes.Dismissal => DismissalEnd(processCase, facts, subject, dismissalWasUnderWay),
+            ProcessCodes.Dismissal => DismissalEnd(facts, subject, dismissalWasUnderWay),
             _ => null,
         };
 
@@ -117,24 +122,20 @@ public static class ProcessCaseEndRules
             : "cancelled");
     }
 
-    private static ProcessCaseEnd? DismissalEnd(ProcessCase processCase, ProcessCaseFacts facts, ProcessCaseSubject subject, bool wasUnderWay)
-    {
-        if (IsDone(processCase, ProcessStepIds.ActRegistered))
-        {
-            return new ProcessCaseEnd(ProcessOutcomes.Terminated);
-        }
-
-        return wasUnderWay
-            && subject.EmploymentStatus is not EmploymentStatus.Terminated
+    private static ProcessCaseEnd? DismissalEnd(ProcessCaseFacts facts, ProcessCaseSubject subject, bool wasUnderWay)
+        => wasUnderWay
+            && subject.EmploymentStatus is EmploymentStatus.Active or EmploymentStatus.Probation
             && !facts.Get(ProcessFacts.DisF09Opened).Holds
                 ? new ProcessCaseEnd(ProcessOutcomes.Withdrawn)
                 : null;
-    }
 
     private static string? OutcomeOfFullRun(ProcessCase processCase, ProcessCaseFacts facts)
-        => processCase.ProcessCode == ProcessCodes.HireCandidate && facts.Get(ProcessFacts.CandHired).Holds
-            ? ProcessOutcomes.Hired
-            : null;
+        => processCase.ProcessCode switch
+        {
+            ProcessCodes.HireCandidate when facts.Get(ProcessFacts.CandHired).Holds => ProcessOutcomes.Hired,
+            ProcessCodes.Dismissal when IsDone(processCase, ProcessStepIds.ActRegistered) => ProcessOutcomes.Terminated,
+            _ => null,
+        };
 
     private static bool AllClosed(ProcessCase processCase, ProcessDefinition definition)
         => definition.Steps

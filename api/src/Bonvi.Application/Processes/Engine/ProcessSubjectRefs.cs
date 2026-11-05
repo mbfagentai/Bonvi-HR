@@ -40,7 +40,7 @@ public static class ProcessStepIds
     /// <summary>Dismissal recorded.</summary>
     public const string Terminated = "ex-8";
 
-    /// <summary>Last step of the dismissal: its Done ends the case with <c>terminated</c>.</summary>
+    /// <summary>The act entered in the register: a dismissal whose steps all closed with this one Done is <c>terminated</c>.</summary>
     public const string ActRegistered = "ex-11";
 }
 
