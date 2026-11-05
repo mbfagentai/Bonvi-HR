@@ -67,12 +67,13 @@ function subject(kind: ProcessSubject['kind'], name: string | null): ProcessSubj
 function caseOf(
   id: string,
   steps: ProcessCaseStep[],
-  { subject: subjectOf, ...partial }: Partial<ProcessCaseDetail> = {},
+  partial: Partial<ProcessCaseDetail> = {},
 ): ProcessCaseDetail {
   const columns = [...new Set(steps.map((row) => row.column))].map((key) => ({ key, title: key }))
 
-  const detail: ProcessCaseDetail = {
+  return {
     id,
+    subject: subject('None', null),
     processCode: 'hire-candidate',
     processTitle: id,
     source: null,
@@ -93,8 +94,6 @@ function caseOf(
     blanks: [],
     ...partial,
   }
-  if (subjectOf !== undefined) detail.subject = subjectOf
-  return detail
 }
 
 const finished = { state: 'Done' } as const
