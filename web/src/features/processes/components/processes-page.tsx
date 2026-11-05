@@ -2,6 +2,7 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { ClipboardCheck, Settings2 } from 'lucide-react'
 
 import { useAuth } from '@/features/auth'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Button, IconTile, PageHeader } from '@/shared/ui'
@@ -10,6 +11,7 @@ import { MY_WORK_PATH } from '../lib/landing'
 import { PROCESSES_MANAGE, PROCESSES_VIEW } from '../lib/permissions'
 import type { ProcessTab } from '../lib/processes-search'
 import { BoardTab } from './board-tab'
+import { DocumentsTab } from './documents-tab'
 import { LateTab } from './late-tab'
 import { MyWorkTab } from './my-work-tab'
 import { PROCESS_PAGE_CLASS } from './process-chips'
@@ -21,12 +23,21 @@ const route = getRouteApi('/_app/mening-ishlarim/')
  * The section's tabs, as a white card with pale-blue active pills. Each tab takes the width its label needs and a long
  * label wraps inside its own pill, so at 390 px, in any language, two labels never touch and nothing scrolls sideways.
  */
-function ProcessTabs({ value, onChange }: { value: ProcessTab; onChange: (next: ProcessTab) => void }) {
+function ProcessTabs({
+  value,
+  showDocs,
+  onChange,
+}: {
+  value: ProcessTab
+  showDocs: boolean
+  onChange: (next: ProcessTab) => void
+}) {
   const { t } = useLocale()
   const tabs: ReadonlyArray<{ value: ProcessTab; label: string }> = [
     { value: 'my', label: t('processes.tabs.my') },
     { value: 'board', label: t('processes.tabs.board') },
     { value: 'late', label: t('processes.tabs.late') },
+    ...(showDocs ? [{ value: 'docs' as const, label: t('processes.tabs.docs') }] : []),
   ]
 
   return (
@@ -62,13 +73,16 @@ function ProcessTabs({ value, onChange }: { value: ProcessTab; onChange: (next: 
 }
 
 /**
- * `/mening-ishlarim` (SPEC §11.1): the header and the three tabs. Each tab owns its data, and only the open one is
+ * `/mening-ishlarim` (SPEC §11.1): the header and the tabs. Each tab owns its data, and only the open one is
  * mounted, so opening the page asks for one tab's data. The tab lives in the address: reload and «Orqaga» keep it.
  */
 export function ProcessesPage() {
   const { t } = useLocale()
   const { hasPermission } = useAuth()
-  const { tab = 'my', view } = route.useSearch()
+  const { tab: askedTab = 'my', view } = route.useSearch()
+  // «Hujjatlari chala» reads employees: without `employees.view` the tab is not drawn, and its address opens the first one.
+  const canViewDocs = hasPermission(EMPLOYEES_VIEW)
+  const tab = askedTab === 'docs' && !canViewDocs ? 'my' : askedTab
   const navigate = useNavigate()
 
   const header = (
@@ -116,11 +130,12 @@ export function ProcessesPage() {
     >
       {header}
 
-      <ProcessTabs value={tab} onChange={changeTab} />
+      <ProcessTabs value={tab} showDocs={canViewDocs} onChange={changeTab} />
 
       {tab === 'my' && <MyWorkTab />}
       {tab === 'board' && <BoardTab />}
       {tab === 'late' && <LateTab />}
+      {tab === 'docs' && <DocumentsTab />}
     </div>
   )
 }

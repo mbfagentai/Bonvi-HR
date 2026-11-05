@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { CalendarOff, ChevronRight, ImageOff, Link2Off, type LucideIcon } from 'lucide-react'
+import { CalendarOff, ChevronRight, FileWarning, ImageOff, Link2Off, type LucideIcon } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 
 import type {
@@ -25,6 +25,7 @@ const COUNT_ICON: Readonly<Record<string, LucideIcon>> = {
   unmatchedTerminalPersons: Link2Off,
   employeesWithoutPhoto: ImageOff,
   employeesWithoutSchedule: CalendarOff,
+  employeesWithIncompleteFiles: FileWarning,
 }
 
 const SEVERITY_TONE: Readonly<Record<NotificationSeverity, TartibTone>> = {

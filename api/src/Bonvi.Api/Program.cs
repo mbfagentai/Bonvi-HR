@@ -287,6 +287,7 @@ app.MapAuditEndpoints();
 
 app.MapCatalogEndpoints();
 app.MapEmployeeEndpoints();
+app.MapEmployeeCompletenessEndpoints();
 app.MapEmploymentEndpoints();
 app.MapIncentiveEndpoints();
 app.MapEmployeeDocumentEndpoints();

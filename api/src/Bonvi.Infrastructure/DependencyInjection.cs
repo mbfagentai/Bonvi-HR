@@ -7,6 +7,7 @@ using Bonvi.Application.Blanks;
 using Bonvi.Application.Catalog.Usage;
 using Bonvi.Application.Dashboard.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
+using Bonvi.Application.Employees.Completeness;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Application.Identity.EmployeeAuth;
 using Bonvi.Application.Me;
@@ -187,6 +188,7 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeCheckFileRepository, EmployeeCheckFileRepository>();
 
         services.AddScoped<IEmployeeReadModel, EmployeeReadModel>();
+        services.AddScoped<IEmployeeCompletenessReadModel, EmployeeCompletenessReadModel>();
 
         // Rag'bat/jarima ro'yxati — ALOHIDA o'qish modeli, `IEmployeeReadModel`
         // ga qo'shilmagan: sababi `IIncentiveReadModel` izohida (boshqa

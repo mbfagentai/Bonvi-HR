@@ -16,6 +16,7 @@ function employment(partial: Partial<EmploymentSummary>): EmploymentSummary {
     isPrimary: false,
     salary: null,
     hireOrderNo: null,
+    reviewNote: null,
     hireOrderDate: null,
     terminationDate: null,
     terminationReasonName: null,
