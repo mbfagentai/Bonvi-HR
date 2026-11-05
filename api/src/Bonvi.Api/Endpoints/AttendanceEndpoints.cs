@@ -1409,18 +1409,19 @@ public static class AttendanceEndpoints
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                // JSON emas, BAYT — `ToHttpResult()` faqat xato yo'lida
-                // (xodim rasmi endpointidagi bilan bir xil sabab).
+                // JSON emas, BAYT — `ToHttpResult()` faqat xato yo'lida. Revalidated, not the
+                // HR route's one-day cache: a 404 only works on a request, and the scope of a
+                // «Davomat mas'uli» can shrink (the reason team photos do the same).
                 return natija.IsFailure
                     ? natija.ToHttpResult()
-                    : PhotoHttp.Write(context, natija.Value);
+                    : PhotoHttp.WriteRevalidated(context, natija.Value);
             })
             .RequireAuthorization(Permissions.AttendanceView)
             .WithName("GetAttendanceEmployeePhoto")
             .WithSummary("Davomat — xodim rasmi")
             .WithDescription(
-                "Rasm baytlari (image/jpeg), «ETag» + «If-None-Match» → 304, kesh shaxsiy (private, 1 kun). " +
-                "Xodim yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «xodim.topilmadi», rasm yo'q — " +
+                "Rasm baytlari (image/jpeg), «ETag» + «If-None-Match» → 304, kesh shaxsiy va har safar tekshiriladi " +
+                "(private, no-cache). Xodim yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «xodim.topilmadi», rasm yo'q — " +
                 "«xodim.rasm_yoq» (ikkalasi 404).")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)
