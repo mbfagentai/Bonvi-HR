@@ -2510,7 +2510,8 @@
       "Approved": "Vakansiya ochildi",
       "Rejected": "Rad etildi",
       "Cancelled": "Bekor qilindi"
-    }
+    },
+    "linkedMissing": "Havoladagi so‘rov topilmadi: u o‘chirilgan bo‘lishi mumkin."
   },
   "attendance": {
     "statsTitle": "Xodimlar davomati statistikasi",
@@ -4065,10 +4066,95 @@
       "subjectEmployee": "Xodimning o‘zi"
     },
     "case": {
-      "stepsTitle": "Qadamlar"
+      "stepsTitle": "Qadamlar",
+      "noSteps": "Bu jarayonda qadamlar yo‘q",
+      "startedOn": "Boshlangan: {{date}}",
+      "anchorDate": "Hisob sanasi: {{date}}",
+      "completedAt": "Yakunlangan: {{date}}",
+      "cancelledAt": "Bekor qilingan: {{date}}",
+      "cancelReason": "Bekor qilish sababi",
+      "parentCase": "Asosiy jarayonni ochish",
+      "blanks": "Hujjatlar",
+      "blanksEmpty": "Bu jarayonda hali hujjat yo‘q.",
+      "holder": "Mas’ul",
+      "optional": "Ixtiyoriy",
+      "resolver": "Kim hal qiladi",
+      "notHolder": "Bu qadamni {{role}} bajaradi",
+      "prereqs": "Avval bajarilishi kerak: {{titles}}",
+      "recorded": "Kiritilgan ma’lumot",
+      "guide": "Nima qilaman?",
+      "source": "Manba (reglament)",
+      "start": "Boshlash",
+      "open": "Ochish",
+      "complete": "Bajarildi",
+      "skip": "Kerak emas",
+      "undo": "Belgini qaytarish",
+      "writeSoon": "Belgilash tugmalari tez orada yoqiladi.",
+      "skipTitle": "Bu qadam kerak emasmi?",
+      "skipText": "Qadam o‘tkazib yuboriladi va jarayon davom etadi.",
+      "skipReason": "Sabab",
+      "undoTitle": "Belgini qaytarasizmi?",
+      "undoText": "Qadam yana bajarilmagan holatga qaytadi.",
+      "marks": {
+        "done": "Bor",
+        "notNeeded": "Yo‘q / kerak emas"
+      },
+      "resolution": {
+        "Fact": "Tizim hujjatdan aniqladi",
+        "Manual": "Qo‘lda belgilandi",
+        "Auto": "Tizim o‘zi bajardi",
+        "Condition": "Shart bo‘yicha o‘tkazildi",
+        "Legacy": "Eski yozuv sifatida yopildi"
+      },
+      "form": {
+        "choose": "Tanlang",
+        "errors": {
+          "required": "Bu maydonni to‘ldiring.",
+          "checklistIncomplete": "Har bir bandni belgilang: bor yoki yo‘q / kerak emas.",
+          "notWholeNumber": "Butun son kiriting.",
+          "belowMin": "Eng kichik qiymat: {{min}}.",
+          "aboveMax": "Eng katta qiymat: {{max}}.",
+          "invalidChoice": "Ro‘yxatdan tanlang."
+        }
+      }
     },
     "settings": {
       "title": "Sozlamalar"
+    },
+    "board": {
+      "process": "Jarayon",
+      "allProcesses": "Barcha jarayonlar",
+      "view": "Ko‘rinish",
+      "viewBoard": "Taxta",
+      "viewList": "Ro‘yxat",
+      "startDismissal": "Bo‘shatishni boshlash",
+      "startSoon": "Bu tugma tez orada yoqiladi.",
+      "noTemplatesTitle": "Jarayonlar hali sozlanmagan",
+      "noTemplatesText": "Tizim administratoriga murojaat qiling.",
+      "emptyTitle": "Bu jarayonda faol ish yo‘q",
+      "emptyText": "Yangi ish paydo bo‘lishi bilan shu yerda ko‘rinadi.",
+      "columnEmpty": "Bo‘sh",
+      "moreSteps": "yana {{n}} ta qadam",
+      "noSubject": "Nomsiz",
+      "searchPlaceholder": "Ism bo‘yicha qidirish…",
+      "allStatuses": "Barcha holatlar",
+      "allDepartments": "Barcha bo‘limlar",
+      "allHolders": "Barcha mas’ullar",
+      "startedOn": "Boshlangan sana",
+      "lateOnly": "Faqat kechikkanlar",
+      "listEmptyTitle": "Hali jarayon yo‘q",
+      "listEmptyText": "Jarayon boshlanishi bilan shu yerda ko‘rinadi.",
+      "notFoundTitle": "Hech narsa topilmadi",
+      "notFoundText": "Filtrlarni o‘zgartirib ko‘ring.",
+      "columns": {
+        "subject": "Kim",
+        "process": "Jarayon",
+        "department": "Bo‘lim",
+        "step": "Joriy qadam",
+        "holder": "Mas’ul",
+        "due": "Muddat",
+        "status": "Holat"
+      }
     }
   }
 }

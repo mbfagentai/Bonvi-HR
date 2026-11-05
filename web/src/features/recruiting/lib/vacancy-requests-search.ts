@@ -14,6 +14,11 @@ export interface VacancyRequestsSearch {
   status?: VacancyRequestStatus | 'all'
   from?: string
   to?: string
+  /**
+   * Shu so'rovni ochadi — «Mening ishlarim» qadamidan kelgan havola
+   * (`docs/SPEC-mening-ishlarim.md` §11.6). Oyna yopilganda manzildan olinadi.
+   */
+  id?: string
 }
 
 export type VacancyRequestTab = VacancyRequestStatus | 'all'
@@ -33,6 +38,7 @@ export function validateVacancyRequestsSearch(search: Record<string, unknown>): 
     status: readStatus(search['status']),
     from: readDate(search['from']),
     to: readDate(search['to']),
+    id: readText(search['id']),
   }
 }
 

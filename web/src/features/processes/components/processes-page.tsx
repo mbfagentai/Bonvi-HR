@@ -3,6 +3,7 @@ import { ClipboardCheck, Settings2 } from 'lucide-react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { Button, IconTile, PageHeader, SegmentedControl } from '@/shared/ui'
 
 import { MY_WORK_PATH } from '../lib/landing'
@@ -22,7 +23,7 @@ const route = getRouteApi('/_app/mening-ishlarim/')
 export function ProcessesPage() {
   const { t } = useLocale()
   const { hasPermission } = useAuth()
-  const { tab = 'my' } = route.useSearch()
+  const { tab = 'my', view } = route.useSearch()
   const navigate = useNavigate()
 
   const header = (
@@ -60,8 +61,14 @@ export function ProcessesPage() {
     void navigate({ to: MY_WORK_PATH, search: next === 'my' ? {} : { tab: next } })
   }
 
+  // Only the list view of «Jarayonlar» is a framed list (`app-shell.tsx`): its rows scroll inside the card.
+  const framed = tab === 'board' && view === 'list'
+
   return (
-    <div className="space-y-5">
+    <div
+      data-list-frame={framed ? '' : undefined}
+      className={cn('space-y-5', framed && 'frame:flex frame:h-full frame:flex-col')}
+    >
       {header}
 
       <SegmentedControl<ProcessTab>
