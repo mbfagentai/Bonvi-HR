@@ -346,7 +346,7 @@ export interface ProcessEngineStatus {
   engine: 'dormant' | 'active'
   startedOn: string | null
   gatesMode: 'enforce' | 'warn' | 'off'
-  /** `DayOfWeek` as a number: 0 is Sunday. */
+  /** The stored ISO weekday: 1 is Monday, 7 is Sunday. */
   councilWeekday: number
   lastPassAt: string | null
 }
