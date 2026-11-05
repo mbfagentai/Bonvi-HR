@@ -1,14 +1,14 @@
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { ClipboardCheck, Settings2 } from 'lucide-react'
+import { ClipboardCheck } from 'lucide-react'
 
 import { useAuth } from '@/features/auth'
 import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Button, IconTile, PageHeader } from '@/shared/ui'
+import { IconTile, PageHeader } from '@/shared/ui'
 
 import { MY_WORK_PATH } from '../lib/landing'
-import { PROCESSES_MANAGE, PROCESSES_VIEW } from '../lib/permissions'
+import { PROCESSES_VIEW } from '../lib/permissions'
 import type { ProcessTab } from '../lib/processes-search'
 import { BoardTab } from './board-tab'
 import { DocumentsTab } from './documents-tab'
@@ -92,17 +92,6 @@ export function ProcessesPage() {
           <IconTile icon={ClipboardCheck} tone="brand" size="lg" />
           {t('processes.title')}
         </span>
-      }
-      actions={
-        hasPermission(PROCESSES_MANAGE) ? (
-          <Button
-            variant="secondary"
-            onClick={() => void navigate({ to: '/mening-ishlarim/sozlamalar' })}
-          >
-            <Settings2 />
-            {t('processes.settings.title')}
-          </Button>
-        ) : undefined
       }
     />
   )
