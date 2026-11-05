@@ -274,8 +274,13 @@ export function HireDialog({
             {t('common.cancel')}
           </Button>
 
+          {/*
+            The keys matter: without them React reuses one DOM button and flips its `type`. `goNext` resolves in a microtask,
+            inside the click, so the browser then sees a submit button and sends the form before the last step was ever seen.
+          */}
           {last ? (
             <Button
+              key="submit"
               type="submit"
               form={FORM_ID}
               variant="primary"
@@ -285,7 +290,7 @@ export function HireDialog({
               {isSubmitting ? t('employees.hiring') : t('employees.hireConfirm')}
             </Button>
           ) : (
-            <Button type="button" variant="primary" onClick={() => void goNext()}>
+            <Button key="next" type="button" variant="primary" onClick={() => void goNext()}>
               {t('employees.nextStep')}
             </Button>
           )}
