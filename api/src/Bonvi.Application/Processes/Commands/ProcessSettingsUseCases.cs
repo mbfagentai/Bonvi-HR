@@ -81,7 +81,9 @@ public sealed class SetProcessStageBindingsCommandHandler
         ArgumentNullException.ThrowIfNull(command);
 
         var items = command.Bindings;
-        if (items is null || items.Select(item => item.BindingCode).Distinct(StringComparer.Ordinal).Count() != items.Count)
+        if (items is null
+            || items.Any(item => item is null) // {"bindings":[null]} is valid JSON and binds to a null element.
+            || items.Select(item => item.BindingCode).Distinct(StringComparer.Ordinal).Count() != items.Count)
         {
             return ProcessErrors.Invalid;
         }
