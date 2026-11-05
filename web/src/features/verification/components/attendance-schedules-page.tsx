@@ -115,7 +115,7 @@ const ASSIGNMENT_STATE_LOOK: Readonly<Record<AssignmentState, { tone: BadgeTone;
 export function AttendanceSchedulesPage() {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   // O'qiy olmagan odam tahrirlay ham olmaydi: forma o'qilgan ro'yxat ustida ishlaydi
@@ -126,8 +126,10 @@ export function AttendanceSchedulesPage() {
     ko'radiganlarga ham ochiq (menyu `attendance.view`), ular orasida esa
     xodimlar ro'yxati yopiq odam (masalan davomat mas'uli) bo'lishi mumkin —
     unga 403 bilan tugaydigan qidiruv ko'rsatilmaydi.
+
+    A scoped user searches through the attendance lookup instead (the picker branches on it).
   */
-  const canPickEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canPickEmployee = hasPermission(EMPLOYEES_VIEW) || isAttendanceScoped
   /*
     Jadval so'rovidagi tanaffus qoidasi — tizim sozlamasi (`/api/settings` faqat
     shu ruxsat bilan ochiq). Ruxsat bo'lmasa karta UMUMAN chizilmaydi
