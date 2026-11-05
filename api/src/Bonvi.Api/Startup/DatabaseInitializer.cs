@@ -252,6 +252,25 @@ public sealed partial class DatabaseInitializer : IHostedService
                 .ConfigureAwait(false);
         }
 
+        // ---------- Process templates and calendar (SPEC-mening-ishlarim §3.1, §6.6, §6.10) ----------
+        // Writes nothing on an ordinary restart. Invalid template: startup error in Development, logged and
+        // skipped elsewhere. The engine start date is written once, never in Testing (existing hire tests
+        // rely on the dormant engine, §7.6).
+        using (auditScope.Use("startup:process-templates"))
+        {
+            await provider.GetRequiredService<Bonvi.Infrastructure.Processes.ProcessHolidaySeeder>()
+                .SeedAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            await provider.GetRequiredService<Bonvi.Infrastructure.Processes.ProcessTemplateSeeder>()
+                .SeedAsync(
+                    new Bonvi.Infrastructure.Processes.ProcessTemplateSeedOptions(
+                        FailOnInvalid: _environment.IsDevelopment(),
+                        WriteStartedOn: !_environment.IsEnvironment("Testing")),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         // ---------- «Umumiy anketa» vakansiyasi ----------
         using (auditScope.Use("startup:general-pool"))
         {
