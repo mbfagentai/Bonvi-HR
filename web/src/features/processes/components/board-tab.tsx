@@ -1,8 +1,9 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { Kanban, UserMinus } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
@@ -22,6 +23,7 @@ import {
   processSubjectLine,
 } from './process-chips'
 import { ProcessCasesTable } from './process-cases-table'
+import { ProcessStartDialog } from './process-start-dialog'
 import { ProcessLoadError, ProcessListSkeleton } from './process-states'
 
 const route = getRouteApi('/_app/mening-ishlarim/')
@@ -40,6 +42,7 @@ export function BoardTab() {
   const search = route.useSearch()
   const navigate = route.useNavigate()
   const templatesQuery = useProcessTemplates()
+  const [starting, setStarting] = useState(false)
 
   const templates = useMemo(
     () => sortProcessTemplates(templatesQuery.data ?? NO_TEMPLATES),
@@ -115,13 +118,12 @@ export function BoardTab() {
             { value: 'list', label: t('processes.board.viewList') },
           ]}
         />
-        {hasPermission(PROCESSES_WORK) && (
-          // Stays disabled until slice P7 brings `POST /cases` and this button gets its start dialog.
+        {/* The dialog picks the employee through `employees.view`; without it there would be nobody to choose. */}
+        {hasPermission(PROCESSES_WORK) && hasPermission(EMPLOYEES_VIEW) && (
           <Button
             type="button"
             variant="create"
-            disabled
-            title={t('processes.board.startSoon')}
+            onClick={() => setStarting(true)}
             className="sm:ml-auto"
           >
             <UserMinus />
@@ -135,6 +137,8 @@ export function BoardTab() {
       ) : (
         <ProcessBoardColumns processCode={boardProcess} />
       )}
+
+      {starting && <ProcessStartDialog onClose={() => setStarting(false)} />}
     </div>
   )
 }

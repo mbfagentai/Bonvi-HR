@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   completeProcessStep,
@@ -143,5 +143,12 @@ export function useUndoProcessStep() {
 }
 
 export function useStartProcessCase() {
-  return useMutation({ mutationFn: (body: ProcessCaseStartInput) => startProcessCase(body) })
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: ProcessCaseStartInput) => startProcessCase(body),
+    // Not awaited: the new case opens straight away instead of waiting for the board it is leaving.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: processKeys.all })
+    },
+  })
 }
