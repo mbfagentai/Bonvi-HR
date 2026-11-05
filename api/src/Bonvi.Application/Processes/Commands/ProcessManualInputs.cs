@@ -5,10 +5,19 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Facts;
+using Bonvi.Application.Processes.Inputs;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Processes;
 
 namespace Bonvi.Application.Processes.Commands;
+
+/// <summary>A manager's close without required data: what the audit keeps.</summary>
+public sealed record ProcessMissingOverride(string Reason, IReadOnlyList<ProcessAutoItem> Items);
+
+/// <summary>What validated inputs become.</summary>
+/// <param name="Payload">The canonical payload; <c>null</c> when there is nothing to store.</param>
+/// <param name="MissingOverride">Set only when a manager's reason let required missing data through.</param>
+public sealed record ProcessManualOutcome(string? Payload, ProcessMissingOverride? MissingOverride);
 
 /// <summary>
 /// §10 #10: what «Bajarildi» sends, checked against the step's <c>manual.inputs</c> and turned into the step's payload.
@@ -23,6 +32,12 @@ namespace Bonvi.Application.Processes.Commands;
 /// (<see cref="Engine.ProcessStepPayload"/>).
 /// </para>
 /// <para>
+/// <b>Data-backed items</b> (<see cref="ProcessInputSources"/>): the client's mark is dropped and the system's stands, so a
+/// missing document can't be ticked. The payload stays flat and readable as before, and two root keys say what the marks came
+/// from: <see cref="AutoSourcesKey"/> and, on a manager's close, <see cref="MissingOverrideKey"/>. They are not input ids, so a
+/// request naming one is refused, and no template may use one (<c>ProcessInputSourcesTests</c>).
+/// </para>
+/// <para>
 /// <b>Canonical</b>: keys sorted, no spacing, text trimmed. <c>jsonb</c> re-spaces what it stores, so
 /// <c>evidence_sha256</c> is the hash of this form, reproducible from the stored payload (§6.3). Non-ASCII stays in the
 /// default encoder's <c>\uXXXX</c> form, which stored hashes depend on: leave the encoder alone.
@@ -30,6 +45,12 @@ namespace Bonvi.Application.Processes.Commands;
 /// </remarks>
 public static class ProcessManualInputs
 {
+    /// <summary>Payload root key: <c>{input: {item: source token}}</c> of the marks the system set.</summary>
+    public const string AutoSourcesKey = "autoSources";
+
+    /// <summary>Payload root key: <c>{reason, items: [{input, item}]}</c>, a manager closing without the required data.</summary>
+    public const string MissingOverrideKey = "missingOverride";
+
     /// <summary>A checklist item ticked.</summary>
     public const string ChecklistDone = "done";
 
@@ -49,6 +70,26 @@ public static class ProcessManualInputs
     /// <param name="inputs">The request's inputs; absent and JSON <c>null</c> are the same.</param>
     /// <param name="factOf">A fact of the case, for <c>requiredWhen.fact</c>.</param>
     public static Result<string?> Validate(ProcessManual? manual, JsonElement? inputs, Func<string, FactValue> factOf)
+    {
+        var outcome = Validate(manual, inputs, factOf, autoItems: null, missingReason: null, canManage: false);
+
+        return outcome.IsFailure ? outcome.Error : Result.Success(outcome.Value.Payload);
+    }
+
+    /// <summary>The canonical payload with the data-backed items settled, and what a manager's close let through.</summary>
+    /// <param name="manual">The step's <c>manual</c>; <c>null</c> — the step asks for nothing.</param>
+    /// <param name="inputs">The request's inputs; absent and JSON <c>null</c> are the same.</param>
+    /// <param name="factOf">A fact of the case, for <c>requiredWhen.fact</c>.</param>
+    /// <param name="autoItems">The step's data-backed items; <c>null</c> — it has none.</param>
+    /// <param name="missingReason">Why it closes without required data. Read only when some is missing.</param>
+    /// <param name="canManage">Whether the viewer may close it so.</param>
+    public static Result<ProcessManualOutcome> Validate(
+        ProcessManual? manual,
+        JsonElement? inputs,
+        Func<string, FactValue> factOf,
+        ProcessStepAutoItems? autoItems,
+        string? missingReason,
+        bool canManage)
     {
         ArgumentNullException.ThrowIfNull(factOf);
 
@@ -84,12 +125,48 @@ public static class ProcessManualInputs
             }
         }
 
-        if (definitions.Any(definition => IsRequired(definition, values, factOf) && !IsAnswered(definition, values)))
+        var autoSources = SettleAutoItems(definitions, autoItems, values);
+
+        if (definitions.Any(definition => IsRequired(definition, values, factOf) && !IsAnswered(definition, values, MissingOf(definition, autoItems))))
         {
             return ProcessErrors.Invalid;
         }
 
-        return Result.Success(values.Count == 0 ? null : ToJson(values));
+        var missing = definitions
+            .Where(definition => IsRequired(definition, values, factOf))
+            .SelectMany(definition => MissingOf(definition, autoItems))
+            .ToList();
+
+        // Added after the required checks, which read input values only.
+        if (autoSources.Count > 0)
+        {
+            values[AutoSourcesKey] = autoSources;
+        }
+
+        if (missing.Count == 0)
+        {
+            return new ProcessManualOutcome(values.Count == 0 ? null : ToJson(values), null);
+        }
+
+        var reason = missingReason?.Trim();
+        if (string.IsNullOrEmpty(reason))
+        {
+            return ProcessErrors.MissingData(missing.Select(item => (item.Input, item.Value, item.Label)));
+        }
+
+        if (!canManage)
+        {
+            return ProcessErrors.Forbidden;
+        }
+
+        if (reason.Length > ProcessCase.MaxCancelReasonLength || ProcessFreeText.HasNul(reason))
+        {
+            return ProcessErrors.Invalid;
+        }
+
+        values[MissingOverrideKey] = OverrideOf(reason, missing);
+
+        return new ProcessManualOutcome(ToJson(values), new ProcessMissingOverride(reason, missing));
     }
 
     /// <summary>§6.3: SHA-256 of the canonical payload, lower-case hex.</summary>
@@ -275,13 +352,7 @@ public static class ProcessManualInputs
 
         if (items.Count > 0)
         {
-            var checklist = new JsonObject();
-            foreach (var (name, mark) in items)
-            {
-                checklist[name] = mark;
-            }
-
-            value = checklist;
+            value = ObjectOf(items);
         }
 
         return true;
@@ -307,15 +378,99 @@ public static class ProcessManualInputs
         return when.Fact is { } fact && factOf(fact) is { Holds: true, Value: { } factValue } && when.EqualsValue.ToString() == factValue;
     }
 
-    /// <summary>A required checklist counts only with every item ticked or marked; anything else — once it has a value.</summary>
-    private static bool IsAnswered(ProcessManualInput definition, SortedDictionary<string, JsonNode> values)
+    /// <summary>
+    /// A required checklist counts only with every item ticked or marked; anything else — once it has a value. A missing
+    /// data-backed item has no mark and can't get one: whether it may stay so is the caller's next question, not this one.
+    /// </summary>
+    private static bool IsAnswered(ProcessManualInput definition, SortedDictionary<string, JsonNode> values, List<ProcessAutoItem> missing)
     {
-        if (!values.TryGetValue(definition.Id, out var value))
+        if (definition.Type != ProcessInputType.Checklist)
         {
-            return false;
+            return values.ContainsKey(definition.Id);
         }
 
-        return definition.Type != ProcessInputType.Checklist || value.AsObject().Count == definition.Options.Count;
+        var settled = missing.Count + (values.TryGetValue(definition.Id, out var value) ? value.AsObject().Count : 0);
+
+        return settled > 0 && settled == definition.Options.Count;
+    }
+
+    private static List<ProcessAutoItem> MissingOf(ProcessManualInput definition, ProcessStepAutoItems? autoItems)
+        => autoItems is null ? [] : [.. autoItems.Of(definition.Id).Where(item => item.State == ProcessAutoItemState.Missing)];
+
+    /// <summary>Puts the system's marks over the client's. Returns <c>{input: {item: source token}}</c> of those it set.</summary>
+    private static JsonObject SettleAutoItems(IReadOnlyList<ProcessManualInput> definitions, ProcessStepAutoItems? autoItems, SortedDictionary<string, JsonNode> values)
+    {
+        var sources = new JsonObject();
+        if (autoItems is null)
+        {
+            return sources;
+        }
+
+        // Ordinal order, as every other object in the payload: this is what the evidence hash is taken over.
+        foreach (var definition in definitions.OrderBy(definition => definition.Id, StringComparer.Ordinal))
+        {
+            var items = autoItems.Of(definition.Id);
+            if (items.Count == 0)
+            {
+                continue;
+            }
+
+            var marks = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            if (values.TryGetValue(definition.Id, out var given))
+            {
+                foreach (var (item, mark) in given.AsObject())
+                {
+                    marks[item] = mark!.GetValue<string>();
+                }
+            }
+
+            var itemSources = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (var item in items)
+            {
+                marks.Remove(item.Value);
+
+                if (item.Mark is { } mark)
+                {
+                    marks[item.Value] = mark;
+                    itemSources[item.Value] = item.SourceToken ?? string.Empty;
+                }
+            }
+
+            values.Remove(definition.Id);
+            if (marks.Count > 0)
+            {
+                values[definition.Id] = ObjectOf(marks);
+            }
+
+            if (itemSources.Count > 0)
+            {
+                sources[definition.Id] = ObjectOf(itemSources);
+            }
+        }
+
+        return sources;
+    }
+
+    private static JsonObject OverrideOf(string reason, List<ProcessAutoItem> missing)
+    {
+        var items = new JsonArray();
+        foreach (var item in missing)
+        {
+            items.Add(new JsonObject { ["input"] = item.Input, ["item"] = item.Value });
+        }
+
+        return new JsonObject { ["items"] = items, ["reason"] = reason };
+    }
+
+    private static JsonObject ObjectOf(SortedDictionary<string, string> entries)
+    {
+        var result = new JsonObject();
+        foreach (var (name, entry) in entries)
+        {
+            result[name] = entry;
+        }
+
+        return result;
     }
 
     /// <summary>A checklist has no scalar form: nothing compares equal to it.</summary>

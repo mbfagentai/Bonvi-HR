@@ -37,6 +37,7 @@ public static class ProcessesApplicationRegistration
         services.AddSingleton<ProcessDefinitionCache>();
         services.AddScoped<ProcessViewerLoader>();
         services.AddScoped<ProcessReadSetLoader>();
+        services.AddScoped<Inputs.ProcessInputAutoLoader>();
         services.AddScoped<ProcessTartibReader>();
         services.AddScoped<GetMyWorkQueryHandler>();
         services.AddScoped<GetMyProcessCountQueryHandler>();

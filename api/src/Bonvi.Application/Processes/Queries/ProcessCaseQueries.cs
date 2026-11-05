@@ -3,6 +3,7 @@ using Bonvi.Application.Common.Lists;
 using Bonvi.Application.Employees.Dtos;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
+using Bonvi.Application.Processes.Inputs;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Processes;
@@ -263,6 +264,7 @@ public sealed class GetProcessCaseQueryHandler
     private readonly IProcessReadModel _readModel;
     private readonly ProcessViewerLoader _viewers;
     private readonly ProcessReadSetLoader _sets;
+    private readonly ProcessInputAutoLoader _autoItems;
     private readonly IClock _clock;
 
     public GetProcessCaseQueryHandler(
@@ -270,12 +272,14 @@ public sealed class GetProcessCaseQueryHandler
         IProcessReadModel readModel,
         ProcessViewerLoader viewers,
         ProcessReadSetLoader sets,
+        ProcessInputAutoLoader autoItems,
         IClock clock)
     {
         _inline = inline;
         _readModel = readModel;
         _viewers = viewers;
         _sets = sets;
+        _autoItems = autoItems;
         _clock = clock;
     }
 
@@ -310,6 +314,19 @@ public sealed class GetProcessCaseQueryHandler
         var definition = set.DefinitionOf(row);
         var at = _clock.UtcNow;
 
+        IReadOnlyDictionary<string, ProcessStepAutoItems> autoItems = definition is null
+            ? new Dictionary<string, ProcessStepAutoItems>(StringComparer.Ordinal)
+            : await _autoItems
+                .LoadAsync(
+                    row.ProcessCode,
+                    definition,
+                    steps.ToDictionary(step => step.StepCode, step => step.State, StringComparer.Ordinal),
+                    row.EmployeeId,
+                    row.EmploymentId,
+                    row.CandidateId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
         return new ProcessCaseDetailDto(
             row.Id,
             row.ProcessCode,
@@ -329,7 +346,7 @@ public sealed class GetProcessCaseQueryHandler
             row.CancelReason,
             row.Version,
             [.. (definition?.Board ?? []).Select(column => new ProcessColumnDto(column.Key, column.Title))],
-            [.. steps.Select(step => StepOf(step, row, viewer, set, at))],
+            [.. steps.Select(step => StepOf(step, row, viewer, set, autoItems.GetValueOrDefault(step.StepCode), at))],
             blanks);
     }
 
@@ -338,6 +355,7 @@ public sealed class GetProcessCaseQueryHandler
         ProcessCaseRow row,
         ProcessViewer viewer,
         ProcessReadSet set,
+        ProcessStepAutoItems? autoItems,
         DateTimeOffset at)
     {
         var definition = set.DefinitionOf(step);
@@ -372,7 +390,7 @@ public sealed class GetProcessCaseQueryHandler
             definition?.Guide ?? [],
             definition?.SourceRef,
             ProcessReadSet.LinkOf(definition),
-            ProcessDefinitionDtos.Manual(definition?.Manual),
+            ProcessDefinitionDtos.Manual(definition?.Manual, autoItems),
             holds,
             ProcessStepAbility.CanComplete(definition, step, row, viewer),
             ProcessStepAbility.CanSkip(definition, step, row, viewer),

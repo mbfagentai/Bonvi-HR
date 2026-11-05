@@ -17,8 +17,9 @@ public sealed record StartProcessCaseBody(string? ProcessCode, Guid? EmploymentI
 
 /// <summary>«Bajarildi» body.</summary>
 /// <param name="Version">The case <c>version</c> the screen shows.</param>
-/// <param name="Inputs">Keyed by input id. Text, choice — string; date — <c>yyyy-MM-dd</c>; int — number; checklist — object item → <c>done</c> | <c>na</c>.</param>
-public sealed record CompleteProcessStepBody(int? Version, JsonElement? Inputs);
+/// <param name="Inputs">Keyed by input id. Text, choice — string; date — <c>yyyy-MM-dd</c>; int — number; checklist — object item → <c>done</c> | <c>na</c>. Marks on data-backed items are ignored.</param>
+/// <param name="MissingReason">Required data is not in the system and a <c>processes.manage</c> holder closes anyway: why. At most 1000 characters; ignored when nothing is missing.</param>
+public sealed record CompleteProcessStepBody(int? Version, JsonElement? Inputs, string? MissingReason);
 
 /// <summary>«Kerak emas» body.</summary>
 /// <param name="Version">The case <c>version</c> the screen shows.</param>
@@ -125,7 +126,7 @@ public static class ProcessWriteEndpoints
     private static void MapStepWrites(RouteGroupBuilder group)
     {
         group.MapPost("/cases/{id:guid}/steps/{code}/done", async (Guid id, string code, CompleteProcessStepBody body, CompleteProcessStepCommandHandler handler, CancellationToken cancellationToken) =>
-                (await handler.HandleAsync(new CompleteProcessStepCommand(id, code, body.Version, body.Inputs), cancellationToken).ConfigureAwait(false)).ToHttpResult())
+                (await handler.HandleAsync(new CompleteProcessStepCommand(id, code, body.Version, body.Inputs, body.MissingReason), cancellationToken).ConfigureAwait(false)).ToHttpResult())
             .RequireAuthorization(Permissions.ProcessesWork)
             .WithName("CompleteProcessStep")
             .WithSummary("«Bajarildi» — close a manual step")
@@ -133,6 +134,9 @@ public static class ProcessWriteEndpoints
                 "Inputs are checked against the step's manual.inputs (400 jarayon.kiritish_notogri). 403 if the viewer " +
                 "neither holds the step nor has «processes.manage». 409 jarayon.qadam_holati_notogri if the step is not " +
                 "Active, the blocking gate's code if it is Blocked, jarayon.versiya on a stale version. " +
+                "Data-backed checklist items (manual.inputs[].autoItems) are settled by the server, marks sent for them are " +
+                "ignored: a required one with no data is 409 jarayon.malumot_yetishmaydi, whose «missing» lists {input, item, " +
+                "label}, unless missingReason is given, which needs «processes.manage» (403) and is audited. " +
                 "Permission: «processes.work».")
             .Produces<ProcessCaseDetailDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

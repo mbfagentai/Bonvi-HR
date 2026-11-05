@@ -4,7 +4,14 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
-import { employeeErrorCode, terminationWarning } from '@/features/employees/lib/employee-error'
+import { HrOutcomeDialog } from '@/features/employees/components/hr-outcome-dialog'
+import {
+  employeeErrorCode,
+  processGateBlock,
+  terminationWarning,
+} from '@/features/employees/lib/employee-error'
+import { warningsToShow, type HrWarning } from '@/features/employees/lib/hr-warnings'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import {
   EMPLOYMENT_SALARY,
   EMPLOYMENT_TERMINATE,
@@ -113,6 +120,9 @@ export function ResolveDialog({
   const [orderNo, setOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState('')
   const [terminationDate, setTerminationDate] = useState(todayIso)
+  /** The flags HR has confirmed in this dialog; `null` until then. A retry keeps the confirmation. */
+  const [confirmed, setConfirmed] = useState<readonly string[] | null>(null)
+  const [outcome, setOutcome] = useState<HrWarning[] | null>(null)
   const [reasonId, setReasonId] = useState('')
 
   // Dialog yopilib qayta ochilganda oldingi xodimning xulosasi qolib
@@ -134,6 +144,8 @@ export function ResolveDialog({
       setOrderDate('')
       setTerminationDate(todayIso())
       setReasonId('')
+      setConfirmed(null)
+      setOutcome(null)
       resolve.reset()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,13 +153,29 @@ export function ResolveDialog({
 
   if (item === null) return null
 
+  if (outcome !== null) {
+    return (
+      <HrOutcomeDialog
+        title={t('probation.resolveTitle')}
+        description={item.employeeName}
+        done={t('probation.terminatedDone')}
+        warnings={outcome}
+        onClose={onClose}
+      />
+    )
+  }
+
   const promoting = status === 'passed'
   const leaving = LEAVING_RESULTS.includes(status)
   const warning = leaving ? terminationWarning(resolve.error) : null
+  const block = leaving ? processGateBlock(resolve.error) : null
 
   const results = PROBATION_RESULTS.filter((value) => canTerminate || !LEAVING_RESULTS.includes(value))
 
-  const submit = (confirm: boolean) => {
+  const submit = () => {
+    const acknowledged = warning === null ? confirmed : [warning.code, ...warning.extra]
+    setConfirmed(acknowledged)
+
     const trimmedConclusion = conclusion.trim()
     const trimmedOrder = orderNo.trim()
     const parsedSalary = Number(salary)
@@ -189,12 +217,18 @@ export function ResolveDialog({
                   orderDate: orderDate === '' ? null : orderDate,
                   note: null,
                 },
-                confirm,
+                confirm: acknowledged !== null,
               }
             : {}),
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: ({ warnings }) => {
+          const unread = warningsToShow(warnings, acknowledged)
+          if (unread.length > 0) setOutcome(unread)
+          else onClose()
+        },
+      },
     )
   }
 
@@ -212,7 +246,7 @@ export function ResolveDialog({
           </Button>
           <Button
             variant={leaving ? 'danger' : 'primary'}
-            onClick={() => submit(warning !== null)}
+            onClick={submit}
             disabled={resolve.isPending || (leaving && terminationDate === '')}
           >
             {resolve.isPending && <LoaderCircle className="animate-spin" />}
@@ -227,7 +261,12 @@ export function ResolveDialog({
     >
       <div className="space-y-4">
         {resolve.isError &&
-          (warning === null ? (
+          (block !== null ? (
+            <ProcessGateBlockAlert
+              block={block}
+              cases={{ employee: item.employeeId, process: 'dismissal' }}
+            />
+          ) : warning === null ? (
             <Alert tone="danger">{errorMessage(employeeErrorCode(resolve.error))}</Alert>
           ) : (
             <Alert tone="warning" title={errorMessage(warning.code)}>

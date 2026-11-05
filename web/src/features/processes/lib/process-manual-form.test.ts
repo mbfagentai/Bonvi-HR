@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProcessManualInput } from '../api/processes-api'
+import type { ProcessAutoItem, ProcessManualInput } from '../api/processes-api'
 import {
+  checklistRows,
   describeRecordedInputs,
   initialManualValues,
   isManualInputRequired,
+  missingRequiredItems,
   toManualInputs,
   validateManualValues,
 } from './process-manual-form'
@@ -17,6 +19,7 @@ function input(partial: Partial<ProcessManualInput> & Pick<ProcessManualInput, '
     options: [],
     min: null,
     max: null,
+    autoItems: null,
     ...partial,
   } satisfies ProcessManualInput
 }
@@ -187,5 +190,99 @@ describe('describeRecordedInputs', () => {
         { value: 'accept', x: { nested: true }, l: 'text' },
       ),
     ).toEqual([])
+  })
+})
+
+describe('data-backed checklist items', () => {
+  const auto = (value: string, state: ProcessAutoItem['state']): ProcessAutoItem => ({
+    value,
+    state,
+    autoValue: state === 'Known' ? 'done' : state === 'NotApplicable' ? 'na' : null,
+    autoSource: state === 'Known' ? 'EmployeeCard' : null,
+    sourceDetail: null,
+    reason: state === 'NotApplicable' ? 'Female' : null,
+    fill:
+      state === 'Missing'
+        ? {
+            kind: 'EmployeeDocument',
+            employeeId: 'e1',
+            candidateId: null,
+            documentTypeId: null,
+            documentTypeName: null,
+            stepCode: null,
+          }
+        : null,
+  })
+
+  const docs = input({
+    id: 'docs',
+    type: 'Checklist',
+    required: true,
+    options: [
+      { value: 'passport', label: 'Pasport' },
+      { value: 'certificates', label: 'Sertifikat' },
+      { value: 'diploma', label: 'Diplom' },
+      { value: 'military', label: 'Harbiy' },
+      { value: 'bankCard', label: 'Bank kartasi' },
+    ],
+    autoItems: [
+      auto('passport', 'Known'),
+      auto('diploma', 'Missing'),
+      auto('military', 'NotApplicable'),
+    ],
+  })
+
+  it('sorts the rows by state, treating an option with no entry as a plain tick', () => {
+    const rows = checklistRows(docs)
+    expect(rows.missing.map((row) => row.option.value)).toEqual(['diploma'])
+    expect(rows.plain.map((row) => row.option.value)).toEqual(['certificates', 'bankCard'])
+    expect(rows.known.map((row) => row.option.value)).toEqual(['passport'])
+    expect(rows.notApplicable.map((row) => row.option.value)).toEqual(['military'])
+  })
+
+  it('treats every option as plain when the server sent no auto items', () => {
+    const rows = checklistRows(input({ id: 'x', type: 'Checklist', options }))
+    expect(rows.plain).toHaveLength(2)
+    expect(rows.missing).toHaveLength(0)
+  })
+
+  it('asks a person only about the plain items', () => {
+    const plain = { certificates: 'done', bankCard: 'na' } as const
+    expect(validateManualValues([docs], { docs: plain })).toEqual({})
+    expect(validateManualValues([docs], { docs: { certificates: 'done' } })).toEqual({
+      docs: 'checklistIncomplete',
+    })
+  })
+
+  it('sends only plain items, even if something else is in the form state', () => {
+    expect(
+      toManualInputs([docs], { docs: { certificates: 'done', passport: 'done', diploma: 'na' } }),
+    ).toEqual({ docs: { certificates: 'done' } })
+    expect(toManualInputs([docs], { docs: { passport: 'done' } })).toEqual({})
+  })
+
+  it('lets a step with only auto items go with nothing to tick', () => {
+    const settled = input({
+      id: 'all',
+      type: 'Checklist',
+      required: true,
+      options: [{ value: 'passport', label: 'Pasport' }],
+      autoItems: [auto('passport', 'Known')],
+    })
+    expect(validateManualValues([settled], { all: {} })).toEqual({})
+    expect(missingRequiredItems([settled], { all: {} })).toEqual([])
+  })
+
+  it('counts a missing item only on an input required right now', () => {
+    expect(missingRequiredItems([docs], {}).map((row) => row.option.value)).toEqual(['diploma'])
+    expect(missingRequiredItems([{ ...docs, required: false }], {})).toEqual([])
+
+    const conditional = {
+      ...docs,
+      required: false,
+      requiredWhen: { input: 'kind', equalsValue: 'a', fact: null },
+    } satisfies ProcessManualInput
+    expect(missingRequiredItems([conditional], { kind: 'b' })).toEqual([])
+    expect(missingRequiredItems([conditional], { kind: 'a' })).toHaveLength(1)
   })
 })

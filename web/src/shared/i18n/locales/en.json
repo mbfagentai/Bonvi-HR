@@ -494,7 +494,8 @@
     "resolveAndTerminate": "Complete and dismiss",
     "terminateTitle": "Dismissal",
     "terminateHint": "An employee who failed probation or left on their own is dismissed right here and moves to «Former employees».",
-    "terminateLockedHint": "«Failed» and «Left early» mean dismissal, which requires the permission to dismiss."
+    "terminateLockedHint": "«Failed» and «Left early» mean dismissal, which requires the permission to dismiss.",
+    "terminatedDone": "Probation is complete and the employee has been terminated."
   },
   "flags": {
     "subtitle": "{{n}} records",
@@ -945,6 +946,7 @@
     "jarayon.holat_notogri": "This action is not available in the process's current state.",
     "jarayon.versiya": "Another user changed this process — refresh the page.",
     "jarayon.allaqachon_ochilgan": "This process is already open for this employee.",
+    "jarayon.malumot_yetishmaydi": "Required data is missing from the system — fill it in first.",
     "jarayon.band": "Processes are being recalculated — try again in a few seconds.",
     "jarayon.yakun_kuchda": "What ended this process has not changed — reopened, it would end again.",
     "jarayon.istisno_yaroqsiz": "The exception has already been used or has expired.",
@@ -1461,7 +1463,10 @@
     "correctedAt": "Corrected: {{date}}",
     "showCorrections": "Show corrections",
     "probationAlreadyOver": "The probation period ended on {{date}} — the employee will be added as permanent right away.",
-    "tabBlanks": "Blanks"
+    "tabBlanks": "Blanks",
+    "outcomeWarnings": "Please note",
+    "terminatedDone": "The employee has been terminated.",
+    "hiredDone": "The employee has been hired."
   },
   "employments": {
     "anyType": "All types",
@@ -4227,6 +4232,24 @@
           "belowMin": "The smallest value is {{min}}.",
           "aboveMax": "The largest value is {{max}}.",
           "invalidChoice": "Choose from the list."
+        },
+        "missing": "Not in the system",
+        "fill": "Fill in",
+        "known": "In the system",
+        "notNeeded": "Not needed",
+        "notNeededFemale": "Not needed (female)",
+        "missingHint": "Fill in the missing data first; the step can close after that.",
+        "closeWithReason": "Close with a reason",
+        "reasonTitle": "Close without the data",
+        "reasonText": "These are not in the system. The reason goes on the record.",
+        "reasonLabel": "Reason",
+        "source": {
+          "EmployeeCard": "On the employee card",
+          "EmployeeDocument": "In the documents",
+          "Employment": "In the employment record",
+          "CandidateCard": "On the candidate card",
+          "CandidateForm": "In the candidate form",
+          "CaseStep": "Done in the step"
         }
       },
       "progress": "{{done}} / {{total}} steps done",
@@ -4259,7 +4282,12 @@
         "done": "done",
         "skipped": "not needed"
       },
-      "guideEmpty": "This step has no guide."
+      "guideEmpty": "This step has no guide.",
+      "gate": {
+        "openCase": "Open the process",
+        "openWork": "Open «My work»"
+      },
+      "reloadFailed": "The step is done, but the page did not refresh."
     },
     "settings": {
       "title": "Settings",

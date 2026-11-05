@@ -50,6 +50,32 @@ export interface TerminationWarning {
   detail: string | null
 }
 
+/** A refusal by a process gate (SPEC §8): `confirm` only speaks for the flags, so this one is never confirmable. */
+export interface ProcessGateBlock {
+  code: string
+  /** Everything else missing, so HR does not close one and walk into the next. */
+  extra: string[]
+}
+
+const isProcessGateCode = (code: string) => code.startsWith('jarayon.')
+
+function otherCodes(problem: ProblemDetails | undefined, code: string): string[] {
+  const raw = problem?.warnings ?? problem?.extensions?.warnings
+
+  return Array.isArray(raw)
+    ? raw.filter((item): item is string => typeof item === 'string' && item !== code)
+    : []
+}
+
+export function processGateBlock(error: unknown): ProcessGateBlock | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409) return null
+
+  const problem = error.response.data as ProblemDetails | undefined
+  const code = typeof problem?.title === 'string' ? problem.title : ''
+
+  return isProcessGateCode(code) ? { code, extra: otherCodes(problem, code) } : null
+}
+
 /**
  * Server tasdiq so'rayaptimi.
  *
@@ -57,7 +83,7 @@ export interface TerminationWarning {
  * qo'shilganda (masalan «sinov muddati tugamagan») frontend uni bilmasa
  * ham oyna to'g'ri ishlaydi — tarjimasi yo'q kod o'z holicha ko'rsatiladi.
  * Kodlar ro'yxatiga bog'lanib qolish esa yangi qoidani jimgina yutib
- * yuborardi.
+ * yuborardi. Yagona istisno — `jarayon.*`: u tasdiq bilan o'tmaydi.
  */
 export function terminationWarning(error: unknown): TerminationWarning | null {
   if (!axios.isAxiosError(error)) return null
@@ -65,14 +91,9 @@ export function terminationWarning(error: unknown): TerminationWarning | null {
 
   const problem = error.response.data as ProblemDetails | undefined
   const code = typeof problem?.title === 'string' ? problem.title : ''
-  if (code === '') return null
+  if (code === '' || isProcessGateCode(code)) return null
 
-  const rawWarnings = problem?.warnings ?? problem?.extensions?.warnings
-  const extra = Array.isArray(rawWarnings)
-    ? rawWarnings.filter(
-        (item): item is string => typeof item === 'string' && item !== code,
-      )
-    : []
+  const extra = otherCodes(problem, code)
 
   return {
     code,

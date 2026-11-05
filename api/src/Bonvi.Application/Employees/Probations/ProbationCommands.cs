@@ -380,7 +380,7 @@ public sealed class ResolveProbationCommandHandler
         // Rad etilsa hech narsa saqlanmagan: sinov faqat xotirada yopilgan.
         return terminated.IsFailure
             ? terminated.Error
-            : Result.Success(_mapper.ToDto(probation));
+            : Result.Success(_mapper.ToDto(probation) with { Warnings = terminated.Value.Warnings });
     }
 
     /// <summary>

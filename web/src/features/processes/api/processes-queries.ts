@@ -4,6 +4,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 
 import {
@@ -20,6 +21,7 @@ import {
   skipProcessStep,
   startProcessCase,
   undoProcessStep,
+  type ProcessCaseDetail,
   type ProcessCaseFilters,
   type ProcessCaseStartInput,
   type ProcessStepCompleteInput,
@@ -91,6 +93,8 @@ export function useProcessCase(caseId: string, enabled = true) {
     queryKey: processKeys.case(caseId),
     queryFn: ({ signal }) => fetchProcessCase(caseId, signal),
     enabled,
+    // Data-backed items answer from other screens: back from uploading a document, 60 fresh seconds would show it missing.
+    refetchOnMount: 'always',
   })
 }
 
@@ -110,6 +114,7 @@ export function useProcessCaseDetails(caseIds: readonly string[], enabled = true
       queryKey: processKeys.case(caseId),
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchProcessCase(caseId, signal),
       enabled,
+      refetchOnMount: 'always' as const,
     })),
   })
 }
@@ -149,11 +154,26 @@ interface ProcessStepTarget {
   stepCode: string
 }
 
-export function useCompleteProcessStep() {
-  return useMutation({
-    mutationFn: ({ caseId, stepCode, body }: ProcessStepTarget & { body: ProcessStepCompleteInput }) =>
+/**
+ * Pending until the case has reloaded: the form holds the case's version, and released on the 200 it would still send the
+ * old one, so a second press would read as someone else's change (409 `jarayon.versiya`). `providers.tsx` still refreshes
+ * the rest; this only waits for the part the form stands on.
+ */
+export function completeStepOptions(queryClient: QueryClient) {
+  return {
+    mutationFn: ({
+      caseId,
+      stepCode,
+      body,
+    }: ProcessStepTarget & { body: ProcessStepCompleteInput }) =>
       completeProcessStep(caseId, stepCode, body),
-  })
+    onSuccess: (_detail: ProcessCaseDetail, { caseId }: ProcessStepTarget) =>
+      queryClient.invalidateQueries({ queryKey: processKeys.case(caseId) }),
+  }
+}
+
+export function useCompleteProcessStep() {
+  return useMutation(completeStepOptions(useQueryClient()))
 }
 
 export function useSkipProcessStep() {

@@ -36,6 +36,20 @@ public static class ProcessErrors
     public static readonly Error EndFactStillHolds =
         Error.Conflict("jarayon.yakun_kuchda", "Jarayonni yakunlagan holat hali o'zgarmagan — qayta ochilsa yana yakunlanadi.");
 
+    /// <summary>
+    /// A required data-backed checklist item is not in the subject's records: it is filled in where it lives, not ticked.
+    /// <c>missing</c> lists them, each as <c>input</c>, <c>item</c> and <c>label</c>.
+    /// </summary>
+    /// <param name="missing">The items, in the checklist's order.</param>
+    public static Error MissingData(IEnumerable<(string Input, string Item, string Label)> missing)
+        => Error.Conflict("jarayon.malumot_yetishmaydi", "Majburiy ma'lumotlar tizimda yo'q — avval ularni to'ldiring.")
+            .WithDetails(new Dictionary<string, object>
+            {
+                ["missing"] = missing
+                    .Select(row => new Dictionary<string, string> { ["input"] = row.Input, ["item"] = row.Item, ["label"] = row.Label })
+                    .ToList(),
+            });
+
     public static readonly Error OverrideNotUsable =
         Error.Conflict("jarayon.istisno_yaroqsiz", "Istisno ishlatilgan yoki muddati o'tgan.");
 

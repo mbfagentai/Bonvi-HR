@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CircleCheck, ExternalLink, LoaderCircle, Play, Undo2 } from 'lucide-react'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
@@ -19,13 +20,14 @@ import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
 import { Alert, Badge, Button, buttonVariants, Card, Dialog, Skeleton, TextArea } from '@/shared/ui'
 
-import type { ProcessCaseDetail, ProcessCaseStep } from '../api/processes-api'
+import type { ProcessCaseDetail, ProcessCaseStep, ProcessStepInputs } from '../api/processes-api'
 import {
+  processKeys,
   useCompleteProcessStep,
   useSkipProcessStep,
   useUndoProcessStep,
 } from '../api/processes-queries'
-import { PROCESSES_WORK } from '../lib/permissions'
+import { PROCESSES_MANAGE, PROCESSES_WORK } from '../lib/permissions'
 import { describeDue, longDueDate } from '../lib/process-due'
 import { describeRecordedInputs } from '../lib/process-manual-form'
 import {
@@ -435,6 +437,7 @@ function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: Proc
           detail={detail}
           step={step}
           canWork={hasPermission(PROCESSES_WORK)}
+          canManage={hasPermission(PROCESSES_MANAGE)}
           canFillBlanks={hasPermission(BLANKS_FILL)}
         />
       </div>
@@ -478,20 +481,28 @@ function StepActions({
   detail,
   step,
   canWork,
+  canManage,
   canFillBlanks,
 }: {
   detail: ProcessCaseDetail
   step: ProcessCaseStep
   canWork: boolean
+  canManage: boolean
   canFillBlanks: boolean
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
+  const queryClient = useQueryClient()
 
   const complete = useCompleteProcessStep()
   const skip = useSkipProcessStep()
   const undo = useUndoProcessStep()
   const [dialog, setDialog] = useState<'skip' | 'undo' | null>(null)
+  /**
+   * The version this form has sent and not been refused on. `isPending` turns only on the next render, so Enter and a click
+   * in one go would both get through without this; and a 200 stays final until the case arrives with a new version.
+   */
+  const sentVersion = useRef<number | null>(null)
 
   const target = { caseId: detail.id, stepCode: step.stepCode }
   const { version } = detail
@@ -509,6 +520,31 @@ function StepActions({
 
   if (!showEntry && !showComplete && !showSkip && !showUndo) return null
 
+  const sent = sentVersion.current === version
+  // The 200 came, the reload has finished and the version has not moved: only a failed reload leaves it like that.
+  const reloadFailed = sent && complete.isSuccess
+
+  const submit = (inputs: ProcessStepInputs, missingReason?: string) => {
+    if (sentVersion.current === version) return
+    sentVersion.current = version
+
+    complete.mutate(
+      {
+        ...target,
+        body: { version, inputs, ...(missingReason === undefined ? {} : { missingReason }) },
+      },
+      {
+        onError: (error) => {
+          sentVersion.current = null
+          // The screen thought the data was there, so it is out of date: show what is really missing.
+          if (problemCode(error) === 'jarayon.malumot_yetishmaydi') {
+            void queryClient.invalidateQueries({ queryKey: processKeys.case(detail.id) })
+          }
+        },
+      },
+    )
+  }
+
   const skipButton = showSkip && (
     <Button type="button" variant="secondary" disabled={locked} onClick={() => setDialog('skip')}>
       {t('processes.case.skip')}
@@ -523,14 +559,32 @@ function StepActions({
         <Alert tone="danger">{errorMessage(problemCode(complete.error))}</Alert>
       )}
 
+      {reloadFailed && (
+        <Alert tone="warning">
+          <p>{t('processes.case.reloadFailed')}</p>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-2"
+            onClick={() =>
+              void queryClient.invalidateQueries({ queryKey: processKeys.case(detail.id) })
+            }
+          >
+            {t('common.retry')}
+          </Button>
+        </Alert>
+      )}
+
       {showComplete ? (
         <ProcessManualForm
           inputs={step.manual?.inputs ?? []}
           locked={locked}
-          pending={complete.isPending}
-          onSubmit={(inputs) =>
-            complete.mutate({ ...target, body: { version, inputs } })
-          }
+          pending={complete.isPending || sent}
+          finished={reloadFailed}
+          canCloseWithReason={canManage}
+          failure={complete.isError ? errorMessage(problemCode(complete.error)) : null}
+          caseId={detail.id}
+          onSubmit={submit}
         >
           {skipButton}
         </ProcessManualForm>

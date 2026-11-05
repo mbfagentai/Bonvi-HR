@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
@@ -26,8 +27,10 @@ import {
   useTerminate,
   useTransfer,
 } from '../api/employees-queries'
-import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
+import { employeeErrorCode, processGateBlock, terminationWarning } from '../lib/employee-error'
 import { EMPLOYMENT_SALARY, SALARY_EXTRA_VIEW, SALARY_VIEW } from '../lib/employee-presentation'
+import { warningsToShow, type HrWarning } from '../lib/hr-warnings'
+import { HrOutcomeDialog } from './hr-outcome-dialog'
 
 /**
  * Buyruq maydonlari — to'rtala oynada bir xil.
@@ -694,6 +697,9 @@ export function TerminateDialog({
   const [orderNo, setOrderNo] = useState('')
   const [orderDate, setOrderDate] = useState('')
   const [note, setNote] = useState('')
+  /** The flags HR has confirmed in this dialog; `null` until then. A retry keeps the confirmation. */
+  const [confirmed, setConfirmed] = useState<readonly string[] | null>(null)
+  const [outcome, setOutcome] = useState<HrWarning[] | null>(null)
 
   useEffect(() => {
     if (employment === null) return
@@ -703,6 +709,8 @@ export function TerminateDialog({
     setOrderNo('')
     setOrderDate('')
     setNote('')
+    setConfirmed(null)
+    setOutcome(null)
     leave.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employment])
@@ -710,12 +718,28 @@ export function TerminateDialog({
   if (employment === null) return null
 
   const warning = terminationWarning(leave.error)
+  const block = processGateBlock(leave.error)
 
-  const submit = (confirm: boolean) => {
+  if (outcome !== null) {
+    return (
+      <HrOutcomeDialog
+        title={t('employees.terminateTitle')}
+        description={employment.legalEntity?.name ?? undefined}
+        done={t('employees.terminatedDone')}
+        warnings={outcome}
+        onClose={onClose}
+      />
+    )
+  }
+
+  const submit = () => {
+    const acknowledged = warning === null ? confirmed : [warning.code, ...warning.extra]
+    setConfirmed(acknowledged)
+
     leave.mutate(
       {
         employmentId: employment.id,
-        confirm,
+        confirm: acknowledged !== null,
         body: {
           terminationDate,
           reasonId: reasonId === '' ? null : reasonId,
@@ -724,7 +748,13 @@ export function TerminateDialog({
           note: note.trim() === '' ? null : note.trim(),
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: ({ warnings }) => {
+          const unread = warningsToShow(warnings, acknowledged)
+          if (unread.length > 0) setOutcome(unread)
+          else onClose()
+        },
+      },
     )
   }
 
@@ -735,13 +765,18 @@ export function TerminateDialog({
       title={t('employees.terminateTitle')}
       description={employment.legalEntity?.name ?? undefined}
       submitLabel={warning === null ? t('employees.terminate') : t('employees.terminateAnyway')}
-      onSubmit={() => submit(warning !== null)}
+      onSubmit={submit}
       pending={leave.isPending}
       disabled={terminationDate === ''}
       danger
       error={
         leave.isError &&
-        (warning === null ? (
+        (block !== null ? (
+          <ProcessGateBlockAlert
+            block={block}
+            cases={{ employee: employeeId, process: 'dismissal' }}
+          />
+        ) : warning === null ? (
           <Alert tone="danger">{errorMessage(employeeErrorCode(leave.error))}</Alert>
         ) : (
           <Alert tone="warning" title={errorMessage(warning.code)}>

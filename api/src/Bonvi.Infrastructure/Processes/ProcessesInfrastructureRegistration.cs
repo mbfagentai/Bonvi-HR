@@ -39,6 +39,7 @@ public static class ProcessesInfrastructureRegistration
         services.AddScoped<IProcessEngineJournal, ProcessEngineJournal>();
 
         services.AddScoped<IProcessReadModel, ProcessReadModel>();
+        services.AddScoped<Bonvi.Application.Processes.Inputs.IProcessSubjectDataReader, ProcessSubjectDataReader>();
 
         return services;
     }

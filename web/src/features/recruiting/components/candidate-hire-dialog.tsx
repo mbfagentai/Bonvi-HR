@@ -9,7 +9,9 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
+import { processGateBlock } from '@/features/employees/lib/employee-error'
 import { SALARY_VIEW } from '@/features/employees/lib/employee-presentation'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
@@ -326,6 +328,8 @@ export function CandidateHireDialog({
 
   /* ───────────────────────── FORMA ───────────────────────── */
 
+  const gateBlock = processGateBlock(hire.error)
+
   return (
     <Dialog
       open
@@ -365,11 +369,14 @@ export function CandidateHireDialog({
           submit()
         }}
       >
-        {failure !== null && (
-          <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
-            {errorMessage(failure)}
-          </Alert>
-        )}
+        {failure !== null &&
+          (gateBlock !== null ? (
+            <ProcessGateBlockAlert block={gateBlock} cases={{ candidate: candidate.id }} />
+          ) : (
+            <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
+              {errorMessage(failure)}
+            </Alert>
+          ))}
 
         {/* ⚠️ Nima bo'lishi — mavhum «tasdiqlaysizmi?» emas, aniq ro'yxat */}
         <Alert tone="warning" title={t('recruiting.acceptWarningTitle')}>
