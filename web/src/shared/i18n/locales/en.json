@@ -3928,7 +3928,9 @@
         "payrollAccountant": "Payroll accountant",
         "chiefAccountant": "Chief accountant",
         "director": "Director",
-        "lawyer": "Lawyer"
+        "lawyer": "Lawyer",
+        "safetyEngineer": "Safety engineer",
+        "council": "Council"
       }
     },
     "fill": {
@@ -4068,7 +4070,126 @@
       "stepsTitle": "Steps"
     },
     "settings": {
-      "title": "Settings"
+      "title": "Settings",
+      "notYet": "This section starts working with the next update.",
+      "rulesTitle": "Rules",
+      "rulesNoAccess": "The council day and the gates mode are changed by a user with the system settings permission.",
+      "status": {
+        "title": "Engine status",
+        "engine": "State",
+        "active": "Running",
+        "dormant": "Not started",
+        "dormantText": "The engine has not been started: no processes open and the gates do nothing.",
+        "startedOn": "Started on",
+        "lastPass": "Last check",
+        "never": "Not yet",
+        "reconcile": "Check now",
+        "resultFinished": "Check finished: {{started}} processes opened, {{changed}} records changed.",
+        "resultBusy": "Another check is running. Try again in a few seconds.",
+        "resultDormant": "The engine has not been started, so nothing was checked."
+      },
+      "gatesMode": {
+        "label": "Gates mode",
+        "hint": "Whether a missing document stops the hire, the dismissal or the step.",
+        "enforce": "Strict: stops the action",
+        "warn": "Warnings only",
+        "off": "Off",
+        "warnText": "A hire or a dismissal will go through even when a required document is missing; the user only sees a warning.",
+        "offText": "Nothing is checked at all: a hire or a dismissal goes through without documents and without any warning. Use this only as an emergency measure."
+      },
+      "council": {
+        "label": "Council day",
+        "hint": "Due dates of council steps are counted to this weekday.",
+        "day1": "Monday",
+        "day2": "Tuesday",
+        "day3": "Wednesday",
+        "day4": "Thursday",
+        "day5": "Friday"
+      },
+      "bindings": {
+        "title": "Pipeline stages",
+        "hint": "Which pipeline stage closes which hiring step. An unbound step closes only by hand.",
+        "none": "Not bound",
+        "contacted": "Contacted",
+        "invited": "Invited",
+        "council": "Council",
+        "practicalTest": "Practical test"
+      },
+      "holidays": {
+        "title": "Working-day calendar",
+        "hint": "Holidays and moved working days. Due dates are counted with them in mind.",
+        "addTitle": "Add a date",
+        "addHint": "If the date is already listed, its entry is replaced.",
+        "date": "Date",
+        "kind": "Type",
+        "name": "Name",
+        "kinds": {
+          "Holiday": "Holiday",
+          "WorkingDay": "Working day"
+        },
+        "deleteTitle": "Delete this date?",
+        "deleteText": "{{date}}: {{title}}",
+        "deleteHint": "Due dates of open steps may change.",
+        "emptyTitle": "The calendar is empty",
+        "emptyText": "Every day from Monday to Friday counts as a working day."
+      },
+      "roles": {
+        "title": "Roles",
+        "hint": "The roles the processes ask for and who holds them.",
+        "edit": "Assign roles"
+      },
+      "templates": {
+        "title": "Processes",
+        "hint": "The published definitions the engine runs on.",
+        "empty": "No processes are published",
+        "steps": "{{n}} steps"
+      }
+    },
+    "late": {
+      "blocked": "Blocked",
+      "late": "Late",
+      "warn": "Warnings",
+      "open": "Open",
+      "resolver": "Who can resolve it",
+      "blockedNoReason": "No reason given",
+      "emptyTitle": "Nobody is late",
+      "emptyText": "No step is blocked, overdue or carrying a warning.",
+      "overrideOpen": "Exception granted, until {{date}}",
+      "overridesTitle": "Exceptions log",
+      "overridesHint": "The last 30 days",
+      "overridesEmpty": "No exceptions were granted in the last 30 days.",
+      "overrideFor": "For: {{name}}",
+      "overrideGranted": "Granted by {{name}}, {{date}}",
+      "overrideExpires": "Valid until {{date}}",
+      "overrideConsumed": "Used on {{date}}",
+      "unknownUser": "Unknown user",
+      "standing": {
+        "used": "Used",
+        "open": "Valid",
+        "expired": "Expired"
+      },
+      "gates": {
+        "Q01": "Hire without a candidate",
+        "Q03": "PINFL or payment details",
+        "Q04": "Safety briefing",
+        "Q12": "Handover act",
+        "Q13": "Exit interview"
+      },
+      "override": {
+        "action": "Grant an exception",
+        "title": "Grant an exception",
+        "submit": "Grant",
+        "terms": "An exception is valid for 24 hours and works once. Every exception is recorded in the audit log.",
+        "reason": "Reason",
+        "reasonHint": "At least {{n}} characters"
+      },
+      "directHire": {
+        "action": "Allow a hire without a candidate",
+        "title": "Allow a hire without a candidate",
+        "forUser": "For whom",
+        "forUserHint": "Only this user can make one hire without a candidate.",
+        "choose": "Choose a user"
+      }
     }
   }
 }
