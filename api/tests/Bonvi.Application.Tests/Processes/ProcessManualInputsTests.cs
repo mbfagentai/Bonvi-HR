@@ -47,6 +47,45 @@ public sealed class ProcessManualInputsTests
 
     private static string Quoted(string text) => JsonSerializer.Serialize(text);
 
+    // ─────────────────────────── Text JSON can carry but .NET cannot read ───────────────────────────
+
+    // A lone surrogate parses, and the body binds to a JsonElement without being read: it would throw only at GetString
+    // or JsonProperty.Name, a 500 for what is just a wrong input.
+    [Theory]
+    [InlineData(ProcessInputType.Text, """{"zeta":"\ud800"}""")]
+    [InlineData(ProcessInputType.Text, """{"\ud800":"x"}""")]
+    [InlineData(ProcessInputType.Text, """{"\ud800":null}""")]
+    [InlineData(ProcessInputType.LongText, """{"zeta":"\udc00 x"}""")]
+    [InlineData(ProcessInputType.Date, """{"zeta":"\ud800"}""")]
+    [InlineData(ProcessInputType.Choice, """{"zeta":"\ud800"}""")]
+    [InlineData(ProcessInputType.Checklist, """{"zeta":{"pass":"\ud800"}}""")]
+    [InlineData(ProcessInputType.Checklist, """{"zeta":{"\ud800":"done"}}""")]
+    [InlineData(ProcessInputType.WholeNumber, """{"zeta":1,"\ud800":1}""")]
+    public void A_lone_surrogate_is_a_wrong_input_not_a_crash(ProcessInputType type, string json)
+    {
+        var options = type == ProcessInputType.Checklist ? Items : Ways;
+
+        ShouldBeRefused(Validate(Manual(Input("zeta", type) with { Options = options }), json));
+    }
+
+    [Fact]
+    public void A_lone_surrogate_is_refused_on_a_step_that_asks_for_nothing()
+        => ShouldBeRefused(Validate(null, """{"\ud800":1}"""));
+
+    [Fact]
+    public void Invalid_utf8_is_a_wrong_input_not_a_crash()
+    {
+        using var document = JsonDocument.Parse(new byte[] { (byte)'{', (byte)'"', (byte)'a', (byte)'"', (byte)':', (byte)'"', 0xFF, (byte)'"', (byte)'}' });
+
+        var result = ProcessManualInputs.Validate(Manual(Input("a", ProcessInputType.Text)), document.RootElement, _ => FactValue.NotHeld);
+
+        ShouldBeRefused(result);
+    }
+
+    [Fact]
+    public void A_surrogate_pair_is_ordinary_text()
+        => Validate(Manual(Input("note", ProcessInputType.Text)), """{"note":"😀"}""").IsSuccess.ShouldBeTrue();
+
     // ─────────────────────────── The shape of the request ───────────────────────────
 
     [Theory]

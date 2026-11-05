@@ -52,6 +52,11 @@ public static class ProcessManualInputs
     {
         ArgumentNullException.ThrowIfNull(factOf);
 
+        if (inputs is { } body && !IsReadable(body))
+        {
+            return ProcessErrors.Invalid;
+        }
+
         var definitions = manual?.Inputs ?? [];
 
         var given = ReadGiven(inputs);
@@ -93,6 +98,51 @@ public static class ProcessManualInputs
         ArgumentNullException.ThrowIfNull(canonicalPayload);
 
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalPayload)));
+    }
+
+    /// <summary>
+    /// A lone surrogate or broken UTF-8 parses, and the body binds without being read, yet <see cref="JsonElement.GetString"/>
+    /// and <see cref="JsonProperty.Name"/> throw on it. Checked once, up front, so what follows reads freely and such a
+    /// request is refused as a wrong input rather than ending in a 500.
+    /// </summary>
+    private static bool IsReadable(JsonElement element)
+    {
+        try
+        {
+            ReadAllText(element);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static void ReadAllText(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                _ = element.GetString();
+                break;
+
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    _ = property.Name;
+                    ReadAllText(property.Value);
+                }
+
+                break;
+
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    ReadAllText(item);
+                }
+
+                break;
+        }
     }
 
     /// <summary>
