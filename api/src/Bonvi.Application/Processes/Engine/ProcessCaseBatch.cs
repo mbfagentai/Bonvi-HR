@@ -20,17 +20,20 @@ public sealed class ProcessCaseBatch
     private readonly IProcessFactSource _facts;
     private readonly IProcessEngineReader _reader;
     private readonly IProcessCaseRepository _cases;
+    private readonly IProcessGateOverrideRepository _overrides;
     private readonly IProcessEngineJournal _journal;
 
     public ProcessCaseBatch(
         IProcessFactSource facts,
         IProcessEngineReader reader,
         IProcessCaseRepository cases,
+        IProcessGateOverrideRepository overrides,
         IProcessEngineJournal journal)
     {
         _facts = facts;
         _reader = reader;
         _cases = cases;
+        _overrides = overrides;
         _journal = journal;
     }
 
@@ -105,6 +108,11 @@ public sealed class ProcessCaseBatch
             .Where(child => child.ProcessCode == ProcessCodes.HireFormalise)
             .ToLookup(child => child.ParentCaseId!.Value);
 
+        var overrides = (await _overrides
+                .ListUsableByCaseIdsAsync([.. cases.Select(processCase => processCase.Id)], pass.At, cancellationToken)
+                .ConfigureAwait(false))
+            .ToLookup(row => row.CaseId!.Value);
+
         var offerAccepted = new List<ProcessCase>();
 
         foreach (var processCase in cases)
@@ -126,7 +134,12 @@ public sealed class ProcessCaseBatch
                     pass.Calendar,
                     pass.Settings.CouncilDay,
                     pass.Settings.GatesEnforced,
-                    pass.At));
+                    pass.At)
+                {
+                    GateOverrides = [.. overrides[processCase.Id]],
+                });
+
+            SpendOverridesOfClosedSteps(processCase, overrides[processCase.Id], pass.At);
 
             foreach (var problem in result.Problems)
             {
@@ -140,6 +153,25 @@ public sealed class ProcessCaseBatch
         }
 
         return offerAccepted;
+    }
+
+    /// <summary>
+    /// §6.4 single use: once the guarded step closed the override has done its work, and an undo of that step meets
+    /// the gate again. A Hire or Terminate has already spent its own; this catches what they did not need.
+    /// </summary>
+    private void SpendOverridesOfClosedSteps(ProcessCase processCase, IEnumerable<ProcessGateOverride> overrides, DateTimeOffset at)
+    {
+        foreach (var row in overrides)
+        {
+            if (row.StepCode is not null && processCase.FindStep(row.StepCode) is { IsClosed: true })
+            {
+                var spent = row.Consume(ProcessGateOperations.Step, at);
+                if (spent.IsFailure)
+                {
+                    _journal.CaseProblem(processCase.Id, processCase.ProcessCode, $"override {row.Id}: {spent.Error.Code}");
+                }
+            }
+        }
     }
 
     /// <summary>

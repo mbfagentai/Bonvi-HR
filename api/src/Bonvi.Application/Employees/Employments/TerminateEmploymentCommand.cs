@@ -1,5 +1,6 @@
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Processes.Gates;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Catalog;
 using Bonvi.Domain.Common;
@@ -54,6 +55,7 @@ public sealed class TerminateEmploymentCommandHandler
     private readonly IEmployeeFlagRepository _flags;
     private readonly IDepartmentRepository _departments;
     private readonly EmployeeFlagGuard _flagGuard;
+    private readonly IProcessGate _processGate;
     private readonly EmployeeMapper _mapper;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
@@ -67,7 +69,8 @@ public sealed class TerminateEmploymentCommandHandler
         EmployeeFlagGuard flagGuard,
         EmployeeMapper mapper,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IProcessGate? processGate = null)
     {
         _employments = employments;
         _probations = probations;
@@ -75,6 +78,7 @@ public sealed class TerminateEmploymentCommandHandler
         _flags = flags;
         _departments = departments;
         _flagGuard = flagGuard;
+        _processGate = processGate ?? AllowingProcessGate.Instance;
         _mapper = mapper;
         _clock = clock;
         _unitOfWork = unitOfWork;
@@ -135,6 +139,19 @@ public sealed class TerminateEmploymentCommandHandler
         }
 
         var terminationDate = command.TerminationDate ?? _clock.Today;
+
+        // ── Jarayon to'siqlari Q12, Q13 (docs/SPEC-mening-ishlarim.md §8) ──
+        // `confirm` bularni aylanib o'tmaydi: u faqat belgilar haqidagi tasdiq.
+        var gate = await _processGate
+            .CheckAsync(GateContext.ForTerminate(employment.Id, employment.EmployeeId, employment.LegalEntityId, terminationDate), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (gate.Blocking is { } blocked)
+        {
+            return blocked;
+        }
+
+        warnings.AddRange(gate.Warnings);
 
         var terminated = employment.Terminate(
             terminationDate,

@@ -59,6 +59,9 @@ public interface IProcessGateOverrideRepository : IRepository<ProcessGateOverrid
     /// <summary>Unconsumed, unexpired overrides of a gate at <paramref name="at"/>, newest first.</summary>
     Task<IReadOnlyList<ProcessGateOverride>> ListUsableAsync(string gateCode, DateTimeOffset at, CancellationToken cancellationToken = default);
 
+    /// <summary>Unconsumed, unexpired overrides on the given cases at <paramref name="at"/> — what one pass honours.</summary>
+    Task<IReadOnlyList<ProcessGateOverride>> ListUsableByCaseIdsAsync(IReadOnlyCollection<Guid> caseIds, DateTimeOffset at, CancellationToken cancellationToken = default);
+
     /// <summary>Overrides granted on or after <paramref name="since"/>, newest first («Kim kechikdi»).</summary>
     Task<IReadOnlyList<ProcessGateOverride>> ListGrantedSinceAsync(DateTimeOffset since, CancellationToken cancellationToken = default);
 }

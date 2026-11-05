@@ -39,6 +39,9 @@ internal sealed class PassHarness
 
     public bool GatesEnforced { get; set; } = true;
 
+    /// <summary>What a pass gets as the case's usable overrides; the batch does the filtering in production.</summary>
+    public IReadOnlyCollection<ProcessGateOverride> GateOverrides { get; set; } = [];
+
     public DateTimeOffset At { get; private set; } = Clock;
 
     public static ProcessDefinition Template(string code)
@@ -124,6 +127,13 @@ internal sealed class PassHarness
         return this;
     }
 
+    /// <summary>Moves the clock of the next pass on, for a test that crosses a date.</summary>
+    public PassHarness Advance(TimeSpan by)
+    {
+        At += by;
+        return this;
+    }
+
     public ProcessCaseStep Step(string id) => Case.FindStep(id) ?? throw new InvalidOperationException($"No step {id}");
 
     public ProcessPassResult Pass()
@@ -131,7 +141,10 @@ internal sealed class PassHarness
         At = At.AddMinutes(1);
         var result = ProcessPass.Apply(
             Case,
-            new ProcessPassInput(Definition, Snapshot(), Subject, WorkingDayCalendar.MondayToFriday, DayOfWeek.Thursday, GatesEnforced, At));
+            new ProcessPassInput(Definition, Snapshot(), Subject, WorkingDayCalendar.MondayToFriday, DayOfWeek.Thursday, GatesEnforced, At)
+            {
+                GateOverrides = GateOverrides,
+            });
 
         result.Problems.ShouldBeEmpty();
         return result;

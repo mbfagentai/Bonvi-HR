@@ -4728,6 +4728,7 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnName("case_id");
 
                     b.Property<DateTimeOffset?>("ConsumedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("consumed_at");
 

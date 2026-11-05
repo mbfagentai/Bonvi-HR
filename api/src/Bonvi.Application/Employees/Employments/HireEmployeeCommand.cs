@@ -3,6 +3,7 @@ using Bonvi.Application.Catalog.Dtos;
 using Bonvi.Application.Employees.Commands;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Dtos;
+using Bonvi.Application.Processes.Gates;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Employees;
@@ -77,6 +78,7 @@ public sealed class HireEmployeeCommandHandler
     private readonly IReferenceRepository<LegalEntity> _legalEntities;
     private readonly IEmployeeFlagRepository _flags;
     private readonly EmployeeFlagGuard _flagGuard;
+    private readonly IProcessGate _processGate;
     private readonly EmployeeMapper _mapper;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
@@ -91,7 +93,8 @@ public sealed class HireEmployeeCommandHandler
         EmployeeFlagGuard flagGuard,
         EmployeeMapper mapper,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IProcessGate? processGate = null)
     {
         _employees = employees;
         _employments = employments;
@@ -100,6 +103,7 @@ public sealed class HireEmployeeCommandHandler
         _legalEntities = legalEntities;
         _flags = flags;
         _flagGuard = flagGuard;
+        _processGate = processGate ?? AllowingProcessGate.Instance;
         _mapper = mapper;
         _clock = clock;
         _unitOfWork = unitOfWork;
@@ -168,6 +172,18 @@ public sealed class HireEmployeeCommandHandler
                 warnings.Add(HrWarning.From(EmployeeErrors.UnderMonitoring));
             }
         }
+
+        // ── Jarayon to'sig'i Q01 (docs/SPEC-mening-ishlarim.md §8) ──
+        var gate = await _processGate
+            .CheckAsync(GateContext.ForHire(command.CandidateId, employee.Id, command.LegalEntityId, command.OrderNo), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (gate.Blocking is { } blocked)
+        {
+            return blocked;
+        }
+
+        warnings.AddRange(gate.Warnings);
 
         var position = command.PositionId is { } positionId
             ? await _positions.GetWithDutiesAsync(positionId, cancellationToken).ConfigureAwait(false)

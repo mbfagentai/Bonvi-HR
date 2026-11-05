@@ -49,7 +49,11 @@ public sealed record ProcessPassInput(
     IWorkingDayCalendar Calendar,
     DayOfWeek CouncilDay,
     bool GatesEnforced,
-    DateTimeOffset At);
+    DateTimeOffset At)
+{
+    /// <summary>The usable overrides of this case (§8.4). Whoever closes the step spends them, not the pass.</summary>
+    public IReadOnlyCollection<ProcessGateOverride> GateOverrides { get; init; } = [];
+}
 
 /// <param name="Changed">Something was written on the case: the caller must save.</param>
 /// <param name="OfferAccepted">r02-11 is Done on the accept branch: starter §3.2 hire-formalise (a).</param>
@@ -330,7 +334,14 @@ public static class ProcessPass
                 return;
             }
 
-            var gate = ProcessEngineGates.FirstFailing(definition, _case, _facts, _input.Subject, _input.GatesEnforced);
+            var gate = ProcessEngineGates.FirstFailing(
+                definition,
+                _case,
+                _facts,
+                _input.Subject,
+                _input.GatesEnforced,
+                _input.GateOverrides,
+                _input.At.TashkentDate());
             Apply(definition.Id, gate is null
                 ? _case.ActivateStep(definition.Id, _input.At)
                 : _case.BlockStep(definition.Id, gate, _input.At));

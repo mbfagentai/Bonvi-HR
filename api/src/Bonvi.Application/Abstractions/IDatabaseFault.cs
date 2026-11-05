@@ -133,4 +133,10 @@ public interface IDatabaseFault
     /// <c>(submission_id, step_code)</c> unikalligiga uriladi — bu ham eskirgan yozuv.
     /// </summary>
     bool IsStaleBlankWrite(Exception exception);
+
+    /// <summary>
+    /// Two commands raced on one gate override and this one lost: its save found <c>consumed_at</c> already set
+    /// (409 <c>jarayon.istisno_yaroqsiz</c>). Nothing of the command was written.
+    /// </summary>
+    bool IsConsumedGateOverrideWrite(Exception exception);
 }

@@ -321,6 +321,9 @@ public sealed class ProcessGateOverrideConfiguration : IEntityTypeConfiguration<
         builder.Property(row => row.ExpiresAt).IsRequired();
         builder.Property(row => row.ConsumedOperation).HasMaxLength(ProcessGateOperations.MaxLength);
 
+        // Single use, even for two commands racing on one override: the loser's UPDATE finds consumed_at set.
+        builder.Property(row => row.ConsumedAt).IsConcurrencyToken();
+
         builder.HasOne<ProcessCase>()
             .WithMany()
             .HasForeignKey(row => row.CaseId)

@@ -26,10 +26,13 @@ public static class ProcessGateOperations
     public const string Hire = "hire";
     public const string Terminate = "terminate";
 
+    /// <summary>An engine gate's override: the guarded step closed, so a later undo finds the gate back.</summary>
+    public const string Step = "step";
+
     /// <summary>Column length.</summary>
     public const int MaxLength = 16;
 
-    public static bool IsKnown(string? operation) => operation is Hire or Terminate;
+    public static bool IsKnown(string? operation) => operation is Hire or Terminate or Step;
 }
 
 /// <summary>

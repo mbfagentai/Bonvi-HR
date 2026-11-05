@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Domain.Processes;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +37,7 @@ public sealed partial class GlobalExceptionHandler : IExceptionHandler
         {
             BadHttpRequestException badRequest => ClientMistake(httpContext, badRequest),
             _ when _databaseFault.IsDuplicateName(exception) => DuplicateName(httpContext),
+            _ when _databaseFault.IsConsumedGateOverrideWrite(exception) => ConsumedGateOverride(httpContext),
             _ => ServerFault(httpContext, exception),
         };
 
@@ -114,6 +116,18 @@ public sealed partial class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
+
+    /// <summary>Bitta istisnoni ikki buyruq bir vaqtda ishlatdi: ikkinchisi hech narsa yozmadi (§8.4).</summary>
+    private static ProblemDetails ConsumedGateOverride(HttpContext httpContext)
+    {
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = ProcessErrors.OverrideNotUsable.Code,
+            Detail = ProcessErrors.OverrideNotUsable.Message,
+            Instance = httpContext.Request.Path,
+        };
+    }
 
     /// <summary>Haqiqiy nosozlik — tafsilot faqat logga tushadi.</summary>
     /// <remarks>

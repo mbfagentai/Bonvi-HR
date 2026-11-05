@@ -831,6 +831,9 @@ public static class SystemSettingKeys
     /// <summary><see cref="ProcessesGatesMode"/> value: gates block.</summary>
     public const string ProcessesGatesEnforce = "enforce";
 
+    /// <summary><see cref="ProcessesGatesMode"/> value: kill switch, gates do nothing at all.</summary>
+    public const string ProcessesGatesOff = "off";
+
     /// <summary>Allowed values of <see cref="ProcessesGatesMode"/>.</summary>
     public const string ProcessesGatesModePattern = "^(enforce|warn|off)$";
 

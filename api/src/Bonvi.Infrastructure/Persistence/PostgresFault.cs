@@ -1,6 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Blanks;
+using Bonvi.Domain.Processes;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -182,6 +183,14 @@ internal sealed class PostgresFault : IDatabaseFault
             && concurrency.Entries.Count > 0
             && concurrency.Entries.All(entry =>
                 entry.Entity is BlankSubmission or BlankSubmissionStep or BlankAttachment);
+    }
+
+    public bool IsConsumedGateOverrideWrite(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return exception is DbUpdateConcurrencyException concurrency
+            && concurrency.Entries.Any(entry => entry.Entity is ProcessGateOverride);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>
