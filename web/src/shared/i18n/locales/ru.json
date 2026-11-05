@@ -76,7 +76,8 @@
       "users": "Пользователи",
       "roles": "Роли",
       "audit": "Журнал аудита",
-      "settings": "Настройки системы"
+      "settings": "Настройки системы",
+      "processes": "Процессы"
     },
     "level": {
       "none": "Нет",
@@ -99,7 +100,8 @@
       "employment.probation.extend": "Продление испытательного срока",
       "employment.probation.complete": "Завершение испытательного срока",
       "employment.correct": "Исправление записи",
-      "blanks.approve": "Согласование бланков"
+      "blanks.approve": "Согласование бланков",
+      "processes.override": "Выдача исключений из блокировок"
     },
     "extra": {
       "salary.view": "Просмотр оклада",
@@ -1851,7 +1853,14 @@
       "EmployeeAccount": "Учётная запись приложения",
       "Endpoint": "Адрес запроса",
       "AttendanceDay": "День посещаемости",
-      "AuditLog": "Журнал аудита"
+      "AuditLog": "Журнал аудита",
+      "ProcessTemplate": "Шаблон процесса",
+      "ProcessTemplateVersion": "Версия шаблона процесса",
+      "ProcessCase": "Процесс",
+      "ProcessCaseStep": "Шаг процесса",
+      "ProcessGateOverride": "Исключение",
+      "ProcessStageBinding": "Привязка этапа",
+      "ProcessHoliday": "День календаря"
     },
     "fields": {
       "FullName_LastName": "Фамилия",
@@ -1977,7 +1986,41 @@
       "filters": "Фильтры",
       "action": "Действие",
       "year": "Год",
-      "month": "Месяц"
+      "month": "Месяц",
+      "ProcessCode": "Код процесса",
+      "Version": "Версия",
+      "Outcome": "Итог",
+      "Legacy": "Старая запись",
+      "SubjectKind": "О ком",
+      "SubjectRef": "Субъект процесса",
+      "AnchorDate": "Опорная дата",
+      "StartedOn": "Дата начала",
+      "StartedBy": "Кто начал",
+      "CompletedAt": "Время завершения",
+      "CancelledAt": "Время отмены",
+      "CancelReason": "Причина отмены",
+      "PublishedAt": "Время публикации",
+      "StepCode": "Шаг",
+      "BoardColumn": "Колонка",
+      "State": "Состояние",
+      "Resolution": "Как закрыт",
+      "HolderRole": "Ответственная роль",
+      "HolderEmployeeId": "Ответственный сотрудник",
+      "DueDate": "Срок",
+      "DoneAt": "Время выполнения",
+      "DoneBy": "Кто выполнил",
+      "Payload": "Введённые данные",
+      "EvidenceSha256": "Хеш подтверждения",
+      "BlockedGateCode": "Блокирующее условие",
+      "GateCode": "Блокировка",
+      "ForUserId": "Для кого",
+      "GrantedBy": "Кто выдал",
+      "GrantedAt": "Время выдачи",
+      "ExpiresAt": "Действует до",
+      "ConsumedAt": "Время использования",
+      "ConsumedOperation": "В какой операции использовано",
+      "BindingCode": "Привязка",
+      "PipelineStageId": "Этап рекрутинга"
     },
     "operations": {
       "HireEmployee": "Приём на работу",
@@ -2113,7 +2156,19 @@
       "ExportAuditEntriesToExcel": "Выгрузка журнала аудита в Excel",
       "ExportExitInterviewsToExcel": "Выгрузка выходных интервью в Excel",
       "ExportIncidentsToExcel": "Выгрузка несчастных случаев в Excel",
-      "SubmitKioskQuestionnaire": "Заполнена онлайн-анкета"
+      "SubmitKioskQuestionnaire": "Заполнена онлайн-анкета",
+      "StartProcessCase": "Процесс начат",
+      "CancelProcessCase": "Процесс отменён",
+      "ReopenProcessCase": "Процесс открыт заново",
+      "CompleteProcessStep": "Шаг выполнен",
+      "SkipProcessStep": "Шаг отмечен как ненужный",
+      "UndoProcessStep": "Шаг возвращён",
+      "RunProcessReconcile": "Процессы перепроверены",
+      "SetProcessStageBindings": "Изменены привязки этапов",
+      "SaveProcessHoliday": "День календаря сохранён",
+      "DeleteProcessHoliday": "День календаря удалён",
+      "GrantProcessGateOverride": "Выдано исключение из блокировки",
+      "GrantDirectHireOverride": "Выдано исключение на приём без кандидата"
     }
   },
   "reports": {

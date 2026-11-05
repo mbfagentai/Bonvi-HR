@@ -76,7 +76,8 @@
       "users": "Foydalanuvchilar",
       "roles": "Rollar",
       "audit": "Audit jurnali",
-      "settings": "Tizim sozlamalari"
+      "settings": "Tizim sozlamalari",
+      "processes": "Jarayonlar"
     },
     "level": {
       "none": "Yo‘q",
@@ -99,7 +100,8 @@
       "employment.probation.extend": "Sinov muddatini uzaytirish",
       "employment.probation.complete": "Sinov muddatini yakunlash",
       "employment.correct": "Yozuvni tuzatish",
-      "blanks.approve": "Blankalarni tasdiqlash"
+      "blanks.approve": "Blankalarni tasdiqlash",
+      "processes.override": "To‘siqlardan istisno berish"
     },
     "extra": {
       "salary.view": "Okladni ko‘rish",
@@ -1851,7 +1853,14 @@
       "EmployeeAccount": "Xodim ilovasi hisobi",
       "Endpoint": "So‘rov manzili",
       "AttendanceDay": "Davomat kuni",
-      "AuditLog": "Audit jurnali"
+      "AuditLog": "Audit jurnali",
+      "ProcessTemplate": "Jarayon shabloni",
+      "ProcessTemplateVersion": "Jarayon shabloni versiyasi",
+      "ProcessCase": "Jarayon",
+      "ProcessCaseStep": "Jarayon qadami",
+      "ProcessGateOverride": "Istisno",
+      "ProcessStageBinding": "Bosqich bog‘lanishi",
+      "ProcessHoliday": "Kalendar kuni"
     },
     "fields": {
       "FullName_LastName": "Familiya",
@@ -1977,7 +1986,41 @@
       "filters": "Filtrlar",
       "action": "Amal",
       "year": "Yil",
-      "month": "Oy"
+      "month": "Oy",
+      "ProcessCode": "Jarayon kodi",
+      "Version": "Versiya",
+      "Outcome": "Natija",
+      "Legacy": "Eski yozuv",
+      "SubjectKind": "Kim haqida",
+      "SubjectRef": "Jarayon egasi",
+      "AnchorDate": "Tayanch sana",
+      "StartedOn": "Boshlangan sana",
+      "StartedBy": "Kim boshlagan",
+      "CompletedAt": "Yakunlangan vaqt",
+      "CancelledAt": "Bekor qilingan vaqt",
+      "CancelReason": "Bekor qilish sababi",
+      "PublishedAt": "E’lon qilingan vaqt",
+      "StepCode": "Qadam",
+      "BoardColumn": "Ustun",
+      "State": "Holat",
+      "Resolution": "Qanday yopilgan",
+      "HolderRole": "Mas’ul rol",
+      "HolderEmployeeId": "Mas’ul xodim",
+      "DueDate": "Muddat",
+      "DoneAt": "Bajarilgan vaqt",
+      "DoneBy": "Kim bajargan",
+      "Payload": "Kiritilgan ma’lumot",
+      "EvidenceSha256": "Dalil xeshi",
+      "BlockedGateCode": "To‘sib turgan shart",
+      "GateCode": "To‘siq",
+      "ForUserId": "Kim uchun",
+      "GrantedBy": "Kim bergan",
+      "GrantedAt": "Berilgan vaqt",
+      "ExpiresAt": "Amal qilish muddati",
+      "ConsumedAt": "Ishlatilgan vaqt",
+      "ConsumedOperation": "Qaysi amalda ishlatilgan",
+      "BindingCode": "Bog‘lanish",
+      "PipelineStageId": "Rekruting bosqichi"
     },
     "operations": {
       "HireEmployee": "Ishga qabul",
@@ -2113,7 +2156,19 @@
       "ExportAuditEntriesToExcel": "Audit jurnalini Excelga yuklash",
       "ExportExitInterviewsToExcel": "Qayta aloqani Excelga yuklash",
       "ExportIncidentsToExcel": "Baxtsiz hodisalarni Excelga yuklash",
-      "SubmitKioskQuestionnaire": "Onlayn anketa to‘ldirildi"
+      "SubmitKioskQuestionnaire": "Onlayn anketa to‘ldirildi",
+      "StartProcessCase": "Jarayon boshlandi",
+      "CancelProcessCase": "Jarayon bekor qilindi",
+      "ReopenProcessCase": "Jarayon qayta ochildi",
+      "CompleteProcessStep": "Qadam bajarildi",
+      "SkipProcessStep": "Qadam kerak emas deb belgilandi",
+      "UndoProcessStep": "Qadam qaytarildi",
+      "RunProcessReconcile": "Jarayonlar qayta tekshirildi",
+      "SetProcessStageBindings": "Bosqich bog‘lanishlari o‘zgartirildi",
+      "SaveProcessHoliday": "Kalendar kuni saqlandi",
+      "DeleteProcessHoliday": "Kalendar kuni o‘chirildi",
+      "GrantProcessGateOverride": "To‘siqdan istisno berildi",
+      "GrantDirectHireOverride": "Nomzodsiz qabulga istisno berildi"
     }
   },
   "reports": {

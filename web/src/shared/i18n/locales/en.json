@@ -76,7 +76,8 @@
       "users": "Users",
       "roles": "Roles",
       "audit": "Audit log",
-      "settings": "System settings"
+      "settings": "System settings",
+      "processes": "Processes"
     },
     "level": {
       "none": "None",
@@ -99,7 +100,8 @@
       "employment.probation.extend": "Extend probation",
       "employment.probation.complete": "Complete probation",
       "employment.correct": "Correct a record",
-      "blanks.approve": "Approve blanks"
+      "blanks.approve": "Approve blanks",
+      "processes.override": "Grant gate overrides"
     },
     "extra": {
       "salary.view": "See salaries",
@@ -1851,7 +1853,14 @@
       "EmployeeAccount": "Employee app account",
       "Endpoint": "Request endpoint",
       "AttendanceDay": "Attendance day",
-      "AuditLog": "Audit log"
+      "AuditLog": "Audit log",
+      "ProcessTemplate": "Process template",
+      "ProcessTemplateVersion": "Process template version",
+      "ProcessCase": "Process case",
+      "ProcessCaseStep": "Process step",
+      "ProcessGateOverride": "Gate override",
+      "ProcessStageBinding": "Stage binding",
+      "ProcessHoliday": "Calendar day"
     },
     "fields": {
       "FullName_LastName": "Last name",
@@ -1977,7 +1986,41 @@
       "filters": "Filters",
       "action": "Action",
       "year": "Year",
-      "month": "Month"
+      "month": "Month",
+      "ProcessCode": "Process code",
+      "Version": "Version",
+      "Outcome": "Outcome",
+      "Legacy": "Legacy",
+      "SubjectKind": "Subject kind",
+      "SubjectRef": "Subject",
+      "AnchorDate": "Anchor date",
+      "StartedOn": "Started on",
+      "StartedBy": "Started by",
+      "CompletedAt": "Completed at",
+      "CancelledAt": "Cancelled at",
+      "CancelReason": "Cancel reason",
+      "PublishedAt": "Published at",
+      "StepCode": "Step",
+      "BoardColumn": "Board column",
+      "State": "State",
+      "Resolution": "Resolution",
+      "HolderRole": "Holder role",
+      "HolderEmployeeId": "Holder",
+      "DueDate": "Due date",
+      "DoneAt": "Done at",
+      "DoneBy": "Done by",
+      "Payload": "Inputs",
+      "EvidenceSha256": "Evidence hash",
+      "BlockedGateCode": "Blocking gate",
+      "GateCode": "Gate",
+      "ForUserId": "For user",
+      "GrantedBy": "Granted by",
+      "GrantedAt": "Granted at",
+      "ExpiresAt": "Expires at",
+      "ConsumedAt": "Consumed at",
+      "ConsumedOperation": "Consumed by",
+      "BindingCode": "Binding",
+      "PipelineStageId": "Pipeline stage"
     },
     "operations": {
       "HireEmployee": "Hire",
@@ -2113,7 +2156,19 @@
       "ExportAuditEntriesToExcel": "Audit log exported to Excel",
       "ExportExitInterviewsToExcel": "Exit interviews exported to Excel",
       "ExportIncidentsToExcel": "Incidents exported to Excel",
-      "SubmitKioskQuestionnaire": "Online form submitted"
+      "SubmitKioskQuestionnaire": "Online form submitted",
+      "StartProcessCase": "Process started",
+      "CancelProcessCase": "Process cancelled",
+      "ReopenProcessCase": "Process reopened",
+      "CompleteProcessStep": "Step completed",
+      "SkipProcessStep": "Step skipped",
+      "UndoProcessStep": "Step undone",
+      "RunProcessReconcile": "Processes reconciled",
+      "SetProcessStageBindings": "Stage bindings changed",
+      "SaveProcessHoliday": "Calendar day saved",
+      "DeleteProcessHoliday": "Calendar day deleted",
+      "GrantProcessGateOverride": "Gate override granted",
+      "GrantDirectHireOverride": "Direct hire override granted"
     }
   },
   "reports": {

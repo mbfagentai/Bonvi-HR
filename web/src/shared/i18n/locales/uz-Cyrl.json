@@ -76,7 +76,8 @@
       "users": "Фойдаланувчилар",
       "roles": "Роллар",
       "audit": "Аудит журнали",
-      "settings": "Тизим созламалари"
+      "settings": "Тизим созламалари",
+      "processes": "Жараёнлар"
     },
     "level": {
       "none": "Йўқ",
@@ -99,7 +100,8 @@
       "employment.probation.extend": "Синов муддатини узайтириш",
       "employment.probation.complete": "Синов муддатини якунлаш",
       "employment.correct": "Ёзувни тузатиш",
-      "blanks.approve": "Бланкаларни тасдиқлаш"
+      "blanks.approve": "Бланкаларни тасдиқлаш",
+      "processes.override": "Тўсиқлардан истисно бериш"
     },
     "extra": {
       "salary.view": "Окладни кўриш",
@@ -1851,7 +1853,14 @@
       "EmployeeAccount": "Ходим иловаси ҳисоби",
       "Endpoint": "Сўров манзили",
       "AttendanceDay": "Давомат куни",
-      "AuditLog": "Аудит журнали"
+      "AuditLog": "Аудит журнали",
+      "ProcessTemplate": "Жараён шаблони",
+      "ProcessTemplateVersion": "Жараён шаблони версияси",
+      "ProcessCase": "Жараён",
+      "ProcessCaseStep": "Жараён қадами",
+      "ProcessGateOverride": "Истисно",
+      "ProcessStageBinding": "Босқич боғланиши",
+      "ProcessHoliday": "Календарь куни"
     },
     "fields": {
       "FullName_LastName": "Фамилия",
@@ -1977,7 +1986,41 @@
       "filters": "Филтрлар",
       "action": "Амал",
       "year": "Йил",
-      "month": "Ой"
+      "month": "Ой",
+      "ProcessCode": "Жараён коди",
+      "Version": "Версия",
+      "Outcome": "Натижа",
+      "Legacy": "Эски ёзув",
+      "SubjectKind": "Ким ҳақида",
+      "SubjectRef": "Жараён эгаси",
+      "AnchorDate": "Таянч сана",
+      "StartedOn": "Бошланган сана",
+      "StartedBy": "Ким бошлаган",
+      "CompletedAt": "Якунланган вақт",
+      "CancelledAt": "Бекор қилинган вақт",
+      "CancelReason": "Бекор қилиш сабаби",
+      "PublishedAt": "Эълон қилинган вақт",
+      "StepCode": "Қадам",
+      "BoardColumn": "Устун",
+      "State": "Ҳолат",
+      "Resolution": "Қандай ёпилган",
+      "HolderRole": "Масъул рол",
+      "HolderEmployeeId": "Масъул ходим",
+      "DueDate": "Муддат",
+      "DoneAt": "Бажарилган вақт",
+      "DoneBy": "Ким бажарган",
+      "Payload": "Киритилган маълумот",
+      "EvidenceSha256": "Далил хеши",
+      "BlockedGateCode": "Тўсиб турган шарт",
+      "GateCode": "Тўсиқ",
+      "ForUserId": "Ким учун",
+      "GrantedBy": "Ким берган",
+      "GrantedAt": "Берилган вақт",
+      "ExpiresAt": "Амал қилиш муддати",
+      "ConsumedAt": "Ишлатилган вақт",
+      "ConsumedOperation": "Қайси амалда ишлатилган",
+      "BindingCode": "Боғланиш",
+      "PipelineStageId": "Рекрутинг босқичи"
     },
     "operations": {
       "HireEmployee": "Ишга қабул",
@@ -2113,7 +2156,19 @@
       "ExportAuditEntriesToExcel": "Аудит журналини Excelга юклаш",
       "ExportExitInterviewsToExcel": "Қайта алоқани Excelга юклаш",
       "ExportIncidentsToExcel": "Бахтсиз ҳодисаларни Excelга юклаш",
-      "SubmitKioskQuestionnaire": "Онлайн анкета тўлдирилди"
+      "SubmitKioskQuestionnaire": "Онлайн анкета тўлдирилди",
+      "StartProcessCase": "Жараён бошланди",
+      "CancelProcessCase": "Жараён бекор қилинди",
+      "ReopenProcessCase": "Жараён қайта очилди",
+      "CompleteProcessStep": "Қадам бажарилди",
+      "SkipProcessStep": "Қадам керак эмас деб белгиланди",
+      "UndoProcessStep": "Қадам қайтарилди",
+      "RunProcessReconcile": "Жараёнлар қайта текширилди",
+      "SetProcessStageBindings": "Босқич боғланишлари ўзгартирилди",
+      "SaveProcessHoliday": "Календарь куни сақланди",
+      "DeleteProcessHoliday": "Календарь куни ўчирилди",
+      "GrantProcessGateOverride": "Тўсиқдан истисно берилди",
+      "GrantDirectHireOverride": "Номзодсиз қабулга истисно берилди"
     }
   },
   "reports": {
