@@ -1,5 +1,6 @@
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
+using Bonvi.Application.Processes.Queries;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Processes;
@@ -25,6 +26,20 @@ public static class ProcessesApplicationRegistration
 
         // A singleton: it holds the throttle, and opens a scope of its own for each pass.
         services.AddSingleton<ProcessInlineReconcile>();
+
+        // Reads (§10 #1–#8). A version's definition never changes, so its parsed form is kept for the process's life.
+        services.AddSingleton<ProcessDefinitionCache>();
+        services.AddScoped<ProcessViewerLoader>();
+        services.AddScoped<ProcessReadSetLoader>();
+        services.AddScoped<ProcessTartibReader>();
+        services.AddScoped<GetMyWorkQueryHandler>();
+        services.AddScoped<GetMyProcessCountQueryHandler>();
+        services.AddScoped<ListProcessCasesQueryHandler>();
+        services.AddScoped<GetProcessBoardQueryHandler>();
+        services.AddScoped<GetProcessCaseQueryHandler>();
+        services.AddScoped<GetProcessLateQueryHandler>();
+        services.AddScoped<ListProcessTemplatesQueryHandler>();
+        services.AddScoped<GetProcessStatusQueryHandler>();
 
         return services;
     }

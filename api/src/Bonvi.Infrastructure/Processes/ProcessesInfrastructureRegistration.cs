@@ -1,5 +1,7 @@
 using Bonvi.Application.Processes.Engine;
+using Bonvi.Application.Processes.Queries;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Infrastructure.Persistence.ReadModels;
 using Bonvi.Infrastructure.Processes.Engine;
 using Bonvi.Infrastructure.Processes.Facts;
 using Bonvi.Infrastructure.Repositories;
@@ -35,6 +37,8 @@ public static class ProcessesInfrastructureRegistration
         services.AddScoped<IProcessEngineReader, EfProcessEngineReader>();
         services.AddScoped<IProcessEngineLock, ProcessEngineLock>();
         services.AddScoped<IProcessEngineJournal, ProcessEngineJournal>();
+
+        services.AddScoped<IProcessReadModel, ProcessReadModel>();
 
         return services;
     }
