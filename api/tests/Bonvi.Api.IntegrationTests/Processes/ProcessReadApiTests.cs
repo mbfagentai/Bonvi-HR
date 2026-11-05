@@ -496,6 +496,28 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
+    public async Task Tartib_schedule_count_reaches_a_sub_department_through_its_parent()
+    {
+        using var attendance = await ClientAsync(Permissions.ProcessesView, Permissions.AttendanceManage);
+        var schedule = await ScheduleAsync();
+        var parent = await DepartmentAsync();
+        var child = await DepartmentAsync(parentId: parent);
+        var grandchild = await DepartmentAsync(parentId: child);
+        await HireAsync(orderNo: null, hireDate: Today, departmentId: child);
+        await HireAsync(orderNo: null, hireDate: Today, departmentId: grandchild);
+
+        var before = TartibCount(await GetAsync(attendance, Root + "/my"), "employeesWithoutSchedule");
+
+        var viaChild = await AssignScheduleAsync(schedule, ScheduleScope.Department, grandchild, Today.AddDays(-1), null);
+        TartibCount(await GetAsync(attendance, Root + "/my"), "employeesWithoutSchedule").ShouldBe(before - 1, "a child's assignment does not reach its parent");
+        await DeleteAssignmentAsync(viaChild);
+
+        var viaParent = await AssignScheduleAsync(schedule, ScheduleScope.Department, parent, Today.AddDays(-1), null);
+        TartibCount(await GetAsync(attendance, Root + "/my"), "employeesWithoutSchedule").ShouldBe(before - 2, "ScheduleResolver walks up the department tree");
+        await DeleteAssignmentAsync(viaParent);
+    }
+
+    [Fact]
     public async Task Tartib_shows_only_the_listed_notification_types_under_their_own_permission()
     {
         var vacancy = await VacancyAsync();
@@ -1518,9 +1540,9 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         return user.Id;
     });
 
-    private Task<Guid> DepartmentAsync(string? name = null) => DbAsync(async db =>
+    private Task<Guid> DepartmentAsync(string? name = null, Guid? parentId = null) => DbAsync(async db =>
     {
-        var department = Department.Create(name ?? "Oʻqish boʻlimi " + Suffix()).Value;
+        var department = Department.Create(name ?? "Oʻqish boʻlimi " + Suffix(), parentId).Value;
         db.Departments.Add(department);
         await db.SaveChangesAsync(Ct);
         return department.Id;
@@ -1639,8 +1661,8 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
     {
         var days = Enumerable.Range(1, 7)
             .Select(index => index <= 5
-                ? new WorkScheduleDayInput(index, IsWorking: true, new TimeOnly(9, 0), new TimeOnly(18, 0), BreakMinutes: 60, new TimeOnly(13, 0))
-                : new WorkScheduleDayInput(index, IsWorking: false, null, null, BreakMinutes: 0, null))
+                ? new WorkScheduleDayInput(index, IsWorking: true, new TimeOnly(9, 0), new TimeOnly(18, 0), BreakMinutes: 60, new TimeOnly(13, 0), new TimeOnly(14, 0))
+                : new WorkScheduleDayInput(index, IsWorking: false))
             .ToArray();
 
         var schedule = WorkSchedule.Create("Oʻqish jadvali " + Suffix(), days).Value;
