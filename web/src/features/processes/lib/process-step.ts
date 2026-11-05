@@ -39,6 +39,18 @@ export function groupStepsByColumn(
   })
 }
 
+export function isStepFinished(state: ProcessStepState): boolean {
+  return state === 'Done' || state === 'Skipped'
+}
+
+/** «7 / 23 qadam bajarildi»: a skipped step is out of the way too, so it counts as finished. */
+export function stepProgress(steps: readonly Pick<ProcessCaseStep, 'state'>[]): {
+  done: number
+  total: number
+} {
+  return { done: steps.filter((step) => isStepFinished(step.state)).length, total: steps.length }
+}
+
 function isStepOpen(state: ProcessStepState): boolean {
   return state === 'Active' || state === 'Blocked'
 }
@@ -77,15 +89,17 @@ export interface ProcessBlankCreate {
  */
 export function blankCreateBody(
   target: Extract<ProcessLinkTarget, { kind: 'createBlank' }>,
-  subject: ProcessSubject,
+  subject: ProcessSubject | null | undefined,
 ): ProcessBlankCreate | null {
   const base = { templateCode: target.template, employeeId: null, candidateId: null }
+  const employeeId = subject?.employeeId ?? null
+  const candidateId = subject?.candidateId ?? null
 
   switch (target.subject) {
     case 'employee':
-      return subject.employeeId === null ? null : { ...base, employeeId: subject.employeeId }
+      return employeeId === null ? null : { ...base, employeeId }
     case 'candidate':
-      return subject.candidateId === null ? null : { ...base, candidateId: subject.candidateId }
+      return candidateId === null ? null : { ...base, candidateId }
     default:
       return base
   }
@@ -98,7 +112,7 @@ export function blankCreateBody(
  */
 export function stepEntry(
   step: ProcessCaseStep,
-  subject: ProcessSubject,
+  subject: ProcessSubject | null | undefined,
   mayStart: boolean,
 ): ProcessStepEntry | null {
   const target = resolveProcessLink(step.link, subject, step.linkedBlankSubmissionId)

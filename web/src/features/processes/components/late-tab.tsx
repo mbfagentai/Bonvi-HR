@@ -19,6 +19,7 @@ import {
 } from '../lib/process-override'
 import {
   ProcessBlankChip,
+  ProcessCountChip,
   ProcessDueChip,
   ProcessHolderLabel,
   ProcessLegacyBadge,
@@ -34,7 +35,7 @@ const STANDING_TONE: Record<ProcessOverrideStanding, BadgeTone> = {
   expired: 'neutral',
 }
 
-const ROW_CLASS = 'flex flex-col gap-3 px-5 py-4 md:flex-row md:items-start md:justify-between'
+const ROW_CLASS = 'flex flex-col gap-3 px-5 py-4 sm:px-6 md:flex-row md:items-start md:justify-between'
 const LIST_CLASS = 'divide-y divide-[var(--border)] border-t border-[var(--border)]'
 const OPEN_LINK_CLASS = buttonVariants({ variant: 'secondary', size: 'sm' })
 
@@ -113,16 +114,17 @@ function LateGroup({
   if (count === 0) return null
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader
-        className="pb-3"
-        title={
-          <span className="flex items-center gap-2">
-            {title}
-            <Badge tone={tone}>{num(count)}</Badge>
-          </span>
-        }
-      />
+    <Card className="overflow-hidden rounded-xl">
+      <h2 className="flex items-center gap-2 px-5 py-3.5 text-footnote font-semibold tracking-wide uppercase sm:px-6">
+        <span className="min-w-0 break-words">{title}</span>
+        {tone === 'danger' ? (
+          <Badge tone="danger" size="sm" className="tabular font-mono">
+            {num(count)}
+          </Badge>
+        ) : (
+          <ProcessCountChip>{num(count)}</ProcessCountChip>
+        )}
+      </h2>
       <ul className={LIST_CLASS}>{children}</ul>
     </Card>
   )
@@ -193,7 +195,7 @@ export function LateTab() {
   return (
     <div className="space-y-5">
       {nobodyBehind ? (
-        <Card>
+        <Card className="rounded-xl">
           <EmptyState
             icon={CircleCheck}
             title={t('processes.late.emptyTitle')}
@@ -240,9 +242,9 @@ export function LateTab() {
         </>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden rounded-xl">
         <CardHeader
-          className="pb-3"
+          className="px-5 pb-3 sm:px-6"
           title={t('processes.late.overridesTitle')}
           subtitle={t('processes.late.overridesHint')}
           action={

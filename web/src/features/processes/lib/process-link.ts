@@ -22,10 +22,13 @@ function externalTarget(url: string | undefined): ProcessLinkTarget {
 /** Where a step leads (SPEC §11.6). The definition names the screen; the case supplies the ids. */
 export function resolveProcessLink(
   link: ProcessLink,
-  subject: ProcessSubject,
+  subject: ProcessSubject | null | undefined,
   linkedBlankSubmissionId: string | null,
 ): ProcessLinkTarget {
-  const { employeeId, candidateId, vacancyRequestId, name } = subject
+  const employeeId = subject?.employeeId ?? null
+  const candidateId = subject?.candidateId ?? null
+  const vacancyRequestId = subject?.vacancyRequestId ?? null
+  const name = subject?.name ?? null
 
   switch (link.screen) {
     case 'vacancyRequests':

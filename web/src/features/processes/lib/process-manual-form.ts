@@ -133,7 +133,7 @@ export type RecordedManualInput =
     }
 
 function isChecklistMark(value: unknown): value is ProcessChecklistMark {
-  return value === 'done' || value === 'notNeeded'
+  return value === 'done' || value === 'na'
 }
 
 /**

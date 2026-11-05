@@ -4136,7 +4136,7 @@
       "undoText": "Qadam yana bajarilmagan holatga qaytadi.",
       "marks": {
         "done": "Bor",
-        "notNeeded": "Yo‘q / kerak emas"
+        "na": "Yo‘q / kerak emas"
       },
       "resolution": {
         "Fact": "Tizim hujjatdan aniqladi",
@@ -4155,7 +4155,36 @@
           "aboveMax": "Eng katta qiymat: {{max}}.",
           "invalidChoice": "Ro‘yxatdan tanlang."
         }
-      }
+      },
+      "progress": "{{done}} / {{total}} qadam bajarildi",
+      "columnProgress": "{{done}} / {{total}} bajarildi",
+      "systemHolder": "Tizim (o‘zi)",
+      "deadline": "Muddat: {{date}} gacha",
+      "anchorBy": {
+        "hire-formalise": "ishga chiqish",
+        "dismissal": "so‘nggi ish kuni"
+      },
+      "anchorOther": "hisob sanasi",
+      "notHolderText": "Siz bu qadamni faqat ko‘rasiz — uni {{role}} o‘z login va paroli bilan kirib bajaradi. Uning o‘rniga bajarib bo‘lmaydi.",
+      "systemTitle": "Bu qadamni tizim o‘zi bajaradi",
+      "systemText": "Bu yerda qo‘lda hech narsa qilinmaydi: shart bajarilganda qadam o‘zi yopiladi.",
+      "waitingTitle": "Bu qadamning navbati hali kelmagan",
+      "readOnlyData": "{{title}} — to‘ldirilgan ma’lumot (o‘qish uchun)",
+      "readOnlyDataPlain": "To‘ldirilgan ma’lumot (o‘qish uchun)",
+      "blankNotFilled": "Bu hujjat hali to‘ldirilmagan.",
+      "blankNoAccess": "Hujjatni ko‘rishga ruxsatingiz yo‘q.",
+      "signaturesTitle": "Imzolar (qog‘oz o‘rniga)",
+      "signature": {
+        "D1": "tasdiq (platformada)",
+        "D2": "imzo (shaxsan)",
+        "D3": "E-IMZO"
+      },
+      "signatureState": {
+        "pending": "kutilmoqda",
+        "done": "qo‘yilgan",
+        "skipped": "kerak bo‘lmadi"
+      },
+      "guideEmpty": "Bu qadam uchun ko‘rsatma yozilmagan."
     },
     "settings": {
       "title": "Sozlamalar",

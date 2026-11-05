@@ -1,15 +1,23 @@
-import { useNavigate } from '@tanstack/react-router'
-import { ChevronRight, ExternalLink, LoaderCircle, Play, Undo2 } from 'lucide-react'
-import { useState } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { CircleCheck, ExternalLink, LoaderCircle, Play, Undo2 } from 'lucide-react'
+import { useCallback, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
-import { useCreateBlank } from '@/features/blanks/api/blanks-queries'
+import {
+  useBlankSubmission,
+  useBlankTemplateVersion,
+  useCreateBlank,
+} from '@/features/blanks/api/blanks-queries'
+import { useBlankAttachmentViewer } from '@/features/blanks/components/blank-attachment-viewer'
+import { BlankForm } from '@/features/blanks/components/renderer/blank-form'
 import { blankErrorCode } from '@/features/blanks/lib/blank-error'
-import { BLANKS_FILL } from '@/features/blanks/lib/blank-permissions'
+import { searchBlankDocRef, searchBlankRef } from '@/features/blanks/lib/blank-lookups'
+import { BLANKS_FILL, BLANKS_VIEW } from '@/features/blanks/lib/blank-permissions'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
-import { Alert, Badge, Button, Dialog, TextArea } from '@/shared/ui'
+import { Alert, Badge, Button, buttonVariants, Card, Dialog, Skeleton, TextArea } from '@/shared/ui'
 
 import type { ProcessCaseDetail, ProcessCaseStep } from '../api/processes-api'
 import {
@@ -18,9 +26,11 @@ import {
   useUndoProcessStep,
 } from '../api/processes-queries'
 import { PROCESSES_WORK } from '../lib/permissions'
+import { describeDue, longDueDate } from '../lib/process-due'
 import { describeRecordedInputs } from '../lib/process-manual-form'
 import {
   blankCreateBody,
+  isStepFinished,
   pendingPrereqTitles,
   PROCESS_WRITE_API_READY,
   stepEntry,
@@ -28,7 +38,6 @@ import {
 } from '../lib/process-step'
 import {
   ProcessBlankChip,
-  ProcessDueChip,
   ProcessHolderLabel,
   ProcessStateBadge,
   ProcessWarningChips,
@@ -36,99 +45,214 @@ import {
 } from './process-chips'
 import { ProcessManualForm } from './process-manual-form'
 
-/**
- * One step of a case (SPEC §11.5): what it is, why it stands, what to do, and the buttons to do it. It takes a loaded
- * case, so any screen holding `useProcessCase(caseId)` can draw it. The `key` starts a fresh form and fresh errors for
- * every step.
- */
-export function ProcessStepPanel({
-  detail,
-  step,
-}: {
-  detail: ProcessCaseDetail
-  step: ProcessCaseStep
-}) {
-  return <StepPanelBody key={`${detail.id}:${step.stepCode}`} detail={detail} step={step} />
-}
+const NO_SECTIONS: readonly string[] = []
 
-function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: ProcessCaseStep }) {
-  const { t, date, dateTime } = useLocale()
-  const errorMessage = useErrorMessage()
-  const roleLabel = useProcessRoleLabel()
-  const { hasPermission } = useAuth()
-
-  const finished = step.state === 'Done' || step.state === 'Skipped'
-  const waitingForOthers = step.state === 'Locked' || step.state === 'Waiting'
-  const prereqs = waitingForOthers ? pendingPrereqTitles(step, detail.steps) : []
-  const recorded = describeRecordedInputs(step.manual?.inputs ?? [], step.payload)
+/** Blue bold numbers on the left, the way the prototype numbers its guide and its callouts. */
+function NumberedLines({ lines, className }: { lines: readonly string[]; className?: string }) {
+  const { num } = useLocale()
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h2 className="text-headline font-semibold">{step.title}</h2>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <ProcessStateBadge state={step.state} />
-          {!finished && (
-            <ProcessDueChip dueDate={step.dueDate} daysLate={step.daysLate} today={todayIso()} />
-          )}
-          <ProcessBlankChip code={step.blankCode} title={step.blankTitle} />
-          {step.optional && <Badge tone="neutral">{t('processes.case.optional')}</Badge>}
-          <ProcessWarningChips codes={step.warnings} />
-        </div>
-      </header>
+    <ol className={cn('space-y-2', className)}>
+      {lines.map((line, index) => (
+        <li key={index} className="flex gap-1.5">
+          <span className="tabular shrink-0 font-semibold text-[var(--accent-text)]">
+            {num(index + 1)}.
+          </span>
+          <span className="min-w-0 break-words">{line}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
-      <dl className="space-y-1 text-subhead">
-        <div className="flex flex-wrap gap-x-2">
-          <dt className="text-[var(--fg-secondary)]">{t('processes.case.holder')}:</dt>
-          <dd>
-            <ProcessHolderLabel holder={step.holder} />
-          </dd>
-        </div>
-        {step.doneAt !== null && (
-          <div className="flex flex-wrap gap-x-2">
-            <dt className="text-[var(--fg-secondary)]">{t(`processes.state.${step.state}`)}:</dt>
-            <dd className="tabular">
-              {dateTime(step.doneAt)}
-              {step.doneByName !== null && ` · ${step.doneByName}`}
-            </dd>
-          </div>
+/** A native disclosure, with the prototype's small filled triangle instead of the browser's own. */
+function Disclosure({
+  summary,
+  summaryClassName,
+  className,
+  onToggle,
+  children,
+}: {
+  summary: ReactNode
+  summaryClassName?: string
+  className?: string
+  onToggle?: (open: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <details
+      className={cn('group', className)}
+      onToggle={(event) => onToggle?.(event.currentTarget.open)}
+    >
+      <summary
+        className={cn(
+          'flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden',
+          summaryClassName,
         )}
-        {step.resolution !== null && step.resolution !== 'Manual' && (
-          <div className="flex flex-wrap gap-x-2">
-            <dd className="text-[var(--fg-secondary)]">
-              {t(`processes.case.resolution.${step.resolution}`)}
-            </dd>
-          </div>
-        )}
-      </dl>
+      >
+        <Play
+          aria-hidden
+          className="size-2.5 shrink-0 fill-current transition-transform duration-[120ms] group-open:rotate-90"
+        />
+        <span className="min-w-0">{summary}</span>
+      </summary>
+      {children}
+    </details>
+  )
+}
 
-      {step.state === 'Blocked' && (
-        <Alert tone="danger" title={errorMessage(step.gateErrorCode, step.gateCode ?? undefined)}>
-          {step.resolver !== null && (
-            <span>
-              {t('processes.case.resolver')}: <ProcessHolderLabel holder={step.resolver} />
-            </span>
-          )}
-        </Alert>
-      )}
+/** Red late, orange today, grey otherwise: «Muddat: 5-noyabr gacha». Nothing on a step without a due date. */
+function DeadlineChip({ step }: { step: ProcessCaseStep }) {
+  const { t, num, locale } = useLocale()
+  const due = describeDue(step.dueDate, step.daysLate, todayIso())
 
-      {!step.viewerHolds && !finished && (
-        <p className="text-subhead text-[var(--fg-secondary)]">
-          {t('processes.case.notHolder', { role: roleLabel(step.holder.role) })}
-        </p>
-      )}
+  if (due.kind === 'none') return null
+  if (due.kind === 'late') {
+    return <Badge tone="danger">{t('processes.due.late', { n: num(due.days) })}</Badge>
+  }
 
-      {prereqs.length > 0 && (
-        <p className="text-subhead text-[var(--fg-secondary)]">
-          {t('processes.case.prereqs', { titles: prereqs.join('; ') })}
-        </p>
-      )}
+  return (
+    <Badge tone={due.kind === 'today' ? 'warning' : 'neutral'} className="text-[var(--fg)]">
+      {t('processes.case.deadline', { date: longDueDate(step.dueDate ?? '', locale) })}
+    </Badge>
+  )
+}
 
-      {recorded.length > 0 && (
-        <section className="space-y-1.5">
-          <h3 className="text-footnote font-semibold text-[var(--fg-secondary)]">
-            {t('processes.case.recorded')}
-          </h3>
+/** The blue-edged note that says whose step this is and what stands in its way. */
+function StepCallout({ title, lines }: { title: string; lines: readonly string[] }) {
+  return (
+    <aside className="rounded-lg border border-[var(--accent-soft-hover)] border-l-4 border-l-[var(--accent)] bg-[var(--accent-soft)] px-5 py-4">
+      <p className="text-callout font-semibold">{title}</p>
+      {lines.length > 0 && <NumberedLines lines={lines} className="mt-2 text-subhead" />}
+    </aside>
+  )
+}
+
+/** What the step's callout says, or `null` when the viewer simply holds an open step. */
+function useStepCallout(
+  detail: ProcessCaseDetail,
+  step: ProcessCaseStep,
+): { title: string; lines: string[] } | null {
+  const { t } = useLocale()
+  const roleLabel = useProcessRoleLabel()
+
+  if (isStepFinished(step.state) || detail.status !== 'Active') return null
+
+  const waiting = step.state === 'Locked' || step.state === 'Waiting'
+  const prereqs = waiting ? pendingPrereqTitles(step, detail.steps) : []
+  const prereqLines = prereqs.length > 0 ? [t('processes.case.prereqs', { titles: prereqs.join('; ') })] : []
+
+  if (step.holder.role === null) {
+    return {
+      title: t('processes.case.systemTitle'),
+      lines: [t('processes.case.systemText'), ...prereqLines],
+    }
+  }
+
+  if (!step.viewerHolds) {
+    const role = roleLabel(step.holder.role)
+    return {
+      title: t('processes.case.notHolder', { role }),
+      lines: [t('processes.case.notHolderText', { role }), ...prereqLines],
+    }
+  }
+
+  return prereqLines.length > 0
+    ? { title: t('processes.case.waitingTitle'), lines: prereqLines }
+    : null
+}
+
+/** A blank's answers, read-only. Mounted when the disclosure opens, so a closed one asks the server for nothing. */
+function LinkedBlankPreview({ submissionId }: { submissionId: string }) {
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+  const detail = useBlankSubmission(submissionId)
+  const version = useBlankTemplateVersion(detail.data?.templateVersionId)
+  const viewer = useBlankAttachmentViewer(submissionId, detail.data?.attachments ?? [])
+  const ignoreChange = useCallback(() => undefined, [])
+
+  const openLink = (
+    <Link
+      to="/blankalar/$submissionId"
+      params={{ submissionId }}
+      className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+    >
+      {t('processes.case.open')}
+    </Link>
+  )
+
+  if (detail.isError || version.isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-subhead text-[var(--fg-secondary)]">
+        <span>{errorMessage(problemCode(detail.error ?? version.error))}</span>
+        {openLink}
+      </div>
+    )
+  }
+
+  const submission = detail.data
+  const definition = version.data?.definition
+
+  if (submission === undefined || definition === undefined) {
+    return (
+      <div className="space-y-2" aria-busy="true">
+        <Skeleton className="h-4 w-2/3 rounded-md" />
+        <Skeleton className="h-4 w-1/2 rounded-md" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <BlankForm
+        definition={definition}
+        answers={submission.answers}
+        onChange={ignoreChange}
+        editableSections={NO_SECTIONS}
+        readOnly
+        computed={submission.computed}
+        attachments={submission.attachments}
+        searchRef={searchBlankRef}
+        searchDocRef={searchBlankDocRef}
+        openFile={viewer.open}
+      />
+      {openLink}
+      {viewer.element}
+    </div>
+  )
+}
+
+/**
+ * «… to'ldirilgan ma'lumot (o'qish uchun)»: what a manual step recorded, and the blank behind a blank step. A step with
+ * neither has nothing to read, so the disclosure drops out. Only a step that links to a real blank talks about one.
+ */
+function StepRecordedData({ step }: { step: ProcessCaseStep }) {
+  const { t, date } = useLocale()
+  const { hasPermission } = useAuth()
+  const [opened, setOpened] = useState(false)
+
+  const recorded = describeRecordedInputs(step.manual?.inputs ?? [], step.payload)
+  const submissionId = step.linkedBlankSubmissionId
+  const blankAhead =
+    submissionId === null && step.link.screen === 'blank' && !isStepFinished(step.state)
+
+  if (recorded.length === 0 && submissionId === null && !blankAhead) return null
+
+  return (
+    <Disclosure
+      className="rounded-lg border border-[var(--border)]"
+      summaryClassName="px-4 py-3.5 text-subhead font-semibold"
+      summary={
+        step.blankTitle !== null
+          ? t('processes.case.readOnlyData', { title: step.blankTitle })
+          : t('processes.case.readOnlyDataPlain')
+      }
+      onToggle={(open) => {
+        if (open) setOpened(true)
+      }}
+    >
+      <div className="space-y-3 border-t border-[var(--border)] px-4 py-3.5">
+        {recorded.length > 0 && (
           <dl className="space-y-1.5 text-subhead">
             {recorded.map((row) => (
               <div key={row.id}>
@@ -153,42 +277,182 @@ function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: Proc
               </div>
             ))}
           </dl>
-        </section>
-      )}
+        )}
 
-      {step.guide.length > 0 && (
-        <section className="space-y-1.5">
-          <h3 className="text-footnote font-semibold text-[var(--fg-secondary)]">
-            {t('processes.case.guide')}
-          </h3>
-          <ol className="list-decimal space-y-1 pl-5 text-subhead">
-            {step.guide.map((line, index) => (
-              <li key={index}>{line}</li>
-            ))}
-          </ol>
-        </section>
+        {blankAhead && recorded.length === 0 && (
+          <p className="text-subhead text-[var(--fg-secondary)]">
+            {t('processes.case.blankNotFilled')}
+          </p>
+        )}
+
+        {submissionId !== null &&
+          (hasPermission(BLANKS_VIEW) ? (
+            opened && <LinkedBlankPreview submissionId={submissionId} />
+          ) : (
+            <p className="text-subhead text-[var(--fg-secondary)]">
+              {t('processes.case.blankNoAccess')}
+            </p>
+          ))}
+      </div>
+    </Disclosure>
+  )
+}
+
+/**
+ * «IMZOLAR». The step's definition names only the kind of signature (D1, D2, D3), not who signed or when, so one row says
+ * what is asked and of whom. The signers themselves live on the blank's own page.
+ */
+function StepSignatures({ step }: { step: ProcessCaseStep }) {
+  const { t } = useLocale()
+  const roleLabel = useProcessRoleLabel()
+
+  if (step.signature === null) return null
+
+  const signed = step.state === 'Done'
+  const standing = signed ? 'done' : step.state === 'Skipped' ? 'skipped' : 'pending'
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-footnote font-semibold tracking-wide text-[var(--fg-secondary)] uppercase">
+        {t('processes.case.signaturesTitle')}
+      </h3>
+      <p className="flex items-start gap-2 rounded-lg border border-[var(--border)] px-4 py-3 text-subhead">
+        {signed ? (
+          <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-ios-green" />
+        ) : (
+          <span
+            aria-hidden
+            className="mt-[3px] size-3.5 shrink-0 rounded-full border-[1.5px] border-[var(--fg)]"
+          />
+        )}
+        <span className="min-w-0">
+          {step.blankTitle ?? step.title}
+          {' — '}
+          <span className="font-semibold">{roleLabel(step.holder.role)}</span>
+          {' · '}
+          {t(`processes.case.signature.${step.signature}`, { defaultValue: step.signature })}
+          {' · '}
+          {t(`processes.case.signatureState.${standing}`)}
+        </span>
+      </p>
+    </section>
+  )
+}
+
+/**
+ * The centre card of a case (SPEC §11.5): whose step it is, why it stands, what was entered, and the buttons. It takes a
+ * loaded case, so any screen holding `useProcessCase(caseId)` can draw it. The `key` starts a fresh form and fresh errors
+ * for every step.
+ */
+export function ProcessStepPanel({
+  detail,
+  step,
+}: {
+  detail: ProcessCaseDetail
+  step: ProcessCaseStep
+}) {
+  return <StepPanelBody key={`${detail.id}:${step.stepCode}`} detail={detail} step={step} />
+}
+
+function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: ProcessCaseStep }) {
+  const { t, dateTime } = useLocale()
+  const errorMessage = useErrorMessage()
+  const { hasPermission } = useAuth()
+  const callout = useStepCallout(detail, step)
+
+  const finished = isStepFinished(step.state)
+  // The stepper's dot already says «active» and «not yet»; only what needs reading gets a word here.
+  const showState = step.state !== 'Active' && step.state !== 'Locked'
+
+  return (
+    <Card className="rounded-xl">
+      <header className="border-b border-[var(--border)] px-5 pt-5 pb-4 sm:px-7 sm:pt-6 sm:pb-5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {step.holder.role !== null && (
+            <Badge
+              tone="brand"
+              className="h-auto min-h-6 max-w-full border border-[var(--accent-soft-hover)] py-0.5 whitespace-normal"
+            >
+              <ProcessHolderLabel holder={step.holder} />
+            </Badge>
+          )}
+          <ProcessBlankChip code={step.blankCode} title={step.blankTitle} />
+          {!finished && <DeadlineChip step={step} />}
+          {showState && <ProcessStateBadge state={step.state} />}
+          {step.optional && <Badge tone="neutral">{t('processes.case.optional')}</Badge>}
+          <ProcessWarningChips codes={step.warnings} />
+        </div>
+
+        <h2 className="mt-4 text-title2 leading-tight font-semibold break-words">{step.title}</h2>
+
+        {step.doneAt !== null && (
+          <p className="tabular mt-2 text-footnote text-[var(--fg-secondary)]">
+            {t(`processes.state.${step.state}`)}: {dateTime(step.doneAt)}
+            {step.doneByName !== null && ` · ${step.doneByName}`}
+          </p>
+        )}
+        {step.resolution !== null && step.resolution !== 'Manual' && (
+          <p className="mt-1 text-footnote text-[var(--fg-secondary)]">
+            {t(`processes.case.resolution.${step.resolution}`)}
+          </p>
+        )}
+      </header>
+
+      <div className="space-y-5 px-5 py-5 sm:px-7 sm:py-6">
+        {step.state === 'Blocked' && (
+          <Alert tone="danger" title={errorMessage(step.gateErrorCode, step.gateCode ?? undefined)}>
+            {step.resolver !== null && (
+              <span>
+                {t('processes.case.resolver')}: <ProcessHolderLabel holder={step.resolver} />
+              </span>
+            )}
+          </Alert>
+        )}
+
+        {callout !== null && <StepCallout title={callout.title} lines={callout.lines} />}
+
+        <StepRecordedData step={step} />
+        <StepSignatures step={step} />
+
+        <StepActions
+          detail={detail}
+          step={step}
+          canWork={hasPermission(PROCESSES_WORK)}
+          canFillBlanks={hasPermission(BLANKS_FILL)}
+        />
+      </div>
+    </Card>
+  )
+}
+
+/** The right-hand card: «Nima qilaman?» and where the instruction comes from (SPEC §11.5). */
+export function ProcessStepGuide({ step }: { step: ProcessCaseStep }) {
+  const { t } = useLocale()
+
+  return (
+    <Card key={step.stepCode} className="rounded-xl px-5 py-5 sm:px-6">
+      <h2 className="text-body font-semibold">{t('processes.case.guide')}</h2>
+
+      {step.guide.length > 0 ? (
+        <NumberedLines lines={step.guide} className="mt-3 text-subhead" />
+      ) : (
+        <p className="mt-3 text-subhead text-[var(--fg-secondary)]">
+          {t('processes.case.guideEmpty')}
+        </p>
       )}
 
       {step.sourceRef !== null && (
-        <details className="group text-subhead">
-          <summary className="flex cursor-pointer list-none items-center gap-1 text-footnote font-semibold text-[var(--fg-secondary)]">
-            <ChevronRight
-              aria-hidden
-              className="size-4 transition-transform group-open:rotate-90"
-            />
-            {t('processes.case.source')}
-          </summary>
-          <p className="mt-1.5 pl-5 text-[var(--fg-secondary)]">{step.sourceRef}</p>
-        </details>
+        <Disclosure
+          className="mt-4"
+          summaryClassName="text-footnote text-[var(--fg-secondary)]"
+          summary={t('processes.case.source')}
+        >
+          <p className="mt-2 text-footnote break-words text-[var(--fg-secondary)]">
+            {step.sourceRef}
+          </p>
+        </Disclosure>
       )}
-
-      <StepActions
-        detail={detail}
-        step={step}
-        canWork={hasPermission(PROCESSES_WORK)}
-        canFillBlanks={hasPermission(BLANKS_FILL)}
-      />
-    </div>
+    </Card>
   )
 }
 
@@ -213,7 +477,7 @@ function StepActions({
   const [dialog, setDialog] = useState<'skip' | 'undo' | null>(null)
 
   const target = { caseId: detail.id, stepCode: step.stepCode }
-  const expectedVersion = detail.version
+  const { version } = detail
   const locked = !PROCESS_WRITE_API_READY
 
   const entry = stepEntry(step, detail.subject, canWork && detail.status === 'Active')
@@ -232,7 +496,7 @@ function StepActions({
   )
 
   return (
-    <section className="space-y-3 border-t border-[var(--border)] pt-4">
+    <section className="space-y-3 border-t border-[var(--border)] pt-5">
       {showEntry && <StepEntryButton entry={entry} detail={detail} />}
 
       {complete.isError && (
@@ -245,7 +509,7 @@ function StepActions({
           locked={locked}
           pending={complete.isPending}
           onSubmit={(inputs) =>
-            complete.mutate({ ...target, body: { inputs, expectedVersion } })
+            complete.mutate({ ...target, body: { version, inputs } })
           }
         >
           {skipButton}
@@ -273,7 +537,7 @@ function StepActions({
         onClose={() => setDialog(null)}
         onConfirm={(reason) =>
           skip.mutate(
-            { ...target, body: { reason, expectedVersion } },
+            { ...target, body: { version, reason } },
             { onSuccess: () => setDialog(null) },
           )
         }
@@ -285,7 +549,7 @@ function StepActions({
         failure={undo.isError ? errorMessage(problemCode(undo.error)) : null}
         onClose={() => setDialog(null)}
         onConfirm={() =>
-          undo.mutate({ ...target, body: { expectedVersion } }, { onSuccess: () => setDialog(null) })
+          undo.mutate({ ...target, body: { version } }, { onSuccess: () => setDialog(null) })
         }
       />
     </section>

@@ -1,45 +1,182 @@
-import {
-  CheckCircle2,
-  Circle,
-  CircleDot,
-  Hourglass,
-  Lock,
-  MinusCircle,
-  type LucideIcon,
-} from 'lucide-react'
+import { Check, Cog, Hourglass, Lock, Minus } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { todayIso } from '@/shared/lib/today'
 
-import type { ProcessCaseStep, ProcessColumn, ProcessStepState } from '../api/processes-api'
-import { groupStepsByColumn } from '../lib/process-step'
-import { ProcessDueChip, ProcessHolderLabel } from './process-chips'
+import type { ProcessCaseStep, ProcessColumn } from '../api/processes-api'
+import { groupStepsByColumn, isStepFinished, stepProgress } from '../lib/process-step'
+import { ProcessCountChip, ProcessHolderLabel } from './process-chips'
 
-const STATE_ICON: Record<ProcessStepState, { icon: LucideIcon; className: string }> = {
-  Done: { icon: CheckCircle2, className: 'text-ios-green' },
-  Skipped: { icon: MinusCircle, className: 'text-[var(--fg-tertiary)]' },
-  Active: { icon: CircleDot, className: 'text-[var(--accent)]' },
-  Blocked: { icon: Lock, className: 'text-ios-red' },
-  Waiting: { icon: Hourglass, className: 'text-ios-orange' },
-  Locked: { icon: Circle, className: 'text-[var(--fg-tertiary)]' },
+/** A step the system closes by itself has no person to name. */
+function isSystemStep(step: ProcessCaseStep): boolean {
+  return step.holder.role === null
 }
 
-/** The icon of a step's state, with the state's name for a screen reader. */
-export function ProcessStepStateIcon({ state }: { state: ProcessStepState }) {
+const MARKER_CLASS = 'grid size-[26px] shrink-0 place-items-center rounded-full'
+const RING_CLASS = 'border-2 bg-[var(--bg-elevated)]'
+
+/**
+ * The stepper's dot, in the prototype's vocabulary: a green check for done, a gear for a system step, a blue ring with a
+ * dot for the selected step, a hollow ring for what is still ahead. A state a person must act on keeps its own colour even
+ * when selected, because that is the one thing the row has to say. The state's name is there for a screen reader.
+ */
+function StepMarker({ step, selected }: { step: ProcessCaseStep; selected: boolean }) {
   const { t } = useLocale()
-  const { icon: Icon, className } = STATE_ICON[state]
+  const system = isSystemStep(step)
+  const label = t(`processes.state.${step.state}`)
+
+  if (step.state === 'Done') {
+    const Icon = system ? Cog : Check
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        className={cn(MARKER_CLASS, 'bg-ios-green text-[var(--fg-on-accent)]')}
+      >
+        <Icon aria-hidden className="size-4" strokeWidth={3} />
+      </span>
+    )
+  }
+
+  if (step.state === 'Skipped') {
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        className={cn(MARKER_CLASS, 'bg-[var(--fg-tertiary)] text-[var(--fg-on-accent)]')}
+      >
+        <Minus aria-hidden className="size-4" strokeWidth={3} />
+      </span>
+    )
+  }
+
+  if (step.state === 'Blocked') {
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        className={cn(MARKER_CLASS, RING_CLASS, 'border-ios-red text-ios-red')}
+      >
+        <Lock aria-hidden className="size-3.5" strokeWidth={2.5} />
+      </span>
+    )
+  }
+
+  if (selected) {
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        className={cn(MARKER_CLASS, RING_CLASS, 'border-[var(--accent)]')}
+      >
+        <span className="size-2.5 rounded-full bg-[var(--accent)]" />
+      </span>
+    )
+  }
+
+  if (step.state === 'Waiting') {
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        className={cn(MARKER_CLASS, RING_CLASS, 'border-ios-orange text-ios-orange')}
+      >
+        <Hourglass aria-hidden className="size-3" strokeWidth={2.5} />
+      </span>
+    )
+  }
 
   return (
-    <Icon
+    <span
       role="img"
-      aria-label={t(`processes.state.${state}`)}
-      className={cn('size-5 shrink-0', className)}
-    />
+      aria-label={label}
+      className={cn(
+        MARKER_CLASS,
+        RING_CLASS,
+        'text-[var(--fg-tertiary)]',
+        step.state === 'Active' ? 'border-[var(--accent)]' : 'border-[var(--border-strong)]',
+      )}
+    >
+      {system && <Cog aria-hidden className="size-3.5" strokeWidth={2.5} />}
+    </span>
   )
 }
 
-/** A case's steps by board column (SPEC §11.5). The rows choose what the step panel beside them shows. */
+function StepRow({
+  step,
+  selected,
+  last,
+  onSelect,
+}: {
+  step: ProcessCaseStep
+  selected: boolean
+  last: boolean
+  onSelect: (stepCode: string) => void
+}) {
+  const { t, num } = useLocale()
+  const system = isSystemStep(step)
+  const finished = isStepFinished(step.state)
+
+  return (
+    <li className="relative -mx-2">
+      <button
+        type="button"
+        aria-current={selected ? 'step' : undefined}
+        onClick={() => onSelect(step.stepCode)}
+        className={cn(
+          'relative flex w-full items-start gap-3 rounded-lg border-l-[3px] py-2 pr-2 pl-1.5 text-left',
+          'transition-colors duration-[120ms] ease-[var(--ease-ios)]',
+          selected
+            ? 'border-l-[var(--accent)] bg-[var(--accent-soft)]'
+            : 'border-l-transparent hover:bg-[var(--bg-hover)]',
+        )}
+      >
+        <StepMarker step={step} selected={selected} />
+        <span className="min-w-0 flex-1 pt-px">
+          <span
+            className={cn(
+              'block text-subhead leading-snug',
+              selected && 'font-semibold',
+              system && !selected && 'text-[var(--fg-secondary)]',
+            )}
+          >
+            {step.title}
+          </span>
+          {system ? (
+            <span className="mt-1 block text-footnote text-[var(--fg-secondary)] italic">
+              {t('processes.case.systemHolder')}
+            </span>
+          ) : (
+            <ProcessHolderLabel
+              holder={step.holder}
+              className="mt-1 block text-footnote break-words text-[var(--fg-secondary)]"
+            />
+          )}
+          {!finished && step.daysLate > 0 && (
+            <span className="mt-0.5 block text-footnote font-medium text-ios-red">
+              {t('processes.due.late', { n: num(step.daysLate) })}
+            </span>
+          )}
+        </span>
+      </button>
+      {!last && (
+        // Centred under the 26 px dot: 3 px accent edge + 6 px padding + 13 px half a dot − 1 px half the line.
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute top-[36px] -bottom-2 left-[21px] w-0.5',
+            finished ? 'bg-ios-green/45' : 'bg-[var(--border-strong)]',
+          )}
+        />
+      )}
+    </li>
+  )
+}
+
+/**
+ * A case's steps by board column (SPEC §11.5), as the prototype's stepper. The rows choose what the panel and the guide
+ * beside them show.
+ */
 export function ProcessStepTimeline({
   columns,
   steps,
@@ -51,60 +188,39 @@ export function ProcessStepTimeline({
   selectedStepCode: string | undefined
   onSelect: (stepCode: string) => void
 }) {
-  const today = todayIso()
+  const { t, num } = useLocale()
 
   return (
-    <div className="space-y-5">
-      {groupStepsByColumn(columns, steps).map((column) => (
-        <section key={column.key} className="space-y-1">
-          <h3 className="px-2.5 text-footnote font-semibold text-[var(--fg-secondary)]">
-            {column.title}
-          </h3>
-          <ul className="space-y-0.5">
-            {column.steps.map((step) => {
-              const selected = step.stepCode === selectedStepCode
-              const finished = step.state === 'Done' || step.state === 'Skipped'
+    <nav aria-label={t('processes.case.stepsTitle')} className="space-y-5">
+      {groupStepsByColumn(columns, steps).map((column, index) => {
+        const { done, total } = stepProgress(column.steps)
 
-              return (
-                <li key={step.stepCode}>
-                  <button
-                    type="button"
-                    aria-current={selected ? 'step' : undefined}
-                    onClick={() => onSelect(step.stepCode)}
-                    className={cn(
-                      'flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors',
-                      selected ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--bg-hover)]',
-                    )}
-                  >
-                    <ProcessStepStateIcon state={step.state} />
-                    <span className="min-w-0 flex-1 space-y-1">
-                      <span
-                        className={cn(
-                          'block text-subhead',
-                          finished ? 'text-[var(--fg-secondary)]' : 'font-medium',
-                        )}
-                      >
-                        {step.title}
-                      </span>
-                      <ProcessHolderLabel
-                        holder={step.holder}
-                        className="block text-footnote text-[var(--fg-secondary)]"
-                      />
-                    </span>
-                    {!finished && (
-                      <ProcessDueChip
-                        dueDate={step.dueDate}
-                        daysLate={step.daysLate}
-                        today={today}
-                      />
-                    )}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      ))}
-    </div>
+        return (
+          <section key={column.key}>
+            <h3 className="mb-1.5 flex items-center justify-between gap-2 text-footnote font-semibold tracking-wide uppercase">
+              <span className="min-w-0 break-words">
+                {num(index + 1)}. {column.title}
+              </span>
+              <ProcessCountChip
+                label={t('processes.case.columnProgress', { done: num(done), total: num(total) })}
+              >
+                {num(done)}/{num(total)}
+              </ProcessCountChip>
+            </h3>
+            <ol>
+              {column.steps.map((step, stepIndex) => (
+                <StepRow
+                  key={step.stepCode}
+                  step={step}
+                  selected={step.stepCode === selectedStepCode}
+                  last={stepIndex === column.steps.length - 1}
+                  onSelect={onSelect}
+                />
+              ))}
+            </ol>
+          </section>
+        )
+      })}
+    </nav>
   )
 }

@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
 import { Button, Card, EmptyState, SegmentedControl, Select, Skeleton } from '@/shared/ui'
 
@@ -12,6 +13,7 @@ import { useProcessBoard, useProcessTemplates } from '../api/processes-queries'
 import { PROCESSES_WORK } from '../lib/permissions'
 import { sortProcessTemplates } from '../lib/process-board'
 import {
+  ProcessCountChip,
   ProcessDueChip,
   ProcessHolderLabel,
   ProcessLegacyBadge,
@@ -79,7 +81,7 @@ export function BoardTab() {
 
   if (templates.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-xl">
         <EmptyState
           icon={Kanban}
           title={t('processes.board.noTemplatesTitle')}
@@ -93,7 +95,7 @@ export function BoardTab() {
 
   return (
     <div className="flex flex-col gap-4 frame:min-h-0 frame:flex-1">
-      <div className="flex flex-wrap items-center gap-2.5">
+      <Card className="flex flex-wrap items-center gap-2.5 rounded-xl px-4 py-3 sm:px-5">
         <Select
           size="sm"
           aria-label={t('processes.board.process')}
@@ -126,7 +128,7 @@ export function BoardTab() {
             {t('processes.board.startDismissal')}
           </Button>
         )}
-      </div>
+      </Card>
 
       {view === 'list' ? (
         <ProcessCasesTable process={knownProcess} />
@@ -144,9 +146,9 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
 
   if (query.isPending) {
     return (
-      <div aria-busy="true" className="flex gap-3 overflow-hidden">
+      <div aria-busy="true" className="flex flex-col gap-4 md:flex-row md:overflow-hidden">
         {[0, 1, 2, 3].map((column) => (
-          <Skeleton key={column} className="h-72 w-72 shrink-0 rounded-lg" />
+          <Skeleton key={column} className="h-72 w-full shrink-0 rounded-xl md:w-72" />
         ))}
       </div>
     )
@@ -160,7 +162,7 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
 
   if (columns.every((column) => column.cards.length === 0)) {
     return (
-      <Card>
+      <Card className="rounded-xl">
         <EmptyState
           icon={Kanban}
           title={t('processes.board.emptyTitle')}
@@ -171,24 +173,30 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
   }
 
   return (
-    <div className="-mx-1 flex items-start gap-3 overflow-x-auto px-1 pb-2">
-      {columns.map((column) => (
-        <section
+    <div className="flex flex-col gap-4 md:-mx-1 md:flex-row md:items-start md:overflow-x-auto md:px-1 md:pb-2">
+      {columns.map((column, index) => (
+        // A phone stacks the columns, and an empty one there would only push the work further down.
+        <Card
           key={column.key}
-          className="flex w-72 shrink-0 flex-col gap-2 rounded-lg bg-[var(--bg-sunken)] p-2.5"
+          className={cn(
+            'w-full shrink-0 flex-col gap-3 rounded-xl p-4 md:flex md:w-72',
+            column.cards.length === 0 ? 'hidden' : 'flex',
+          )}
         >
-          <h3 className="flex items-center justify-between gap-2 px-1 text-footnote font-semibold text-[var(--fg-secondary)]">
-            <span className="truncate">{column.title}</span>
-            <span className="tabular">{num(column.cards.length)}</span>
+          <h3 className="flex items-center justify-between gap-2 text-footnote font-semibold tracking-wide uppercase">
+            <span className="min-w-0 break-words">
+              {num(index + 1)}. {column.title}
+            </span>
+            <ProcessCountChip>{num(column.cards.length)}</ProcessCountChip>
           </h3>
           {column.cards.length === 0 ? (
-            <p className="px-1 py-3 text-center text-footnote text-[var(--fg-tertiary)]">
+            <p className="py-3 text-center text-footnote text-[var(--fg-secondary)]">
               {t('processes.board.columnEmpty')}
             </p>
           ) : (
             column.cards.map((card) => <BoardCard key={card.caseId} card={card} today={today} />)
           )}
-        </section>
+        </Card>
       ))}
     </div>
   )
@@ -203,9 +211,9 @@ function BoardCard({ card, today }: { card: ProcessBoardCard; today: string }) {
     <Link
       to="/mening-ishlarim/$caseId"
       params={{ caseId: card.caseId }}
-      className="block space-y-2 rounded-md bg-[var(--bg-elevated)] p-3 shadow-sm transition-colors hover:bg-[var(--bg-hover)]"
+      className="block space-y-2 rounded-lg border border-[var(--border)] p-3 transition-colors hover:bg-[var(--bg-hover)]"
     >
-      <p className="text-subhead font-medium">
+      <p className="text-subhead font-semibold break-words">
         {processSubjectLine(card.subject, card.departmentName) || t('processes.board.noSubject')}
       </p>
 

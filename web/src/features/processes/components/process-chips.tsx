@@ -1,4 +1,5 @@
-import { FileText, Lock, TriangleAlert } from 'lucide-react'
+import { Lock, TriangleAlert } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Badge, type BadgeTone } from '@/shared/ui'
@@ -87,15 +88,33 @@ export function ProcessLegacyBadge() {
   return <Badge tone="neutral">{t('processes.legacy')}</Badge>
 }
 
+/** The width every screen of the section shares, taken from the chef's prototype. */
+export const PROCESS_PAGE_CLASS = 'mx-auto w-full max-w-[1256px]'
+
+/** The grey pill beside a heading: «3/3», or a plain count. `label` says it in words for a screen reader. */
+export function ProcessCountChip({ children, label }: { children: ReactNode; label?: string }) {
+  return (
+    <span
+      aria-label={label}
+      role={label === undefined ? undefined : 'img'}
+      className="tabular shrink-0 rounded-full bg-[var(--bg-sunken)] px-2 py-0.5 font-mono text-caption2 font-medium tracking-normal text-[var(--fg-secondary)]"
+    >
+      {children}
+    </span>
+  )
+}
+
 /** Short title plus the code in small type («Ishga qabul HR-F06»); nothing for a step without a blank. */
 export function ProcessBlankChip({ code, title }: { code: string | null; title: string | null }) {
   if (code === null) return null
 
   return (
-    <Badge tone="neutral">
-      <FileText aria-hidden className="size-3" />
+    <Badge
+      tone="neutral"
+      className="h-auto min-h-6 max-w-full py-0.5 whitespace-normal text-[var(--fg)]"
+    >
       {title}
-      <span className="font-mono text-caption2 text-[var(--fg-tertiary)]">{code}</span>
+      <span className="font-mono text-caption2 text-[var(--fg-secondary)]">{code}</span>
     </Badge>
   )
 }
@@ -166,11 +185,14 @@ export function ProcessHolderLabel({
   )
 }
 
-/** «{subject} · {position}, {department}»; the parts that are absent drop out together with their separator. */
+/**
+ * «{subject} · {position}, {department}»; the parts that are absent drop out together with their separator, and so does a
+ * whole subject the case does not have.
+ */
 export function processSubjectLine(
-  subject: Pick<ProcessSubject, 'name' | 'position'>,
-  departmentName: string | null,
+  subject: Pick<ProcessSubject, 'name' | 'position'> | null | undefined,
+  departmentName: string | null | undefined,
 ): string {
-  const where = [subject.position, departmentName].filter(Boolean).join(', ')
-  return [subject.name, where].filter(Boolean).join(' · ')
+  const where = [subject?.position, departmentName].filter(Boolean).join(', ')
+  return [subject?.name, where].filter(Boolean).join(' · ')
 }

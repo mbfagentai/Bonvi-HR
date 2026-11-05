@@ -4136,7 +4136,7 @@
       "undoText": "The step goes back to not done.",
       "marks": {
         "done": "Done",
-        "notNeeded": "No / not needed"
+        "na": "No / not needed"
       },
       "resolution": {
         "Fact": "The system saw it in the records",
@@ -4155,7 +4155,36 @@
           "aboveMax": "The largest value is {{max}}.",
           "invalidChoice": "Choose from the list."
         }
-      }
+      },
+      "progress": "{{done}} / {{total}} steps done",
+      "columnProgress": "{{done}} / {{total}} done",
+      "systemHolder": "System (automatic)",
+      "deadline": "Due: by {{date}}",
+      "anchorBy": {
+        "hire-formalise": "start date",
+        "dismissal": "last working day"
+      },
+      "anchorOther": "reference date",
+      "notHolderText": "You can only view this step: {{role}} completes it under their own login. It cannot be done on their behalf.",
+      "systemTitle": "The system completes this step itself",
+      "systemText": "Nothing to do by hand here: the step closes on its own once its condition is met.",
+      "waitingTitle": "This step’s turn has not come yet",
+      "readOnlyData": "{{title}}: filled-in data (read only)",
+      "readOnlyDataPlain": "Filled-in data (read only)",
+      "blankNotFilled": "This document has not been filled in yet.",
+      "blankNoAccess": "You do not have access to view this document.",
+      "signaturesTitle": "Signatures (instead of paper)",
+      "signature": {
+        "D1": "approval (on the platform)",
+        "D2": "signature (in person)",
+        "D3": "E-IMZO"
+      },
+      "signatureState": {
+        "pending": "pending",
+        "done": "done",
+        "skipped": "not needed"
+      },
+      "guideEmpty": "This step has no guide."
     },
     "settings": {
       "title": "Settings",
