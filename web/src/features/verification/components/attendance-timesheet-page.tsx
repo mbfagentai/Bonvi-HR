@@ -372,21 +372,24 @@ export function AttendanceTimesheetPage() {
               />
             </div>
 
-            <Button
-              type="button"
-              pill
-              variant={panelOpen ? 'soft' : 'secondary'}
-              aria-expanded={panelOpen}
-              onClick={() => setPanelOpen((previous) => !previous)}
-            >
-              <ListFilter />
-              <span className="hidden sm:inline">{t('common.filters')}</span>
-              {panelCount > 0 && (
-                <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
-                  {num(panelCount)}
-                </span>
-              )}
-            </Button>
+            {/* Catalogs are closed to a «Davomat mas'uli»: the panel would hold three empty selects */}
+            {!isAttendanceScoped && (
+              <Button
+                type="button"
+                pill
+                variant={panelOpen ? 'soft' : 'secondary'}
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen((previous) => !previous)}
+              >
+                <ListFilter />
+                <span className="hidden sm:inline">{t('common.filters')}</span>
+                {panelCount > 0 && (
+                  <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                    {num(panelCount)}
+                  </span>
+                )}
+              </Button>
+            )}
 
             {/*
               Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
@@ -410,7 +413,7 @@ export function AttendanceTimesheetPage() {
             )}
           </div>
 
-          {panelOpen && (
+          {panelOpen && !isAttendanceScoped && (
             <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <Select
