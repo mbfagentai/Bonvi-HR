@@ -217,7 +217,7 @@ public static class BackgroundJobs
         jobs.AddOrUpdate<ProcessReconcileJob>(
             ProcessReconcileJobId,
             job => job.RunAsync(CancellationToken.None),
-            "2-59/5 * * * *",
+            "4-59/5 * * * *",
             utc);
 
         // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:
