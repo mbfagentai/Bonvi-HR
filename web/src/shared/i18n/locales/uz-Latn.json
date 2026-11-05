@@ -59,6 +59,7 @@
   "roles": {
     "hr_manager": "HR menejeri",
     "super_admin": "Super administrator",
+    "attendance_officer": "Davomat mas’uli",
     "main_boss": "Bosh rahbar",
     "module": {
       "employees": "Xodimlar",
@@ -1627,6 +1628,14 @@
   "users": {
     "active": "Faol",
     "activate": "Faollashtirish",
+    "attendanceScope": "Qaysi bo‘limlar",
+    "attendanceScopeEmpty": "Bo‘limlar hali yo‘q. Avval «Ma’lumotnomalar»da bo‘lim qo‘shing.",
+    "attendanceScopeHint": "Bo‘lim belgilanmasa, foydalanuvchi hech narsani ko‘rmaydi. Belgilangan bo‘limning ichki bo‘limlari ham kiradi.",
+    "attendanceScopeLoadFailed": "Bo‘limlarni yuklab bo‘lmadi",
+    "attendanceScopeLoadFailedText": "Ro‘yxat yuklanmaguncha saqlash o‘chirilgan — aks holda mavjud bo‘limlar o‘chib ketishi mumkin edi.",
+    "attendanceScopeRequired": "Kamida bitta bo‘limni belgilang — bo‘limsiz foydalanuvchi hech narsani ko‘rmaydi.",
+    "attendanceScopeSaveFailed": "Hisob saqlandi, lekin bo‘limlar saqlanmadi. «Saqlash»ni qayta bosing.",
+    "attendanceScopeSelected": "Tanlandi: {{selected}}",
     "columnLastLogin": "Oxirgi kirish",
     "columnRole": "Rol",
     "columnStatus": "Holat",

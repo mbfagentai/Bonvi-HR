@@ -59,6 +59,7 @@
   "roles": {
     "hr_manager": "HR менежери",
     "super_admin": "Супер администратор",
+    "attendance_officer": "Давомат масъули",
     "main_boss": "Бош раҳбар",
     "module": {
       "employees": "Ходимлар",
@@ -1627,6 +1628,14 @@
   "users": {
     "active": "Фаол",
     "activate": "Фаоллаштириш",
+    "attendanceScope": "Қайси бўлимлар",
+    "attendanceScopeEmpty": "Бўлимлар ҳали йўқ. Аввал «Маълумотномалар»да бўлим қўшинг.",
+    "attendanceScopeHint": "Бўлим белгиланмаса, фойдаланувчи ҳеч нарсани кўрмайди. Белгиланган бўлимнинг ички бўлимлари ҳам киради.",
+    "attendanceScopeLoadFailed": "Бўлимларни юклаб бўлмади",
+    "attendanceScopeLoadFailedText": "Рўйхат юкланмагунча сақлаш ўчирилган — акс ҳолда мавжуд бўлимлар ўчиб кетиши мумкин эди.",
+    "attendanceScopeRequired": "Камида битта бўлимни белгиланг — бўлимсиз фойдаланувчи ҳеч нарсани кўрмайди.",
+    "attendanceScopeSaveFailed": "Ҳисоб сақланди, лекин бўлимлар сақланмади. «Сақлаш»ни қайта босинг.",
+    "attendanceScopeSelected": "Танланди: {{selected}}",
     "columnLastLogin": "Охирги кириш",
     "columnRole": "Рол",
     "columnStatus": "Ҳолат",
