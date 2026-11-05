@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useBlankWaitingCount } from '@/features/blanks/api/blanks-queries'
 import { useDashboardStats } from '@/features/dashboard/api/dashboard-queries'
+import { useMyWorkCount } from '@/features/processes/api/processes-queries'
+import { PROCESSES_VIEW } from '@/features/processes/lib/permissions'
 import {
   useFormerEmployeeAlerts,
   usePendingRequestCount,
@@ -17,7 +19,7 @@ import {
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Badge, BonviMark } from '@/shared/ui'
-import { NAV, type NavItem } from './nav-items'
+import { NAV, visibleItem, type NavItem } from './nav-items'
 
 /**
  * Yon menyu.
@@ -102,6 +104,11 @@ export function Sidebar({
   const blanksWaiting = useBlankWaitingCount(hasPermission('blanks.view')).data ?? 0
   if (blanksWaiting > 0) {
     counts['blanks'] = blanksWaiting
+  }
+  // «Mening ishlarim»: the viewer's open tasks (docs/SPEC-mening-ishlarim.md §10 #2)
+  const myWork = useMyWorkCount(hasPermission(PROCESSES_VIEW)).data ?? 0
+  if (myWork > 0) {
+    counts['myWork'] = myWork
   }
 
   /** Band + uning jonli sanog'i (bo'lsa). Statik `NAV` massivi o'zgartirilmaydi. */
@@ -563,32 +570,6 @@ function groupSignal(children: readonly NavItem[]): GroupSignal | null {
   return strongest === undefined
     ? null
     : { count: strongest.count!, tone: strongest.countTone ?? 'warning' }
-}
-
-/**
- * Foydalanuvchiga ko'rinadigan band (`[]` — ko'rinmaydi), ruxsat bo'yicha.
- *
- * Oddiy band va guruhning o'zi — o'z `permission` i bilan (`nav-items.ts`
- * dagi izoh), avvalgidek.
- *
- * Guruh BOLALARI esa faqat `filterChildrenByPermission` yoqilgan guruhda
- * filtrlanadi — «Verifikatsiya» va «Ma'lumotnomalar» (faqat «Yo'qlik turlari»
- * bandi ruxsatli; qolganlari ruxsatsiz, ya'ni o'zgarmaydi). Filtr ixtiyoriy qilindi,
- * chunki uni hammaga yoqish «Rekruting» va «Ma'lumotnomalar» menyusini
- * jimgina o'zgartirardi (egasi davomat moduli boshqa bo'limlarga
- * tegmasligini talab qilgan). Yoqilgan guruhda birorta bola qolmasa,
- * guruhning O'ZI ham yo'qoladi: hech narsa ochmaydigan sarlavha tugmasi
- * bo'lim uchun yuqorida qo'llangan qoidaning aynan o'zi.
- */
-function visibleItem(item: NavItem, hasPermission: (code: string) => boolean): NavItem[] {
-  if (item.permission !== undefined && !hasPermission(item.permission)) return []
-  if (item.children === undefined || item.filterChildrenByPermission !== true) return [item]
-
-  const children = item.children.filter(
-    (child) => child.permission === undefined || hasPermission(child.permission),
-  )
-
-  return children.length === 0 ? [] : [{ ...item, children }]
 }
 
 /** Ochiluvchi guruhga ega bandlar — barcha bo'limlardan yig'iladi. */

@@ -34,7 +34,8 @@ export interface AuthContextValue {
    * Keshdagi nusxa bo'lsa, `user` shu paytda ham to'ldirilgan bo'ladi.
    */
   isRestoring: boolean
-  login: (input: LoginInput) => Promise<void>
+  /** Resolves with the signed-in user: the state update has not reached the caller's render yet. */
+  login: (input: LoginInput) => Promise<AuthUser>
   logout: () => Promise<void>
   /**
    * Foydalanuvchi ma'lumotini serverdan qayta o'qiydi.
@@ -220,6 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(session.user)
     setRestoring(false)
+
+    return session.user
   }, [])
 
   const logout = useCallback(async () => {

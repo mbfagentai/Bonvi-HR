@@ -5,6 +5,7 @@
     "company": "MBF Company"
   },
   "nav": {
+    "myWork": "Mening ishlarim",
     "sectionMain": "Asosiy",
     "sectionPeople": "Xodimlar",
     "sectionCatalog": "Ma’lumotnomalar",
@@ -4002,6 +4003,72 @@
       "yourTurn": "Sizning imzoingiz kutilmoqda — pastdagi «Imzo qadamlari» bo‘limida.",
       "subjectEmptyTitle": "Blanka yo‘q",
       "subjectEmptyText": "Bu xodim haqida hali blanka ochilmagan."
+    }
+  },
+  "processes": {
+    "title": "Mening ishlarim",
+    "placeholder": "Bu bo‘lim tez orada ishga tushadi.",
+    "loadFailed": "Ma’lumotni yuklab bo‘lmadi",
+    "noAccessTitle": "Bu yerga kirish huquqingiz yo‘q",
+    "noAccessText": "Jarayonlarni ko‘rish uchun ruxsat kerak. Tizim administratoriga murojaat qiling.",
+    "legacy": "Eski",
+    "tabs": {
+      "label": "Bo‘limlar",
+      "my": "Mening ishlarim",
+      "board": "Jarayonlar",
+      "late": "Kim kechikdi"
+    },
+    "due": {
+      "today": "Bugun",
+      "tomorrow": "Ertaga",
+      "late": "{{n}} kun kechikdi",
+      "until": "{{date}} gacha"
+    },
+    "state": {
+      "Locked": "Navbat kelmagan",
+      "Active": "Bajarilmoqda",
+      "Waiting": "Kutilmoqda",
+      "Blocked": "To‘xtatilgan",
+      "Done": "Bajarildi",
+      "Skipped": "Kerak emas"
+    },
+    "status": {
+      "Active": "Faol",
+      "Completed": "Yakunlangan",
+      "Cancelled": "Bekor qilingan"
+    },
+    "holder": {
+      "unassigned": "Tayinlanmagan",
+      "others": "va yana {{n}} kishi"
+    },
+    "warnings": {
+      "Q02": "Muddat o‘tdi: ishga chiqishdan oldingi qadam bajarilmagan",
+      "Q05": "Muddat o‘tdi",
+      "Q06": "Muddat o‘tdi yoki ro‘yxat to‘liq emas",
+      "AKT": "Topshirish akti bo‘sh"
+    },
+    "roles": {
+      "system": "Tizim",
+      "hr1": "HR-1",
+      "hr2": "HR-2",
+      "hr3": "HR-3",
+      "hr4": "HR-4",
+      "hr5": "HR-5",
+      "hr8": "HR-8",
+      "payrollAccountant": "Hisobchi (ish haqi)",
+      "chiefAccountant": "Bosh hisobchi",
+      "director": "Direktor",
+      "lawyer": "Yurist",
+      "safetyEngineer": "Mehnat muhofazasi muhandisi",
+      "council": "Kengash",
+      "departmentHead": "Bo‘lim boshlig‘i",
+      "subjectEmployee": "Xodimning o‘zi"
+    },
+    "case": {
+      "stepsTitle": "Qadamlar"
+    },
+    "settings": {
+      "title": "Sozlamalar"
     }
   }
 }
