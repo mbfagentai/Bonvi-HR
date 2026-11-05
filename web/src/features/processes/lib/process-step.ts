@@ -130,6 +130,16 @@ export function stepEntry(
   return step.state === 'Locked' || step.state === 'Waiting' ? null : { kind: 'open', target }
 }
 
+/**
+ * Whether «you only watch, nobody can do this for them» is true for this viewer. A processes.manage
+ * user is not the holder and still has a working «Bajarildi»: the text would contradict that button.
+ */
+export function isViewOnlyForViewer(
+  step: Pick<ProcessCaseStep, 'viewerHolds' | 'canComplete'>,
+): boolean {
+  return !step.viewerHolds && !step.canComplete
+}
+
 /** The titles of the steps still in the way of a locked one. */
 export function pendingPrereqTitles(
   step: ProcessCaseStep,

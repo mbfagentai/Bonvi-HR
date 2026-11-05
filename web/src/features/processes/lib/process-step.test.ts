@@ -5,6 +5,7 @@ import {
   blankCreateBody,
   defaultStepCode,
   groupStepsByColumn,
+  isViewOnlyForViewer,
   pendingPrereqTitles,
   stepEntry,
   stepProgress,
@@ -205,6 +206,23 @@ describe('stepEntry', () => {
         true,
       ),
     ).toEqual({ kind: 'open', target: { kind: 'internal', href: '/blankalar/sub-1' } })
+  })
+})
+
+describe('isViewOnlyForViewer', () => {
+  it('does not tell a manager with a working «Bajarildi» that the step cannot be done', () => {
+    const manager = step({ stepCode: 'x', viewerHolds: false, canComplete: true })
+    expect(isViewOnlyForViewer(manager)).toBe(false)
+  })
+
+  it('still says so to a viewer who really cannot close it', () => {
+    const watcher = step({ stepCode: 'x', viewerHolds: false, canComplete: false })
+    expect(isViewOnlyForViewer(watcher)).toBe(true)
+  })
+
+  it('never applies to the holder', () => {
+    const holderViewer = step({ stepCode: 'x', viewerHolds: true, canComplete: false })
+    expect(isViewOnlyForViewer(holderViewer)).toBe(false)
   })
 })
 

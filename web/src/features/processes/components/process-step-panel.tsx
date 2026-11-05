@@ -33,6 +33,7 @@ import { describeRecordedInputs } from '../lib/process-manual-form'
 import {
   blankCreateBody,
   isStepFinished,
+  isViewOnlyForViewer,
   pendingPrereqTitles,
   PROCESS_WRITE_API_READY,
   stepEntry,
@@ -165,7 +166,10 @@ function useStepCallout(
     const role = roleLabel(step.holder.role)
     return {
       title: t('processes.case.notHolder', { role }),
-      lines: [t('processes.case.notHolderText', { role }), ...prereqLines],
+      lines: [
+        ...(isViewOnlyForViewer(step) ? [t('processes.case.notHolderText', { role })] : []),
+        ...prereqLines,
+      ],
     }
   }
 
