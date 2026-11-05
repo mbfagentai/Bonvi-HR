@@ -4047,6 +4047,42 @@
       "Q06": "Overdue or the checklist is incomplete",
       "AKT": "The handover act is empty"
     },
+    "my": {
+      "today": "Today: {{date}}",
+      "summary": "Tasks: {{n}}, late: {{k}}",
+      "summaryNoLate": "Tasks: {{n}}",
+      "emptyTitle": "You have no open tasks right now",
+      "emptyText": "A new task appears here as soon as it reaches you.",
+      "urgentEmpty": "Nothing due today and nothing late",
+      "holder": "Done by",
+      "resolver": "Resolved by",
+      "sections": {
+        "urgent": "Today and late",
+        "later": "Later",
+        "held": "Stopped — someone else must resolve it",
+        "waiting": "Waiting — others must finish first",
+        "tartib": "Housekeeping"
+      },
+      "link": {
+        "blank": "Open the blank",
+        "screen": "Go to the screen",
+        "external": "Open the link"
+      },
+      "tartib": {
+        "unmatchedTerminalPersons": {
+          "title": "Unmatched on the terminal",
+          "text": "Not linked to an employee: {{n}}"
+        },
+        "employeesWithoutPhoto": {
+          "title": "Employees without a photo",
+          "text": "Active employees without a photo: {{n}}"
+        },
+        "employeesWithoutSchedule": {
+          "title": "Employees without a schedule",
+          "text": "Active employees without a schedule: {{n}}"
+        }
+      }
+    },
     "roles": {
       "system": "System",
       "hr1": "HR-1",
