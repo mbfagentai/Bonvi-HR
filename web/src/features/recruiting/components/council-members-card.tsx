@@ -34,8 +34,8 @@ export function CouncilMembersCard({ meeting, canManage }: { meeting: CouncilMee
     <Card>
       <CardContent className="space-y-5 p-4 sm:p-5">
         <div>
-          <h2 className="text-base font-semibold text-ink">{t('council.members')}</h2>
-          <p className="mt-0.5 text-sm text-ink-secondary">{t('council.presentCount', { count: present })}</p>
+          <h2 className="text-base font-semibold text-[var(--fg)]">{t('council.members')}</h2>
+          <p className="mt-0.5 text-sm text-[var(--fg-secondary)]">{t('council.presentCount', { count: present })}</p>
         </div>
 
         <div className="space-y-2">
@@ -88,7 +88,7 @@ export function CouncilMembersCard({ meeting, canManage }: { meeting: CouncilMee
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-ink">{t('council.followUpTitle')}</h2>
+          <h2 className="text-base font-semibold text-[var(--fg)]">{t('council.followUpTitle')}</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {FOLLOW_UP_KEYS.map((key) => (
               <DateField

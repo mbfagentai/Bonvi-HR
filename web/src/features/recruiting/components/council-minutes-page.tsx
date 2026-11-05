@@ -63,8 +63,8 @@ export function CouncilMinutesPage() {
               className={cn(
                 'rounded-full border px-3 py-2 text-sm transition-colors',
                 day.date === date
-                  ? 'border-transparent bg-brand-soft font-medium text-brand'
-                  : 'border-line bg-surface text-ink-secondary hover:text-ink',
+                  ? 'border-transparent bg-[var(--accent-soft)] font-medium text-[var(--accent-on-soft)]'
+                  : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-secondary)] hover:text-[var(--fg)]',
               )}
             >
               {t('council.dayChip', { date: formatDate(day.date), count: day.invited })}
@@ -95,7 +95,7 @@ function CouncilDayView({ date, canManage }: { date: string; canManage: boolean 
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-secondary">
+      <p className="text-sm text-[var(--fg-secondary)]">
         {data.number !== null && `${t('council.number', { number: data.number })} · `}
         {t('council.progress', { decided, total: data.candidates.length })}
       </p>

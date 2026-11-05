@@ -76,11 +76,11 @@ export function CouncilCandidateCard({
               <Link
                 to="/nomzodlar/$candidateId"
                 params={{ candidateId: row.candidateId }}
-                className="text-base font-semibold text-ink hover:underline"
+                className="text-base font-semibold text-[var(--fg)] hover:underline"
               >
                 {row.fullName}
               </Link>
-              <p className="mt-0.5 text-sm text-ink-secondary">
+              <p className="mt-0.5 text-sm text-[var(--fg-secondary)]">
                 {row.position}
                 {row.formNumber !== null && ` · ${t('council.formNumber', { number: row.formNumber })}`}
               </p>
