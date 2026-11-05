@@ -59,7 +59,6 @@
   "roles": {
     "hr_manager": "HR менежери",
     "super_admin": "Супер администратор",
-    "attendance_officer": "Давомат масъули",
     "main_boss": "Бош раҳбар",
     "module": {
       "employees": "Ходимлар",
@@ -105,7 +104,8 @@
       "salary.view": "Окладни кўриш",
       "salary.extra.view": "Қўшимча ҳақни кўриш",
       "mcp.connect": "AI орқали ўқиш (MCP)",
-      "employees.personal.view": "Шахсий маълумотлар"
+      "employees.personal.view": "Шахсий маълумотлар",
+      "attendance.scoped": "Давомат масъули"
     }
   },
   "settings": {

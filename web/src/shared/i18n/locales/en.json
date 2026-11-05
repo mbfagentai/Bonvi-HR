@@ -59,7 +59,6 @@
   "roles": {
     "hr_manager": "HR manager",
     "super_admin": "Super administrator",
-    "attendance_officer": "Attendance officer",
     "main_boss": "Main boss",
     "module": {
       "employees": "Employees",
@@ -105,7 +104,8 @@
       "salary.view": "See salaries",
       "salary.extra.view": "View extra pay",
       "mcp.connect": "Read through AI (MCP)",
-      "employees.personal.view": "Personal details"
+      "employees.personal.view": "Personal details",
+      "attendance.scoped": "Attendance officer"
     }
   },
   "settings": {

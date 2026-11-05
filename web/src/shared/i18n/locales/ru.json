@@ -59,7 +59,6 @@
   "roles": {
     "hr_manager": "HR-менеджер",
     "super_admin": "Суперадминистратор",
-    "attendance_officer": "Ответственный за посещаемость",
     "main_boss": "Главный руководитель",
     "module": {
       "employees": "Сотрудники",
@@ -105,7 +104,8 @@
       "salary.view": "Просмотр оклада",
       "salary.extra.view": "Просмотр доплат",
       "mcp.connect": "Чтение через ИИ (MCP)",
-      "employees.personal.view": "Личные данные"
+      "employees.personal.view": "Личные данные",
+      "attendance.scoped": "Ответственный за посещаемость"
     }
   },
   "settings": {

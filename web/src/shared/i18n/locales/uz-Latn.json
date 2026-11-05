@@ -59,7 +59,6 @@
   "roles": {
     "hr_manager": "HR menejeri",
     "super_admin": "Super administrator",
-    "attendance_officer": "Davomat mas’uli",
     "main_boss": "Bosh rahbar",
     "module": {
       "employees": "Xodimlar",
@@ -105,7 +104,8 @@
       "salary.view": "Okladni ko‘rish",
       "salary.extra.view": "Qo‘shimcha haqni ko‘rish",
       "mcp.connect": "AI orqali o‘qish (MCP)",
-      "employees.personal.view": "Shaxsiy ma’lumotlar"
+      "employees.personal.view": "Shaxsiy ma’lumotlar",
+      "attendance.scoped": "Davomat mas’uli"
     }
   },
   "settings": {
