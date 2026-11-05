@@ -2,6 +2,7 @@ using ProcessGateCodes = Bonvi.Application.Processes.Definitions.ProcessGateCode
 using System.Globalization;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
+using Bonvi.Application.Processes.Inputs;
 using Bonvi.Application.Settings;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
@@ -178,8 +179,10 @@ public static class ProcessDefinitionDtos
             [.. definition.Steps.Select(Step)]);
     }
 
-    public static ProcessManualDto? Manual(ProcessManual? manual)
-        => manual is null ? null : new ProcessManualDto(manual.Allowed, [.. manual.Inputs.Select(Input)]);
+    /// <param name="manual">The step's <c>manual</c>.</param>
+    /// <param name="autoItems">A case's open step: its data-backed items. <c>null</c> on a template, which has no subject.</param>
+    public static ProcessManualDto? Manual(ProcessManual? manual, ProcessStepAutoItems? autoItems = null)
+        => manual is null ? null : new ProcessManualDto(manual.Allowed, [.. manual.Inputs.Select(input => Input(input, autoItems))]);
 
     private static ProcessTemplateStepDto Step(ProcessStep step)
         => new(
@@ -201,7 +204,7 @@ public static class ProcessDefinitionDtos
             step.SourceRef,
             ProcessReadSet.LinkOf(step));
 
-    private static ProcessManualInputDto Input(ProcessManualInput input)
+    private static ProcessManualInputDto Input(ProcessManualInput input, ProcessStepAutoItems? autoItems)
         => new(
             input.Id,
             input.Label,
@@ -210,5 +213,9 @@ public static class ProcessDefinitionDtos
             input.RequiredWhen is { } when ? new ProcessRequiredWhenDto(when.Input, when.Fact, when.EqualsValue.ToString()) : null,
             [.. input.Options.Select(option => new ProcessOptionDto(option.Value, option.Label))],
             input.Min,
-            input.Max);
+            input.Max,
+            autoItems?.ByInput.GetValueOrDefault(input.Id)?.Select(AutoItem).ToList());
+
+    private static ProcessAutoItemDto AutoItem(ProcessAutoItem item)
+        => new(item.Value, item.State, item.Mark, item.Source, item.SourceDetail, item.Reason, item.Fill);
 }

@@ -1,3 +1,4 @@
+using Bonvi.Application.Processes.Commands;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Domain.Processes;
 using Bonvi.Domain.ValueObjects;
@@ -78,7 +79,16 @@ public sealed record ProcessAutoItem(
     ProcessAutoSource? Source,
     string? SourceDetail,
     ProcessAutoNotApplicableReason? Reason,
-    ProcessInputFill? Fill);
+    ProcessInputFill? Fill)
+{
+    /// <summary>The mark the system stores for it; a missing item has none, and no client mark can stand in.</summary>
+    public string? Mark => State switch
+    {
+        ProcessAutoItemState.Known => ProcessManualInputs.ChecklistDone,
+        ProcessAutoItemState.NotApplicable => ProcessManualInputs.ChecklistNotNeeded,
+        _ => null,
+    };
+}
 
 /// <summary>A step's data-backed items by input id. An option with no item here is an ordinary manual tick.</summary>
 public sealed record ProcessStepAutoItems(IReadOnlyDictionary<string, IReadOnlyList<ProcessAutoItem>> ByInput)

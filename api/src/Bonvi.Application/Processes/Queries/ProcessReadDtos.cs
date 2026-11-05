@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bonvi.Application.Notifications.Dtos;
 using Bonvi.Application.Processes.Definitions;
+using Bonvi.Application.Processes.Inputs;
 using Bonvi.Domain.Processes;
 
 namespace Bonvi.Application.Processes.Queries;
@@ -170,7 +171,26 @@ public sealed record ProcessManualInputDto(
     ProcessRequiredWhenDto? RequiredWhen,
     IReadOnlyList<ProcessOptionDto> Options,
     int? Min,
-    int? Max);
+    int? Max,
+    IReadOnlyList<ProcessAutoItemDto>? AutoItems);
+
+/// <summary>A checklist item the system answers from the subject's records; the client's mark on it is not read.</summary>
+/// <remarks>
+/// <para><c>Value</c>: The option's value in <c>Options</c>.</para>
+/// <para><c>AutoValue</c>: The mark «Bajarildi» stores: <c>done</c> when Known, <c>na</c> when NotApplicable, <c>null</c> when Missing.</para>
+/// <para><c>AutoSource</c>: Known only: where it was found; the screen words it.</para>
+/// <para><c>SourceDetail</c>: Known only: the document type's or the step's name.</para>
+/// <para><c>Reason</c>: NotApplicable only: why.</para>
+/// <para><c>Fill</c>: Missing only: where «To'ldirish» goes.</para>
+/// </remarks>
+public sealed record ProcessAutoItemDto(
+    string Value,
+    ProcessAutoItemState State,
+    string? AutoValue,
+    ProcessAutoSource? AutoSource,
+    string? SourceDetail,
+    ProcessAutoNotApplicableReason? Reason,
+    ProcessInputFill? Fill);
 
 public sealed record ProcessManualDto(bool Allowed, IReadOnlyList<ProcessManualInputDto> Inputs);
 
