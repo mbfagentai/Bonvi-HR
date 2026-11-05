@@ -86,6 +86,37 @@ public sealed class VacancyRequestRepository : Repository<VacancyRequest>, IVaca
     public VacancyRequestRepository(AppDbContext context) : base(context) { }
 }
 
+public sealed class CouncilMeetingRepository : Repository<CouncilMeeting>, ICouncilMeetingRepository
+{
+    public CouncilMeetingRepository(AppDbContext context) : base(context) { }
+
+    /// <inheritdoc />
+    public Task<CouncilMeeting?> FindByDateAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => Context.CouncilMeetings.FirstOrDefaultAsync(meeting => meeting.MeetingDate == date, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<CouncilMeeting?> FindLatestBeforeAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => Context.CouncilMeetings.AsNoTracking()
+            .Where(meeting => meeting.MeetingDate < date)
+            .OrderByDescending(meeting => meeting.MeetingDate)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<int> MaxNumberAsync(CancellationToken cancellationToken = default)
+        => await Context.CouncilMeetings.MaxAsync(meeting => (int?)meeting.Number, cancellationToken).ConfigureAwait(false) ?? 0;
+}
+
+public sealed class CouncilDecisionRepository : Repository<CouncilDecision>, ICouncilDecisionRepository
+{
+    public CouncilDecisionRepository(AppDbContext context) : base(context) { }
+
+    /// <inheritdoc />
+    public Task<CouncilDecision?> FindAsync(Guid meetingId, Guid candidateId, CancellationToken cancellationToken = default)
+        => Context.CouncilDecisions.FirstOrDefaultAsync(
+            decision => decision.MeetingId == meetingId && decision.CandidateId == candidateId,
+            cancellationToken);
+}
+
 public sealed class VacancyRepository : Repository<Vacancy>, IVacancyRepository
 {
     public VacancyRepository(AppDbContext context) : base(context) { }

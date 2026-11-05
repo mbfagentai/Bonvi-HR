@@ -16,6 +16,17 @@ namespace Bonvi.Application.Recruiting.Common;
 /// </remarks>
 public static class RecruitingErrors
 {
+    // ---------- Kengash ----------
+
+    public static Error CouncilDecisionRequired { get; } =
+        Error.Validation("kengash.qaror_majburiy", "Kengash qarorini tanlang.");
+
+    public static Error CouncilDecisionInvalid { get; } =
+        Error.Validation("kengash.qaror_notogri", "Qaror maydonlari noto'g'ri to'ldirilgan.");
+
+    public static Error CouncilMembersInvalid { get; } =
+        Error.Validation("kengash.azolar_notogri", "Kengash a'zolari ro'yxati noto'g'ri.");
+
     // ---------- Vakansiya ----------
 
     public static Error VacancyNotFound { get; } =

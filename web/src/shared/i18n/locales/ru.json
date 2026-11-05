@@ -54,7 +54,8 @@
     "attendanceSites": "Локации",
     "absenceTypes": "Виды отсутствия",
     "attendanceRequests": "Запросы",
-    "blanks": "Бланки"
+    "blanks": "Бланки",
+    "councilMinutes": "Заключение совета"
   },
   "roles": {
     "hr_manager": "HR-менеджер",
@@ -1217,7 +1218,10 @@
     "blanka.fayl_makro": "Файлы с макросами загружать нельзя.",
     "blanka.fayl_katta": "Файл больше допустимого размера.",
     "blanka.fayl_soni": "В это поле нельзя добавить ещё файл.",
-    "blanka.fayl_bosh": "Файл пустой."
+    "blanka.fayl_bosh": "Файл пустой.",
+    "kengash.qaror_majburiy": "Выберите решение совета.",
+    "kengash.qaror_notogri": "Поля решения заполнены неверно.",
+    "kengash.azolar_notogri": "Неверный список членов совета."
   },
   "language": {
     "en": "English",
@@ -4006,6 +4010,69 @@
       "yourTurn": "Ждут вашей подписи — в разделе «Этапы подписания» ниже.",
       "subjectEmptyTitle": "Бланков нет",
       "subjectEmptyText": "По этому сотруднику бланков ещё нет."
+    }
+  },
+  "council": {
+    "title": "Заключение совета",
+    "printButton": "Печать / PDF",
+    "day": "День совета",
+    "dayChip": "{{date}} · {{count}} чел.",
+    "number": "Протокол № {{number}}",
+    "progress": "Решения записаны: {{decided}} из {{total}}",
+    "empty": "На этот день никто не приглашён на совет.",
+    "loadError": "Не удалось загрузить протокол. Обновите страницу.",
+    "members": "Члены совета",
+    "presentCount": "Присутствовало: {{count}}",
+    "present": "Присутствие",
+    "memberName": "Ф.И.О.",
+    "memberRole": "Должность",
+    "addMember": "Добавить члена совета",
+    "removeMember": "Убрать члена совета",
+    "followUpTitle": "Шаги после совета",
+    "save": "Сохранить",
+    "saved": "Сохранено",
+    "choose": "Выберите",
+    "formNumber": "Анкета № {{number}}",
+    "leftFunnel": "Вне воронки",
+    "noDecision": "Нет решения",
+    "decisionLabel": "Решение",
+    "decisionRequired": "Выберите решение",
+    "practicalLabel": "Оценка практического испытания",
+    "salary": "Зарплата",
+    "startDate": "Дата выхода на работу",
+    "condition": "Особое условие",
+    "conditionHint": "Испытательный срок, наставник, обучение, договор о материальной ответственности",
+    "conclusion": "Заключение совета",
+    "decision": {
+      "Accept": "Принять",
+      "Conditional": "Принять условно — после проверки",
+      "Reserve": "Резерв",
+      "Reject": "Отказ"
+    },
+    "practical": {
+      "Passed": "Прошёл",
+      "Failed": "Не прошёл",
+      "NotRequired": "Не требуется"
+    },
+    "followUp": {
+      "resultsDeliveredOn": "Кандидатам сообщён результат",
+      "offersGivenOn": "Принятым выданы оффер и список документов",
+      "documentsHandedOn": "Документы переданы для приказа",
+      "registryOn": "Внесено в реестр",
+      "reserveOn": "Внесено в резервную базу"
+    },
+    "print": {
+      "title": "HR-F04. ПРОТОКОЛ СОВЕТА ПО НАЙМУ",
+      "header": "MBF Company · Протокол № {{number}} · Дата: {{date}} · Присутствовало: {{present}} (кворум — не менее 2/3 утверждённого состава)",
+      "membersTitle": "1. Члены совета",
+      "candidatesTitle": "2. Рассмотренные кандидаты",
+      "conditionsTitle": "3. Особые условия",
+      "name": "Ф.И.О.",
+      "signature": "Подпись",
+      "candidate": "Ф.И.О. кандидата",
+      "position": "Должность / отдел",
+      "form": "Анкета №",
+      "signatures": "Председатель: ________________   Секретарь (HR-1): ________________"
     }
   }
 }

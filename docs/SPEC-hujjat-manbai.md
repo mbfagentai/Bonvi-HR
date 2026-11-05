@@ -78,6 +78,7 @@ mounts it read-only at `/repo` (`BONVI_REPO_DIR`); on a host checkout the root i
 | D3 | `HrF02Seed` | One-time import; never the source after HRMentor's first publish | with D1 |
 | D4 | The bot questionnaire (`BotTexts.cs`) | The bot asks HRMentor's published definition (own SPEC); until then no new bot question is added in code | the next change of the bot's questions |
 | D5 | `web/public/qollanma/*.pdf` | HR uploads the manual to HRMentor and assigns it to hr.bonvi.uz; the help link opens the pulled copy | the next manual update |
+| D7 | HR-F04 council minutes page (`/kengash-xulosasi`, `council_meetings`, `council_decisions`, print sheet in `council-print-sheet.tsx`) | Owner 2026-11-05: 31 candidates invited for 2026-11-07, so the page ships before HRMentor serves HR-F04. No blank JSON and no PDF renderer: the browser prints it. The row leaves when HR-F04 is published in HRMentor and the engine reads it; the data stays | when the engine serves HR-F04 |
 | D6 | The «Blankalar» engine's built-in definitions HR-F06/F07/F08/F09/F13 (`Blanks/Templates/*.json`, `BlankTemplateSeeder`) and their PDF (`BlankPdfRenderer`) | The engine takes each definition from HRMentor's published form (§20 there) and prints it with the definition-driven renderer; each file leaves the list when its blank is served from HRMentor | CEO 2026-11-04: ships as frozen debt; moving the definitions to HRMentor is the engine owner's task (HRMentor §20.10 takes this row with its next change) |
 
 ## 5. Tests (must pass before «done»)

@@ -271,6 +271,14 @@ public static class AuditCatalog
             .Ref(AuditRefTarget.Vacancy, nameof(VacancyRequest.VacancyId)),
 
 
+        Audit<CouncilMeeting>(AccessModuleKeys.Recruiting)
+            .Label(row => row.MeetingDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)),
+        Audit<CouncilDecision>(AccessModuleKeys.Recruiting)
+            .LabelFrom(AuditLookup.CandidateName, nameof(CouncilDecision.CandidateId))
+            .Ref(AuditRefTarget.Candidate, nameof(CouncilDecision.CandidateId))
+            .Exclude(nameof(CouncilDecision.MeetingId), nameof(CouncilDecision.StageEntryId))
+            .Salary(nameof(CouncilDecision.OfferedSalary)),
+
         Audit<Candidate>(AccessModuleKeys.Recruiting)
             .Label(row => row.FullName.Full)
 

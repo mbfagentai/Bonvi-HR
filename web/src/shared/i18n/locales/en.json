@@ -54,7 +54,8 @@
     "attendanceSites": "Locations",
     "absenceTypes": "Absence kinds",
     "attendanceRequests": "Requests",
-    "blanks": "Blanks"
+    "blanks": "Blanks",
+    "councilMinutes": "Council minutes"
   },
   "roles": {
     "hr_manager": "HR manager",
@@ -1217,7 +1218,10 @@
     "blanka.fayl_makro": "Files with macros cannot be uploaded.",
     "blanka.fayl_katta": "The file is larger than allowed.",
     "blanka.fayl_soni": "No more files can be added to this field.",
-    "blanka.fayl_bosh": "The file is empty."
+    "blanka.fayl_bosh": "The file is empty.",
+    "kengash.qaror_majburiy": "Choose the council's decision.",
+    "kengash.qaror_notogri": "The decision fields are filled in incorrectly.",
+    "kengash.azolar_notogri": "The list of council members is invalid."
   },
   "language": {
     "en": "English",
@@ -4006,6 +4010,69 @@
       "yourTurn": "Your signature is waiting — see «Signing steps» below.",
       "subjectEmptyTitle": "No blanks",
       "subjectEmptyText": "No blank has been opened for this employee yet."
+    }
+  },
+  "council": {
+    "title": "Council minutes",
+    "printButton": "Print / PDF",
+    "day": "Council day",
+    "dayChip": "{{date}} · {{count}} people",
+    "number": "Minutes No. {{number}}",
+    "progress": "Decisions written: {{decided}} of {{total}}",
+    "empty": "Nobody is invited to the council on this day.",
+    "loadError": "Couldn't load the minutes. Refresh the page.",
+    "members": "Council members",
+    "presentCount": "Attended: {{count}}",
+    "present": "Attended",
+    "memberName": "Full name",
+    "memberRole": "Position",
+    "addMember": "Add a member",
+    "removeMember": "Remove the member",
+    "followUpTitle": "Steps after the council",
+    "save": "Save",
+    "saved": "Saved",
+    "choose": "Choose",
+    "formNumber": "Form No. {{number}}",
+    "leftFunnel": "Left the funnel",
+    "noDecision": "No decision",
+    "decisionLabel": "Decision",
+    "decisionRequired": "Choose a decision",
+    "practicalLabel": "Practical test",
+    "salary": "Salary",
+    "startDate": "Start date",
+    "condition": "Special condition",
+    "conditionHint": "Probation, mentor, training, liability contract",
+    "conclusion": "Council's conclusion",
+    "decision": {
+      "Accept": "Accept",
+      "Conditional": "Conditional — after the reference check",
+      "Reserve": "Reserve",
+      "Reject": "Reject"
+    },
+    "practical": {
+      "Passed": "Passed",
+      "Failed": "Failed",
+      "NotRequired": "Not required"
+    },
+    "followUp": {
+      "resultsDeliveredOn": "Candidates told the result",
+      "offersGivenOn": "Offer and document list given to those accepted",
+      "documentsHandedOn": "Documents handed over for the order",
+      "registryOn": "Entered into the registry",
+      "reserveOn": "Entered into the reserve base"
+    },
+    "print": {
+      "title": "HR-F04. HIRING COUNCIL MINUTES",
+      "header": "MBF Company · Minutes No. {{number}} · Date: {{date}} · Attended: {{present}} members (quorum: at least 2/3 of the approved council)",
+      "membersTitle": "1. Council members",
+      "candidatesTitle": "2. Candidates considered",
+      "conditionsTitle": "3. Special conditions",
+      "name": "Full name",
+      "signature": "Signature",
+      "candidate": "Candidate",
+      "position": "Position / department",
+      "form": "Form No.",
+      "signatures": "Chair: ________________   Secretary (HR-1): ________________"
     }
   }
 }

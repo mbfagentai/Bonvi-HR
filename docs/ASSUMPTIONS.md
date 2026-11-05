@@ -1428,3 +1428,7 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-05] Does global search hide a candidate who is an employee from a caller without `employees.view`? → No, the rule applies only when the employee group is returned → otherwise that caller would find the person nowhere.
 - [2026-11-05] Which statuses are «closed» for the global search one-person rule? → Rejected, Hired, Withdrawn and Reserve; InProgress and Blacklisted have their own stricter tests → Reserve is not named either way, and only those two were named as needing protection.
 - [2026-11-05] Does the global search one-person rule compare `second_phone`? → No, only `phone` → the owner's rule says the same phone, and a second phone is often a relative's.
+- [2026-11-05] HR-F04 council minutes before HRMentor serves it → page with own tables, printed by the browser → owner: 31 people invited for 2026-11-07; logged as debt D7
+- [2026-11-05] Does a council decision change the candidate's status → no, it writes the day's «Кенгаш» stage entry; rejecting and hiring stay HR's own actions → matches every other stage
+- [2026-11-05] Paper columns «So'rov № (F01)» and «Surishtiruv (F03)» on the minutes → left out → no link from a candidate to a vacancy request exists, and F03 comes after the council
+- [2026-11-05] Council members' names in code → no, HR types them once and each sitting copies the previous one → the repo has a public mirror

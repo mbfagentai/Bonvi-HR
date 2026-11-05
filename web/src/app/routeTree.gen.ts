@@ -19,6 +19,7 @@ import { Route as AppBuyruqlarRouteImport } from './routes/_app/buyruqlar'
 import { Route as AppFoydalanuvchilarRouteImport } from './routes/_app/foydalanuvchilar'
 import { Route as AppHisobotlarRouteImport } from './routes/_app/hisobotlar'
 import { Route as AppHodisalarRouteImport } from './routes/_app/hodisalar'
+import { Route as AppKengashXulosasiRouteImport } from './routes/_app/kengash-xulosasi'
 import { Route as AppNazoratRouteImport } from './routes/_app/nazorat'
 import { Route as AppQaytaAloqaRouteImport } from './routes/_app/qayta-aloqa'
 import { Route as AppQobiliyatliRouteImport } from './routes/_app/qobiliyatli'
@@ -104,6 +105,11 @@ const AppHisobotlarRoute = AppHisobotlarRouteImport.update({
 const AppHodisalarRoute = AppHodisalarRouteImport.update({
   id: '/hodisalar',
   path: '/hodisalar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKengashXulosasiRoute = AppKengashXulosasiRouteImport.update({
+  id: '/kengash-xulosasi',
+  path: '/kengash-xulosasi',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNazoratRoute = AppNazoratRouteImport.update({
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
   '/hodisalar': typeof AppHodisalarRoute
+  '/kengash-xulosasi': typeof AppKengashXulosasiRoute
   '/nazorat': typeof AppNazoratRoute
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/qobiliyatli': typeof AppQobiliyatliRoute
@@ -367,6 +374,7 @@ export interface FileRoutesByTo {
   '/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/hisobotlar': typeof AppHisobotlarRoute
   '/hodisalar': typeof AppHodisalarRoute
+  '/kengash-xulosasi': typeof AppKengashXulosasiRoute
   '/nazorat': typeof AppNazoratRoute
   '/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/qobiliyatli': typeof AppQobiliyatliRoute
@@ -417,6 +425,7 @@ export interface FileRoutesById {
   '/_app/foydalanuvchilar': typeof AppFoydalanuvchilarRoute
   '/_app/hisobotlar': typeof AppHisobotlarRoute
   '/_app/hodisalar': typeof AppHodisalarRoute
+  '/_app/kengash-xulosasi': typeof AppKengashXulosasiRoute
   '/_app/nazorat': typeof AppNazoratRoute
   '/_app/qayta-aloqa': typeof AppQaytaAloqaRoute
   '/_app/qobiliyatli': typeof AppQobiliyatliRoute
@@ -468,6 +477,7 @@ export interface FileRouteTypes {
     | '/foydalanuvchilar'
     | '/hisobotlar'
     | '/hodisalar'
+    | '/kengash-xulosasi'
     | '/nazorat'
     | '/qayta-aloqa'
     | '/qobiliyatli'
@@ -515,6 +525,7 @@ export interface FileRouteTypes {
     | '/foydalanuvchilar'
     | '/hisobotlar'
     | '/hodisalar'
+    | '/kengash-xulosasi'
     | '/nazorat'
     | '/qayta-aloqa'
     | '/qobiliyatli'
@@ -564,6 +575,7 @@ export interface FileRouteTypes {
     | '/_app/foydalanuvchilar'
     | '/_app/hisobotlar'
     | '/_app/hodisalar'
+    | '/_app/kengash-xulosasi'
     | '/_app/nazorat'
     | '/_app/qayta-aloqa'
     | '/_app/qobiliyatli'
@@ -681,6 +693,13 @@ declare module '@tanstack/react-router' {
       path: '/hodisalar'
       fullPath: '/hodisalar'
       preLoaderRoute: typeof AppHodisalarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/kengash-xulosasi': {
+      id: '/_app/kengash-xulosasi'
+      path: '/kengash-xulosasi'
+      fullPath: '/kengash-xulosasi'
+      preLoaderRoute: typeof AppKengashXulosasiRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/nazorat': {
@@ -952,6 +971,7 @@ interface AppRouteChildren {
   AppFoydalanuvchilarRoute: typeof AppFoydalanuvchilarRoute
   AppHisobotlarRoute: typeof AppHisobotlarRoute
   AppHodisalarRoute: typeof AppHodisalarRoute
+  AppKengashXulosasiRoute: typeof AppKengashXulosasiRoute
   AppNazoratRoute: typeof AppNazoratRoute
   AppQaytaAloqaRoute: typeof AppQaytaAloqaRoute
   AppQobiliyatliRoute: typeof AppQobiliyatliRoute
@@ -998,6 +1018,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFoydalanuvchilarRoute: AppFoydalanuvchilarRoute,
   AppHisobotlarRoute: AppHisobotlarRoute,
   AppHodisalarRoute: AppHodisalarRoute,
+  AppKengashXulosasiRoute: AppKengashXulosasiRoute,
   AppNazoratRoute: AppNazoratRoute,
   AppQaytaAloqaRoute: AppQaytaAloqaRoute,
   AppQobiliyatliRoute: AppQobiliyatliRoute,
