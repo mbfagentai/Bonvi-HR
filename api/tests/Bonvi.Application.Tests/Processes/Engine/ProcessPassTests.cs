@@ -817,6 +817,49 @@ public sealed class ProcessPassTests
         harness.Step("r02-6").LinkedBlankSubmissionId.ShouldBeNull();
     }
 
+    [Fact]
+    public void A_step_closed_across_two_blanks_links_the_blank_it_is_named_for()
+    {
+        var (f06, f07) = (Guid.CreateVersion7(), Guid.CreateVersion7());
+        var harness = ProbationOf(days: 90)
+            .Holds("prob.f06Step:day85", "true", linked: f06)
+            .Holds("prob.f07Submitted", linked: f07);
+
+        harness.Pass();
+
+        harness.Step("p03-85").State.ShouldBe(ProcessStepState.Done);
+        harness.Step("p03-85").LinkedBlankSubmissionId.ShouldBe(f07);
+    }
+
+    /// <summary>
+    /// <c>linked_blank_submission_id</c> has a foreign key: a record's id on a blank step would fail the save and with
+    /// it the whole pass. These facts name records of other modules, so a blank step must not close on one.
+    /// </summary>
+    [Theory]
+    [InlineData("hire-request")]
+    [InlineData("hire-candidate")]
+    [InlineData("hire-formalise")]
+    [InlineData("probation")]
+    [InlineData("dismissal")]
+    public void No_blank_step_links_a_fact_that_names_a_record(string code)
+    {
+        string[] recordFacts = ["emp.hired", "cand.hired", "dis.terminated", "vr.created", "vr.filled"];
+        string[] recordBlanks = ["HR-F01", "HR-F02"];
+
+        static IEnumerable<string> LinkingFacts(ProcessCompletion completion)
+            => completion.ByValue.Count > 0
+                ? completion.ByValue.Values.SelectMany(LinkingFacts)
+                : completion.LegacyAnyOf.Append(completion.Fact);
+
+        foreach (var step in PassHarness.Template(code).Steps)
+        {
+            if (step.Blank is { } blank && !recordBlanks.Contains(blank) && step.Completion is { } completion)
+            {
+                LinkingFacts(completion).Intersect(recordFacts).ShouldBeEmpty(step.Id);
+            }
+        }
+    }
+
     // ───────────────────────── Offer signal ─────────────────────────
 
     [Fact]

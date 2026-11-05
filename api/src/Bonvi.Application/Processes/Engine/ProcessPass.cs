@@ -399,16 +399,23 @@ public static class ProcessPass
         }
 
         /// <summary>The proof of the completion; while open, the blank the step is working on.</summary>
+        /// <remarks>
+        /// A completion with <c>allOf</c> can span two blanks: p03-85 is the F06's day 85 AND the F07 it is named for.
+        /// Its main fact names the F06, and the step's blank chip and «open» button would then show the wrong
+        /// document, so the step's own blank wins there.
+        /// </remarks>
         private Guid? RecordOf(ProcessStep definition)
         {
-            if (definition.Completion is { } completion && _facts.Evaluate(completion) is { Holds: true, LinkedId: { } closing })
-            {
-                return closing;
-            }
-
-            return definition.Blank is { } blank && BlankOpenFacts.TryGetValue(blank, out var fact)
+            var own = definition.Blank is { } blank && BlankOpenFacts.TryGetValue(blank, out var fact)
                 ? _facts.Get(fact).LinkedId
                 : null;
+
+            if (definition.Completion is { } completion && _facts.Evaluate(completion) is { Holds: true, LinkedId: { } closing })
+            {
+                return completion.AllOf.Count > 0 ? own ?? closing : closing;
+            }
+
+            return own;
         }
 
         // ───────────────────────── Aggregate results ─────────────────────────
