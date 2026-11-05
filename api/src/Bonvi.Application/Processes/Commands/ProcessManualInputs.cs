@@ -62,7 +62,7 @@ public static class ProcessManualInputs
         var values = new SortedDictionary<string, JsonNode>(StringComparer.Ordinal);
         foreach (var definition in definitions)
         {
-            if (!given.TryGetValue(definition.Id, out var element))
+            if (!given.TryGetValue(definition.Id, out var element) || element.ValueKind == JsonValueKind.Null)
             {
                 continue;
             }
@@ -94,7 +94,10 @@ public static class ProcessManualInputs
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalPayload)));
     }
 
-    /// <summary>The keys of the request, nulls dropped; <c>null</c> when it is not an object or repeats a key.</summary>
+    /// <summary>
+    /// The keys of the request, those with a null value too: such a value reads as absent, but its key still has to be
+    /// one the step asks for. <c>null</c> when it is not an object or repeats a key.
+    /// </summary>
     private static Dictionary<string, JsonElement>? ReadGiven(JsonElement? inputs)
     {
         var given = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -117,10 +120,7 @@ public static class ProcessManualInputs
                 return null;
             }
 
-            if (property.Value.ValueKind != JsonValueKind.Null)
-            {
-                given[property.Name] = property.Value;
-            }
+            given[property.Name] = property.Value;
         }
 
         return given;
