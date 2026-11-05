@@ -99,6 +99,7 @@ export const AUDIT_MODULE_KEYS = [
   'feedback',
   'safety',
   'recruiting',
+  'processes',
   'attendance',
   'catalog',
   'reports',
@@ -137,6 +138,7 @@ export const AUDIT_MODULE_ENTRY: Readonly<Record<AuditModuleKey, readonly string
   feedback: ['feedback.view'],
   safety: ['safety.view'],
   recruiting: ['recruiting.view'],
+  processes: ['processes.view'],
   attendance: ['attendance.view'],
   catalog: ['catalog.view'],
   reports: ['reports.view'],
@@ -176,6 +178,15 @@ export const AUDIT_MODULE_ENTITIES: Readonly<Record<AuditModuleKey, readonly Aud
     'CandidateQuestionnaire',
     'CandidateForm',
     'PipelineStage',
+  ],
+  processes: [
+    'ProcessTemplate',
+    'ProcessTemplateVersion',
+    'ProcessCase',
+    'ProcessCaseStep',
+    'ProcessGateOverride',
+    'ProcessStageBinding',
+    'ProcessHoliday',
   ],
   attendance: [
     'AbsenceRequest',
@@ -222,6 +233,7 @@ export const EMPLOYEE_HISTORY_MODULES: readonly AuditModuleKey[] = [
   'feedback',
   'safety',
   'attendance',
+  'processes',
 ]
 
 /** So'rovchi shu bo'limning qatorlarini ko'radimi (server qoidasining ko'zgusi). */
@@ -297,6 +309,14 @@ export const AUDIT_ENTITY_NAMES = [
   // Eksport yozuvlarining obyekti (davomat statistikasi, audit jurnali — SPEC-excel-eksport)
   'AttendanceDay',
   'AuditLog',
+  // Jarayonlar (SPEC-mening-ishlarim)
+  'ProcessTemplate',
+  'ProcessTemplateVersion',
+  'ProcessCase',
+  'ProcessCaseStep',
+  'ProcessGateOverride',
+  'ProcessStageBinding',
+  'ProcessHoliday',
 ] as const
 
 export type AuditEntityName = (typeof AUDIT_ENTITY_NAMES)[number]
@@ -445,6 +465,41 @@ export const AUDIT_FIELD_KEYS = [
   'action',
   'year',
   'month',
+  // Jarayonlar (SPEC-mening-ishlarim)
+  'ProcessCode',
+  'Version',
+  'Outcome',
+  'Legacy',
+  'SubjectKind',
+  'SubjectRef',
+  'AnchorDate',
+  'StartedOn',
+  'StartedBy',
+  'CompletedAt',
+  'CancelledAt',
+  'CancelReason',
+  'PublishedAt',
+  'StepCode',
+  'BoardColumn',
+  'State',
+  'Resolution',
+  'HolderRole',
+  'HolderEmployeeId',
+  'DueDate',
+  'DoneAt',
+  'DoneBy',
+  'Payload',
+  'EvidenceSha256',
+  'BlockedGateCode',
+  'GateCode',
+  'ForUserId',
+  'GrantedBy',
+  'GrantedAt',
+  'ExpiresAt',
+  'ConsumedAt',
+  'ConsumedOperation',
+  'BindingCode',
+  'PipelineStageId',
 ] as const
 
 /* ────────────────────────────────────────────────────────── amal nomlari */
@@ -592,6 +647,19 @@ export const AUDIT_OPERATION_NAMES = [
   'ExportExitInterviewsToExcel',
   'ExportIncidentsToExcel',
   'SubmitKioskQuestionnaire',
+  // Jarayonlar (SPEC-mening-ishlarim)
+  'StartProcessCase',
+  'CancelProcessCase',
+  'ReopenProcessCase',
+  'CompleteProcessStep',
+  'SkipProcessStep',
+  'UndoProcessStep',
+  'RunProcessReconcile',
+  'SetProcessStageBindings',
+  'SaveProcessHoliday',
+  'DeleteProcessHoliday',
+  'GrantProcessGateOverride',
+  'GrantDirectHireOverride',
 ] as const
 
 /* ──────────────────────────────────────────────── hodisa tafsilotlari */

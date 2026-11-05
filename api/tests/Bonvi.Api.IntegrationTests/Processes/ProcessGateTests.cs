@@ -1161,6 +1161,27 @@ public sealed class ProcessGateTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
+    public async Task Reason_with_a_NUL_character_is_refused_on_both_routes_and_not_a_500()
+    {
+        const string WithNul = "Rahbar yozma\0 ruxsat berdi";
+
+        await EnforceAsync();
+        var (_, processCase) = await DismissalAsync();
+        var account = await AccountAsync(Permissions.EmploymentHire);
+        using var grantor = await GrantorAsync();
+        var before = await OverrideCountAsync();
+
+        var onCase = await PostAsync(grantor, $"/api/processes/cases/{processCase.Id}/gates/{ProcessGateCodes.Q12}/override", new { reason = WithNul });
+        var direct = await PostAsync(grantor, "/api/processes/gate-overrides/direct-hire", new { forUserId = account.UserId, reason = WithNul });
+
+        onCase.Status.ShouldBe(HttpStatusCode.BadRequest, onCase.Raw);
+        onCase.Title.ShouldBe(KiritishNotogri);
+        direct.Status.ShouldBe(HttpStatusCode.BadRequest, direct.Raw);
+        direct.Title.ShouldBe(KiritishNotogri);
+        (await OverrideCountAsync()).ShouldBe(before);
+    }
+
+    [Fact]
     public async Task Reason_of_exactly_ten_characters_is_accepted_and_longer_than_the_limit_is_not()
     {
         await EnforceAsync();
