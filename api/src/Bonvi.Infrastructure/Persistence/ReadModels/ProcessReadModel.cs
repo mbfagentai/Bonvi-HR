@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Text.Json.Nodes;
+using Bonvi.Application.Attendance.Scheduling;
 using Bonvi.Application.Processes.Queries;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Blanks;
@@ -450,17 +451,45 @@ public sealed class ProcessReadModel : IProcessReadModel
             return 0;
         }
 
+        var reached = await DepartmentsReachedAsync(effective, cancellationToken).ConfigureAwait(false);
+
         return await _context.Employments
             .AsNoTracking()
             .Where(row => row.Status != EmploymentStatus.Terminated && row.IsPrimary)
+            .Where(row => row.DepartmentId == null || !reached.Contains(row.DepartmentId.Value))
             .Where(row => !effective.Any(assignment =>
                 (assignment.Scope == ScheduleScope.Employee && assignment.EmployeeId == row.EmployeeId)
-                || (assignment.Scope == ScheduleScope.Position && assignment.PositionId == row.PositionId)
-                || (assignment.Scope == ScheduleScope.Department && assignment.DepartmentId == row.DepartmentId)))
+                || (assignment.Scope == ScheduleScope.Position && assignment.PositionId == row.PositionId)))
             .Select(row => row.EmployeeId)
             .Distinct()
             .CountAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>The departments with a department assignment and everything below them: ScheduleResolver walks up the tree.</summary>
+    private async Task<List<Guid>> DepartmentsReachedAsync(IQueryable<ScheduleAssignment> effective, CancellationToken cancellationToken)
+    {
+        var assigned = await effective
+            .Where(row => row.Scope == ScheduleScope.Department && row.DepartmentId != null)
+            .Select(row => row.DepartmentId!.Value)
+            .ToHashSetAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (assigned.Count == 0)
+        {
+            return [];
+        }
+
+        // Deleted departments stay in the chain, as in AttendanceReadModel's resolver.
+        var departments = await _context.Departments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var tree = new DepartmentTree(departments);
+
+        return [.. departments.Select(department => department.Id).Where(id => tree.SelfAndAncestors(id).Any(assigned.Contains))];
     }
 
     /// <summary>A dismissal act (kind = dismissal) with no row in any of sections 1–4.</summary>
