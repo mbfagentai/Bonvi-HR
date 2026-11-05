@@ -93,14 +93,14 @@ public sealed class ProcessReconciler
         Func<ProcessEnginePass, CancellationToken, Task<ProcessReconcileResult>> work,
         CancellationToken cancellationToken)
     {
-        var settings = ProcessEngineSettings.From(await _settingsReader.ReadAsync(cancellationToken).ConfigureAwait(false));
-        if (settings.StartedOn is not { } startedOn)
-        {
-            return new ProcessReconcileResult(ProcessReconcileStatus.Dormant, 0, 0);
-        }
-
         try
         {
+            var settings = ProcessEngineSettings.From(await _settingsReader.ReadAsync(cancellationToken).ConfigureAwait(false));
+            if (settings.StartedOn is not { } startedOn)
+            {
+                return new ProcessReconcileResult(ProcessReconcileStatus.Dormant, 0, 0);
+            }
+
             var result = await _unitOfWork
                 .ExecuteInTransactionAsync(
                     async token =>
@@ -127,7 +127,9 @@ public sealed class ProcessReconciler
 
             return result;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        // Only the caller's own cancellation is not a failure. The inline wrapper logs nothing, so whatever else ends
+        // the pass has to be journalled here, or it disappears.
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             _journal.PassFailed(exception);
             throw;
