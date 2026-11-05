@@ -1,21 +1,21 @@
+using Bonvi.Application.Processes.Calendar;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Processes.Definitions;
 
-/// <summary>
-/// Process definitions (SPEC-mening-ishlarim slice P2a). Wired into <c>DependencyInjection.cs</c> at merge.
-/// </summary>
+/// <summary>Process definitions and the working-day calendar (SPEC-mening-ishlarim slices P2a, P2b).</summary>
 /// <remarks>
-/// Everything P2a builds is pure and static: <see cref="ProcessDefinitionValidator"/>,
-/// <see cref="ProcessDueEvaluator"/>, the fact / anchor / role / screen / gate catalogues, and
-/// <c>Calendar.WorkingDayCalendar</c>, which the pass builds from the <c>process_holidays</c> rows. This is
-/// the seam where P2b registers the holiday-backed calendar source and the template seeder.
+/// <see cref="ProcessDefinitionValidator"/>, <see cref="ProcessDueEvaluator"/>, the fact / anchor / role / screen /
+/// gate catalogues and <c>Calendar.WorkingDayCalendar</c> are pure and static, so only the calendar source needs a
+/// line here. The template seeder works on the database and is registered in Infrastructure.
 /// </remarks>
 public static class ProcessDefinitionsRegistration
 {
     public static IServiceCollection AddProcessDefinitions(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<IWorkingDayCalendarSource, HolidayWorkingDayCalendarSource>();
 
         return services;
     }
