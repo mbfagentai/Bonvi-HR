@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Bonvi.Application.Common.Photos;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
@@ -262,6 +263,48 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         }
 
         (await LookupAsync(scoped, $"search={world.Mark}A1")).Single().GetProperty("hasPhoto").GetBoolean().ShouldBeTrue();
+    }
+
+    // ── pass photo ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Pass_photo_is_revalidated_for_a_scoped_user_and_cached_for_hr()
+    {
+        var world = await SeedWorldAsync();
+        var passId = await TerminalPassAsync(world.InA1);
+        var key = "scope-write/" + Guid.NewGuid().ToString("N") + ".jpg";
+
+        await using (var serviceScope = _factory.Services.CreateAsyncScope())
+        {
+            var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var pass = await context.Set<AttendancePass>().SingleAsync(row => row.Id == passId, Ct);
+            pass.AttachPhoto(key).ShouldBeTrue();
+            await context.SaveChangesAsync(Ct);
+        }
+
+        // A matching version answers 304 from the key alone, with the headers of a 200.
+        async Task<CacheControlHeaderValue> CacheControlAsync(HttpClient client)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, Path($"/passes/{passId}/photo"));
+            request.Headers.TryAddWithoutValidation("If-None-Match", $"\"{PhotoLimits.VersionOf(key)}\"");
+
+            using var response = await client.SendAsync(request, Ct);
+            response.StatusCode.ShouldBe(HttpStatusCode.NotModified, await TextAsync(response));
+
+            return response.Headers.CacheControl.ShouldNotBeNull();
+        }
+
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+        var forScoped = await CacheControlAsync(scoped);
+        forScoped.Private.ShouldBeTrue();
+        forScoped.NoCache.ShouldBeTrue("a browser must ask again once the scope shrinks");
+        forScoped.MaxAge.ShouldBeNull();
+
+        using var hr = await ClientAsync(HrManagerPermissions);
+        var forHr = await CacheControlAsync(hr);
+        forHr.Private.ShouldBeTrue();
+        forHr.NoCache.ShouldBeFalse();
+        forHr.MaxAge.ShouldBe(TimeSpan.FromDays(1));
     }
 
     // ── other roles ───────────────────────────────────────────────

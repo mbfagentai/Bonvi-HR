@@ -1433,6 +1433,7 @@ public static class AttendanceEndpoints
         group.MapGet("/passes/{id:guid}/photo", async (
                 Guid id,
                 HttpContext context,
+                IAttendanceScope scope,
                 GetPassPhotoQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -1444,8 +1445,15 @@ public static class AttendanceEndpoints
 
                 // JSON emas, BAYT — `ToHttpResult()` faqat xato yo'lida
                 // (xodim rasmi endpointidagi bilan bir xil sabab).
-                return natija.IsFailure
-                    ? natija.ToHttpResult()
+                if (natija.IsFailure)
+                {
+                    return natija.ToHttpResult();
+                }
+
+                // A «Davomat mas'uli» scope can shrink and a 404 only works on a request, so
+                // their browser must ask every time. HR keeps the one-day cache.
+                return scope.IsScoped
+                    ? PhotoHttp.WriteRevalidated(context, natija.Value)
                     : PhotoHttp.Write(context, natija.Value);
             })
             .RequireAuthorization(Permissions.AttendanceView)
@@ -1453,7 +1461,7 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — o'tishning turniket surati")
             .WithDescription(
                 "Rasm baytlari (image/jpeg yoki image/png), «ETag» + «If-None-Match» → 304, kesh shaxsiy " +
-                "(private, 1 kun). O'tish yo'q — «davomat.otish_topilmadi», surat yo'q yoki tozalangan — " +
+                "(private, 1 kun; «Davomat mas'uli» uchun private, no-cache). O'tish yo'q — «davomat.otish_topilmadi», surat yo'q yoki tozalangan — " +
                 "«davomat.surat_yoq» (ikkalasi 404).")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)
