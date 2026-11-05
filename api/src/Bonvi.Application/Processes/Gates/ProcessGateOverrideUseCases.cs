@@ -1,4 +1,5 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Processes.Commands;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Domain.Abstractions;
@@ -121,6 +122,11 @@ public sealed class GrantCaseGateOverrideCommandHandler
             return grantor.Error;
         }
 
+        if (ProcessFreeText.HasNul(command.Reason))
+        {
+            return ProcessErrors.Invalid;
+        }
+
         var processCase = await _cases.GetWithStepsAsync(command.CaseId, cancellationToken).ConfigureAwait(false);
         if (processCase is null)
         {
@@ -215,6 +221,11 @@ public sealed class GrantDirectHireOverrideCommandHandler
         if (grantor.IsFailure)
         {
             return grantor.Error;
+        }
+
+        if (ProcessFreeText.HasNul(command.Reason))
+        {
+            return ProcessErrors.Invalid;
         }
 
         if (await _users.GetByIdAsync(command.ForUserId, cancellationToken).ConfigureAwait(false) is null)
