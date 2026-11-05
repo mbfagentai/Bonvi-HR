@@ -40,7 +40,15 @@ describe('attendanceScopeRedirect', () => {
     expect(attendanceScopeRedirect(stored(scoped), '/verifikatsiya/tabel')).toBeNull()
   })
 
-  it.each(['/', '/xodimlar', '/xodimlar/42', '/verifikatsiya', '/verifikatsiya-boshqa'])(
+  it.each([
+    '/',
+    '/xodimlar',
+    '/xodimlar/42',
+    '/verifikatsiya',
+    '/verifikatsiya-boshqa',
+    '/verifikatsiya/joylashuvlar',
+    '/verifikatsiya/joylashuvlar/',
+  ])(
     'sends a scoped user home from %s',
     (pathname) => {
       expect(attendanceScopeRedirect(stored(scoped), pathname)).toBe(ATTENDANCE_SCOPED_HOME)
@@ -51,6 +59,7 @@ describe('attendanceScopeRedirect', () => {
     const normal = stored({ roles: ['hr_manager'], permissions: ['employees.view'] })
 
     expect(attendanceScopeRedirect(normal, '/xodimlar')).toBeNull()
+    expect(attendanceScopeRedirect(normal, '/verifikatsiya/joylashuvlar')).toBeNull()
   })
 
   it('ignores a stored copy it cannot read', () => {

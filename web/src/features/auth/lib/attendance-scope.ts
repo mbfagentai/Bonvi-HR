@@ -36,9 +36,15 @@ export function isAttendanceScoped(
   )
 }
 
+/** Refused by the server even for reading: the whole company's sites, addresses and coordinates. */
+const CLOSED_ATTENDANCE_PAGES: readonly string[] = ['/verifikatsiya/joylashuvlar']
+
 /** `/verifikatsiya` itself has no route (SPEC §8.1), so only what is under it counts. */
-function isInsideAttendance(pathname: string): boolean {
-  return pathname.startsWith('/verifikatsiya/')
+function isOpenAttendancePage(pathname: string): boolean {
+  return (
+    pathname.startsWith('/verifikatsiya/') &&
+    !CLOSED_ATTENDANCE_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))
+  )
 }
 
 /**
@@ -49,7 +55,7 @@ function isInsideAttendance(pathname: string): boolean {
  * the shell applies the same rule to the fresh answer.
  */
 export function attendanceScopeRedirect(storedUser: unknown, pathname: string): string | null {
-  return isAttendanceScoped(parseAuthUser(storedUser)) && !isInsideAttendance(pathname)
+  return isAttendanceScoped(parseAuthUser(storedUser)) && !isOpenAttendancePage(pathname)
     ? ATTENDANCE_SCOPED_HOME
     : null
 }

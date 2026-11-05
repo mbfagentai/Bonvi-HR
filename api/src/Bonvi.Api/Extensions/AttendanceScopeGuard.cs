@@ -11,6 +11,12 @@ public static partial class AuthenticationExtensions
     private const string ManualPassDeleteRoute = "/api/attendance/manual-passes/{passId:guid}";
 
     /// <summary>
+    /// Refused for reads too: the list holds every site's name, address and coordinates, and
+    /// a site belongs to no department, so there is nothing to narrow it by.
+    /// </summary>
+    private const string WorkSitesPath = "/api/attendance/work-sites";
+
+    /// <summary>
     /// Closes everything outside attendance to a scoped user (<see cref="AttendanceScopeRule"/>).
     /// </summary>
     /// <remarks>
@@ -60,6 +66,11 @@ public static partial class AuthenticationExtensions
         }
 
         if (!request.Path.StartsWithSegments("/api/attendance", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (request.Path.StartsWithSegments(WorkSitesPath, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

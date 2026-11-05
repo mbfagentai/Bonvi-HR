@@ -114,6 +114,8 @@ public sealed class AttendanceScopeApiTests : IClassFixture<BonviApiFactory>
     [InlineData("POST", "/api/attendance/recompute")]
     [InlineData("post", "/API/ATTENDANCE/RECOMPUTE")]
     [InlineData("POST", "/api/attendance/no-such-route")]
+    [InlineData("GET", "/api/attendance/work-sites")]
+    [InlineData("GET", "/API/ATTENDANCE/WORK-SITES/")]
     [InlineData("GET", "/API/USERS")]
     [InlineData("GET", "/api/users/")]
     [InlineData("GET", "/api/authors")]
@@ -499,7 +501,8 @@ public sealed class AttendanceScopeApiTests : IClassFixture<BonviApiFactory>
             return true;
         }
 
-        if (!route.StartsWith("/api/attendance/", StringComparison.OrdinalIgnoreCase))
+        if (!route.StartsWith("/api/attendance/", StringComparison.OrdinalIgnoreCase)
+            || route.StartsWith("/api/attendance/work-sites", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

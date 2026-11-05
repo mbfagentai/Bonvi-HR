@@ -26,6 +26,18 @@ describe('navFor', () => {
     expect(keysOf(true)).toEqual(['verification'])
     expect(navFor(NAV, true).every((section) => section.items.length > 0)).toBe(true)
   })
+
+  it('hides work sites from a scoped user, whose permissions alone would show them', () => {
+    const children = (attendanceScoped: boolean) =>
+      navFor(NAV, attendanceScoped)
+        .flatMap((section) => section.items)
+        .find((row) => row.key === 'verification')
+        ?.children?.map((child) => child.key)
+
+    expect(children(true)).toBeDefined()
+    expect(children(true)).not.toContain('attendanceSites')
+    expect(children(false)).toContain('attendanceSites')
+  })
 })
 
 describe('visibleItem', () => {
