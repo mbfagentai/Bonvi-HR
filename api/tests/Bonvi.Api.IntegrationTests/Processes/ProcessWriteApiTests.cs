@@ -6,9 +6,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Processes.Commands;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Application.Processes.Facts;
+using Bonvi.Application.Processes.Queries;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Blanks;
@@ -781,7 +783,7 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
     }
 
     [Fact]
-    public async Task Undo_with_no_user_id_is_refused_though_the_ability_alone_would_match_a_null_closer()
+    public async Task A_token_with_no_user_id_is_turned_away_by_authentication_before_any_handler()
     {
         var (_, processCase) = await FormaliseAsync();
         var closer = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
@@ -795,9 +797,47 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
 
         var reply = await UndoAsync(client, processCase.Id, "r01-6", version);
 
-        reply.Status.ShouldBe(HttpStatusCode.Forbidden, reply.Raw);
-        reply.Title.ShouldBe(Ruxsat);
+        reply.Status.ShouldBe(HttpStatusCode.Unauthorized, reply.Raw);
+        reply.Title.ShouldBe("auth.token_yaroqsiz");
         (await CaseByIdAsync(processCase.Id)).FindStep("r01-6")!.State.ShouldBe(ProcessStepState.Done);
+    }
+
+    /// <summary>
+    /// HTTP cannot get here (the test above), so the handler is called directly, as someone with the permissions and no
+    /// id. <c>ProcessStepAbilityTests</c> pins that the ability alone says yes to this viewer on this step.
+    /// </summary>
+    [Fact]
+    public async Task Undo_with_no_user_id_is_refused_though_the_ability_alone_would_match_a_null_closer()
+    {
+        var (_, processCase) = await FormaliseAsync();
+        var closer = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
+        await CloseStepAsAsync(processCase.Id, "r01-6", closer.UserId);
+        await SqlAsync($"UPDATE process_case_steps SET done_by = NULL WHERE case_id = {processCase.Id} AND step_code = 'r01-6'");
+        using var manager = await ManagerAsync();
+        var version = Version(await DetailAsync(manager, processCase.Id));
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var viewers = ActivatorUtilities.CreateInstance<ProcessViewerLoader>(scope.ServiceProvider, new WorkerWithNoId());
+        var writer = ActivatorUtilities.CreateInstance<ProcessStepWriter>(scope.ServiceProvider, viewers);
+
+        var result = await new UndoProcessStepCommandHandler(writer).HandleAsync(new UndoProcessStepCommand(processCase.Id, "r01-6", version), Ct);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Code.ShouldBe(Ruxsat);
+        var stored = (await CaseByIdAsync(processCase.Id)).FindStep("r01-6")!;
+        stored.State.ShouldBe(ProcessStepState.Done);
+        stored.DoneBy.ShouldBeNull();
+    }
+
+    private sealed class WorkerWithNoId : ICurrentUser
+    {
+        public Guid? UserId => null;
+
+        public string? UserName => null;
+
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => permission == Permissions.ProcessesView || permission == Permissions.ProcessesWork;
     }
 
     // ────────────────────────────────────────────────────────────

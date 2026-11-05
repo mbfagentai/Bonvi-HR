@@ -193,6 +193,19 @@ public sealed class ProcessStepAbilityTests
         ProcessStepAbility.CanUndo(step, Case(), Holder(), Now).ShouldBeFalse();
     }
 
+    /// <summary>
+    /// Why <c>ProcessStepWriter</c> refuses a viewer with no id before it asks: on a step with no closer, this comparison
+    /// alone says yes. <c>ProcessWriteApiTests.Undo_with_no_user_id...</c> pins the refusal.
+    /// </summary>
+    [Fact]
+    public void The_undo_ability_alone_matches_a_viewer_with_no_id_on_a_step_with_no_closer()
+    {
+        var step = Step(ProcessStepState.Done, resolution: ProcessStepResolution.Manual, doneAt: Now.AddMinutes(-1));
+        var noId = new ProcessViewer(userId: null, employeeId: null, new HashSet<string>(StringComparer.Ordinal), canWork: true, canManage: false);
+
+        ProcessStepAbility.CanUndo(step, Case(), noId, Now).ShouldBeTrue();
+    }
+
     [Fact]
     public void A_manager_undoes_anyone_s_step_at_any_time()
     {
