@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -26,6 +27,15 @@ public static class ProcessStepPayload
 
         return left == right || JsonNode.DeepEquals(JsonNode.Parse(left), JsonNode.Parse(right));
     }
+
+    /// <summary>The offer step's manual input (§1.5): the start date while HR-F05 is not served.</summary>
+    public const string StartDateInput = "startDate";
+
+    /// <summary>One input of a manual payload as a date; absent or not <c>yyyy-MM-dd</c> → <c>null</c>.</summary>
+    public static DateOnly? ReadDateInput(string? payload, string inputId)
+        => DateOnly.TryParseExact(ReadInput(payload, inputId), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date
+            : null;
 
     /// <summary>One input of a manual payload as text (string or number); absent, null or malformed → <c>null</c>.</summary>
     public static string? ReadInput(string? payload, string inputId)

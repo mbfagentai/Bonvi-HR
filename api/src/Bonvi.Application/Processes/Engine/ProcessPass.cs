@@ -291,7 +291,7 @@ public static class ProcessPass
         /// <summary>HR-F05 <c>startDate</c>, or the manual r02-11 input while F05 is not served (§1.5).</summary>
         private DateOnly? OfferStartDate()
             => DateOf(_facts.Get(ProcessFacts.CandF05StartDate))
-                ?? ParseDate(ProcessStepPayload.ReadInput(_case.FindStep(ProcessStepIds.Offer)?.Payload, "startDate"));
+                ?? ProcessStepPayload.ReadDateInput(_case.FindStep(ProcessStepIds.Offer)?.Payload, ProcessStepPayload.StartDateInput);
 
         private static void Put(Dictionary<string, DateOnly> anchors, string name, DateOnly? date)
         {

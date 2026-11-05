@@ -210,7 +210,7 @@ public sealed class EfProcessEngineReader : IProcessEngineReader
     /// <remarks>
     /// <c>subject_ref</c> holds the Tashkent date of the application, which SQL here cannot compute. So the
     /// filter asks for a case created since the current application. A same-day reapplication passes it and
-    /// shares its <c>subject_ref</c> with the existing case: the starter's <c>ON CONFLICT</c> absorbs that.
+    /// shares its <c>subject_ref</c> with the existing case: the starter checks the reference before it inserts.
     /// </remarks>
     public async Task<IReadOnlyList<CandidateStart>> ListCandidateStartsAsync(DateOnly startedOn, CancellationToken cancellationToken = default)
     {
