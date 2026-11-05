@@ -3,6 +3,7 @@ using Bonvi.Application.Attendance.Retention;
 using Bonvi.Application.Blanks;
 using Bonvi.Application.Employees.Probations;
 using Bonvi.Application.Identity.EmployeeAccounts;
+using Bonvi.Application.Processes.Engine;
 using Bonvi.Infrastructure;
 using Bonvi.Infrastructure.Services;
 using Hangfire;
@@ -67,6 +68,9 @@ public static class BackgroundJobs
 
     /// <summary>HRMentor: katalog, anketa matnlari va blankalar (SPEC-blankalar-hrmentor §3).</summary>
     public const string HrMentorSyncJobId = "hrmentor:sync";
+
+    /// <summary>The process engine's pass (docs/SPEC-mening-ishlarim.md §7.4, hook H15).</summary>
+    public const string ProcessReconcileJobId = "processes:reconcile";
 
     /// <summary>Hangfire serverini va navbat portini ulaydi — yoki <c>Testing</c> da sinxron navbatni.</summary>
     /// <param name="builder">Ilova quruvchisi.</param>
@@ -205,6 +209,15 @@ public static class BackgroundJobs
             HrMentorSyncJobId,
             job => job.RunAsync(CancellationToken.None),
             "1-59/5 * * * *",
+            utc);
+
+        // Every 5 minutes (:02, :07, :12, …), a minute after `hrmentor:sync`, which holds the SPEC's `1-59/5`.
+        // Shares :12, :27, :42, :57 with `attendance:employment-changes`; the server has two workers for that.
+        // Dormant until `processes.startedOn` is written: a run then reads one setting and ends.
+        jobs.AddOrUpdate<ProcessReconcileJob>(
+            ProcessReconcileJobId,
+            job => job.RunAsync(CancellationToken.None),
+            "2-59/5 * * * *",
             utc);
 
         // ⭐ Ishga tushishda ham — NAVBATGA qo'yiladi, shu yerda bajarilmaydi:
