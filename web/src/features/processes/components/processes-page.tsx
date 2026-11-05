@@ -33,7 +33,7 @@ function ProcessTabs({ value, onChange }: { value: ProcessTab; onChange: (next: 
     <div
       role="tablist"
       aria-label={t('processes.tabs.label')}
-      className="flex w-full gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-card sm:w-fit"
+      className="flex w-full gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-card sm:w-fit"
     >
       {tabs.map((tab) => {
         const selected = tab.value === value
@@ -46,7 +46,7 @@ function ProcessTabs({ value, onChange }: { value: ProcessTab; onChange: (next: 
             aria-selected={selected}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'min-h-9 min-w-0 flex-auto rounded-lg px-2.5 py-1.5 text-center text-footnote leading-tight font-medium sm:px-4',
+              'min-h-9 flex-auto rounded-md px-2.5 py-1.5 text-center text-footnote leading-tight font-medium sm:px-4',
               'transition-colors duration-[120ms] ease-[var(--ease-ios)]',
               selected
                 ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent-on-soft)]'

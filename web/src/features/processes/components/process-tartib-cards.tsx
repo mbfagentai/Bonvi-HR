@@ -49,11 +49,11 @@ function TartibCard({
   onOpen: () => void
 }) {
   return (
-    <Card className="rounded-xl transition-colors duration-[120ms] ease-[var(--ease-ios)] hover:bg-[var(--bg-hover)]">
+    <Card className="rounded-lg transition-colors duration-[120ms] ease-[var(--ease-ios)] hover:bg-[var(--bg-hover)]">
       <button
         type="button"
         onClick={onOpen}
-        className="press flex h-full w-full items-start gap-3.5 rounded-xl p-5 text-left"
+        className="press flex h-full w-full items-start gap-3.5 rounded-lg p-5 text-left"
       >
         <IconTile icon={icon} tone={tone} className="shrink-0" />
 

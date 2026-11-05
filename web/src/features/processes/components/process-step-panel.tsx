@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CircleCheck, ExternalLink, LoaderCircle, Play, Undo2 } from 'lucide-react'
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import {
@@ -46,6 +46,9 @@ import {
 import { ProcessManualForm } from './process-manual-form'
 
 const NO_SECTIONS: readonly string[] = []
+
+/** The panel's chips read a step larger than the same chips in a list. */
+const PANEL_CHIP_CLASS = 'text-footnote'
 
 /** Blue bold numbers on the left, the way the prototype numbers its guide and its callouts. */
 function NumberedLines({ lines, className }: { lines: readonly string[]; className?: string }) {
@@ -108,11 +111,18 @@ function DeadlineChip({ step }: { step: ProcessCaseStep }) {
 
   if (due.kind === 'none') return null
   if (due.kind === 'late') {
-    return <Badge tone="danger">{t('processes.due.late', { n: num(due.days) })}</Badge>
+    return (
+      <Badge tone="danger" className={PANEL_CHIP_CLASS}>
+        {t('processes.due.late', { n: num(due.days) })}
+      </Badge>
+    )
   }
 
   return (
-    <Badge tone={due.kind === 'today' ? 'warning' : 'neutral'} className="text-[var(--fg)]">
+    <Badge
+      tone={due.kind === 'today' ? 'warning' : 'neutral'}
+      className={cn(PANEL_CHIP_CLASS, due.kind !== 'today' && 'text-[var(--fg)]')}
+    >
       {t('processes.case.deadline', { date: longDueDate(step.dueDate ?? '', locale) })}
     </Badge>
   )
@@ -121,9 +131,9 @@ function DeadlineChip({ step }: { step: ProcessCaseStep }) {
 /** The blue-edged note that says whose step this is and what stands in its way. */
 function StepCallout({ title, lines }: { title: string; lines: readonly string[] }) {
   return (
-    <aside className="rounded-lg border border-[var(--accent-soft-hover)] border-l-4 border-l-[var(--accent)] bg-[var(--accent-soft)] px-5 py-4">
+    <aside className="rounded-md border border-[var(--accent-soft-hover)] border-l-4 border-l-[var(--accent)] bg-[var(--accent-soft)] px-5 py-[18px]">
       <p className="text-callout font-semibold">{title}</p>
-      {lines.length > 0 && <NumberedLines lines={lines} className="mt-2 text-subhead" />}
+      {lines.length > 0 && <NumberedLines lines={lines} className="mt-2.5 text-callout leading-6" />}
     </aside>
   )
 }
@@ -240,7 +250,7 @@ function StepRecordedData({ step }: { step: ProcessCaseStep }) {
 
   return (
     <Disclosure
-      className="rounded-lg border border-[var(--border)]"
+      className="rounded-md border border-[var(--border)]"
       summaryClassName="px-4 py-3.5 text-subhead font-semibold"
       summary={
         step.blankTitle !== null
@@ -316,7 +326,7 @@ function StepSignatures({ step }: { step: ProcessCaseStep }) {
       <h3 className="text-footnote font-semibold tracking-wide text-[var(--fg-secondary)] uppercase">
         {t('processes.case.signaturesTitle')}
       </h3>
-      <p className="flex items-start gap-2 rounded-lg border border-[var(--border)] px-4 py-3 text-subhead">
+      <p className="flex items-start gap-2 rounded-md border border-[var(--border)] px-4 py-3 text-subhead">
         {signed ? (
           <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-ios-green" />
         ) : (
@@ -365,25 +375,32 @@ function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: Proc
   const showState = step.state !== 'Active' && step.state !== 'Locked'
 
   return (
-    <Card className="rounded-xl">
-      <header className="border-b border-[var(--border)] px-5 pt-5 pb-4 sm:px-7 sm:pt-6 sm:pb-5">
+    <Card>
+      <header className="border-b border-[var(--border)] px-5 pt-5 pb-5 sm:px-[22px]">
         <div className="flex flex-wrap items-center gap-1.5">
           {step.holder.role !== null && (
             <Badge
               tone="brand"
-              className="h-auto min-h-6 max-w-full border border-[var(--accent-soft-hover)] py-0.5 whitespace-normal"
+              className={cn(
+                PANEL_CHIP_CLASS,
+                'h-auto min-h-6 max-w-full border border-[var(--accent-soft-hover)] py-0.5 whitespace-normal',
+              )}
             >
               <ProcessHolderLabel holder={step.holder} />
             </Badge>
           )}
-          <ProcessBlankChip code={step.blankCode} title={step.blankTitle} />
+          <ProcessBlankChip
+            code={step.blankCode}
+            title={step.blankTitle}
+            className={PANEL_CHIP_CLASS}
+          />
           {!finished && <DeadlineChip step={step} />}
           {showState && <ProcessStateBadge state={step.state} />}
           {step.optional && <Badge tone="neutral">{t('processes.case.optional')}</Badge>}
           <ProcessWarningChips codes={step.warnings} />
         </div>
 
-        <h2 className="mt-4 text-title2 leading-tight font-semibold break-words">{step.title}</h2>
+        <h2 className="mt-3 text-title2 leading-tight font-semibold break-words">{step.title}</h2>
 
         {step.doneAt !== null && (
           <p className="tabular mt-2 text-footnote text-[var(--fg-secondary)]">
@@ -398,7 +415,7 @@ function StepPanelBody({ detail, step }: { detail: ProcessCaseDetail; step: Proc
         )}
       </header>
 
-      <div className="space-y-5 px-5 py-5 sm:px-7 sm:py-6">
+      <div className="space-y-5 px-5 py-5 sm:px-[22px]">
         {step.state === 'Blocked' && (
           <Alert tone="danger" title={errorMessage(step.gateErrorCode, step.gateCode ?? undefined)}>
             {step.resolver !== null && (
@@ -430,11 +447,11 @@ export function ProcessStepGuide({ step }: { step: ProcessCaseStep }) {
   const { t } = useLocale()
 
   return (
-    <Card key={step.stepCode} className="rounded-xl px-5 py-5 sm:px-6">
+    <Card key={step.stepCode} className="p-5">
       <h2 className="text-body font-semibold">{t('processes.case.guide')}</h2>
 
       {step.guide.length > 0 ? (
-        <NumberedLines lines={step.guide} className="mt-3 text-subhead" />
+        <NumberedLines lines={step.guide} className="mt-3 text-callout leading-6" />
       ) : (
         <p className="mt-3 text-subhead text-[var(--fg-secondary)]">
           {t('processes.case.guideEmpty')}
@@ -481,7 +498,10 @@ function StepActions({
   const locked = !PROCESS_WRITE_API_READY
 
   const entry = stepEntry(step, detail.subject, canWork && detail.status === 'Active')
-  const showEntry = entry !== null && (entry.target.kind !== 'createBlank' || canFillBlanks)
+  // Someone only reading a linked blank opens it from inside «… to'ldirilgan ma'lumot»; a second button would just repeat it.
+  const readsLinkedBlank = entry?.kind === 'open' && step.linkedBlankSubmissionId !== null && !step.viewerHolds
+  const showEntry =
+    entry !== null && !readsLinkedBlank && (entry.target.kind !== 'createBlank' || canFillBlanks)
 
   const showComplete = canWork && step.canComplete && step.manual?.allowed === true
   const showSkip = canWork && step.canSkip
@@ -496,7 +516,7 @@ function StepActions({
   )
 
   return (
-    <section className="space-y-3 border-t border-[var(--border)] pt-5">
+    <section className="space-y-3 border-[var(--border)] not-first:border-t not-first:pt-5">
       {showEntry && <StepEntryButton entry={entry} detail={detail} />}
 
       {complete.isError && (
@@ -568,8 +588,9 @@ function StepEntryButton({
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
   const createBlank = useCreateBlank()
-  // One id per panel: a double click or a retry reaches the same draft (`blank-create-dialog.tsx`).
-  const [clientRequestId] = useState(() => crypto.randomUUID())
+  // One id per panel: a double click or a retry reaches the same draft (`blank-create-dialog.tsx`). Made on the press:
+  // `crypto.randomUUID` is missing outside a secure context, and that must not take down a page for merely showing a step.
+  const clientRequestId = useRef<string | null>(null)
 
   const go = () => {
     const { target } = entry
@@ -584,8 +605,9 @@ function StepEntryButton({
       case 'createBlank': {
         const body = blankCreateBody(target, detail.subject)
         if (body === null) return
+        clientRequestId.current ??= crypto.randomUUID()
         createBlank.mutate(
-          { ...body, clientRequestId },
+          { ...body, clientRequestId: clientRequestId.current },
           {
             onSuccess: (created) =>
               void navigate({

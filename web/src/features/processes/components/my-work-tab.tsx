@@ -1,5 +1,4 @@
-import { Hourglass, Inbox, ListChecks, Lock, Sparkles, Sun, type LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Hourglass, Inbox, ListChecks, Lock, Sparkles, Sun } from 'lucide-react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Card, EmptyState, Skeleton } from '@/shared/ui'
@@ -9,36 +8,7 @@ import { useMyWork } from '../api/processes-queries'
 import { hasNoTasks, isMyWorkEmpty } from '../lib/my-work'
 import { ProcessLoadError } from './process-states'
 import { ProcessTartibCards } from './process-tartib-cards'
-import { ProcessTaskCard } from './process-task-card'
-
-function Section({
-  icon: Icon,
-  title,
-  count,
-  children,
-}: {
-  icon: LucideIcon
-  title: ReactNode
-  count?: number
-  children: ReactNode
-}) {
-  const { num } = useLocale()
-
-  return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 px-1 text-footnote font-semibold tracking-wide text-[var(--fg-secondary)] uppercase">
-        <Icon aria-hidden className="size-4 shrink-0" strokeWidth={2} />
-        <span className="min-w-0">{title}</span>
-        {count !== undefined && (
-          <span className="tabular rounded-full bg-[var(--bg-sunken)] px-2 py-0.5 font-mono text-caption2 font-medium">
-            {num(count)}
-          </span>
-        )}
-      </h2>
-      {children}
-    </section>
-  )
-}
+import { ProcessTaskCard, ProcessTaskSection } from './process-task-card'
 
 function TaskList({ tasks, today }: { tasks: readonly ProcessTask[]; today: string }) {
   return (
@@ -56,7 +26,7 @@ function Summary({ work }: { work: ProcessMyWork }) {
   const { t, num, date } = useLocale()
 
   return (
-    <Card className="rounded-xl px-6 py-5">
+    <Card className="rounded-lg px-5 py-5">
       <p className="text-title1 leading-tight font-bold">
         {t('processes.my.today', { date: date(work.today) })}
       </p>
@@ -74,14 +44,14 @@ function Summary({ work }: { work: ProcessMyWork }) {
 function MyWorkLoading() {
   return (
     <div className="space-y-6" aria-busy="true">
-      <Card className="space-y-2.5 rounded-xl px-6 py-5">
+      <Card className="space-y-2.5 rounded-lg px-5 py-5">
         <Skeleton className="h-8 w-64 rounded-md" />
         <Skeleton className="h-4 w-40 rounded-md" />
       </Card>
       <div className="space-y-3">
-        <Skeleton className="h-36 w-full rounded-xl" />
-        <Skeleton className="h-36 w-full rounded-xl" />
-        <Skeleton className="h-36 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-lg" />
+        <Skeleton className="h-36 w-full rounded-lg" />
+        <Skeleton className="h-36 w-full rounded-lg" />
       </div>
     </div>
   )
@@ -94,7 +64,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
     return (
       <>
         <Summary work={work} />
-        <Card className="rounded-xl">
+        <Card>
           <EmptyState
             icon={Inbox}
             title={t('processes.my.emptyTitle')}
@@ -110,13 +80,13 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
       <Summary work={work} />
 
       {hasNoTasks(work) ? (
-        <Card className="rounded-xl">
+        <Card>
           <EmptyState icon={Inbox} title={t('processes.my.emptyTitle')} className="py-8" />
         </Card>
       ) : (
         <>
           {/* The first section stays even when empty: «nothing for today» is the news someone opens this page for. */}
-          <Section
+          <ProcessTaskSection
             icon={Sun}
             title={t('processes.my.sections.urgent')}
             count={work.urgent.length}
@@ -124,49 +94,49 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
             {work.urgent.length > 0 ? (
               <TaskList tasks={work.urgent} today={work.today} />
             ) : (
-              <Card className="flex items-center gap-2.5 rounded-xl px-6 py-4 text-subhead text-[var(--fg-secondary)]">
+              <Card className="flex items-center gap-2.5 rounded-lg px-5 py-4 text-subhead text-[var(--fg-secondary)]">
                 <Sparkles aria-hidden className="size-4 shrink-0 text-ios-green" strokeWidth={2} />
                 {t('processes.my.urgentEmpty')}
               </Card>
             )}
-          </Section>
+          </ProcessTaskSection>
 
           {work.later.length > 0 && (
-            <Section
+            <ProcessTaskSection
               icon={ListChecks}
               title={t('processes.my.sections.later')}
               count={work.later.length}
             >
               <TaskList tasks={work.later} today={work.today} />
-            </Section>
+            </ProcessTaskSection>
           )}
 
           {work.held.length > 0 && (
-            <Section
+            <ProcessTaskSection
               icon={Lock}
               title={t('processes.my.sections.held')}
               count={work.held.length}
             >
               <TaskList tasks={work.held} today={work.today} />
-            </Section>
+            </ProcessTaskSection>
           )}
 
           {work.waiting.length > 0 && (
-            <Section
+            <ProcessTaskSection
               icon={Hourglass}
               title={t('processes.my.sections.waiting')}
               count={work.waiting.length}
             >
               <TaskList tasks={work.waiting} today={work.today} />
-            </Section>
+            </ProcessTaskSection>
           )}
         </>
       )}
 
       {(work.tartib.notifications.length > 0 || work.tartib.counts.length > 0) && (
-        <Section icon={ListChecks} title={t('processes.my.sections.tartib')}>
+        <ProcessTaskSection icon={ListChecks} title={t('processes.my.sections.tartib')}>
           <ProcessTartibCards tartib={work.tartib} />
-        </Section>
+        </ProcessTaskSection>
       )}
     </>
   )

@@ -81,7 +81,7 @@ export function BoardTab() {
 
   if (templates.length === 0) {
     return (
-      <Card className="rounded-xl">
+      <Card>
         <EmptyState
           icon={Kanban}
           title={t('processes.board.noTemplatesTitle')}
@@ -95,7 +95,7 @@ export function BoardTab() {
 
   return (
     <div className="flex flex-col gap-4 frame:min-h-0 frame:flex-1">
-      <Card className="flex flex-wrap items-center gap-2.5 rounded-xl px-4 py-3 sm:px-5">
+      <Card className="flex flex-wrap items-center gap-2.5 rounded-lg px-4 py-3 sm:px-5">
         <Select
           size="sm"
           aria-label={t('processes.board.process')}
@@ -148,7 +148,7 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
     return (
       <div aria-busy="true" className="flex flex-col gap-4 md:flex-row md:overflow-hidden">
         {[0, 1, 2, 3].map((column) => (
-          <Skeleton key={column} className="h-72 w-full shrink-0 rounded-xl md:w-72" />
+          <Skeleton key={column} className="h-72 w-full shrink-0 rounded-lg md:w-72" />
         ))}
       </div>
     )
@@ -162,7 +162,7 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
 
   if (columns.every((column) => column.cards.length === 0)) {
     return (
-      <Card className="rounded-xl">
+      <Card>
         <EmptyState
           icon={Kanban}
           title={t('processes.board.emptyTitle')}
@@ -179,7 +179,7 @@ function ProcessBoardColumns({ processCode }: { processCode: string | undefined 
         <Card
           key={column.key}
           className={cn(
-            'w-full shrink-0 flex-col gap-3 rounded-xl p-4 md:flex md:w-72',
+            'w-full shrink-0 flex-col gap-3 rounded-lg p-4 md:flex md:w-72',
             column.cards.length === 0 ? 'hidden' : 'flex',
           )}
         >

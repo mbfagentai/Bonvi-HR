@@ -2,6 +2,7 @@ import { Lock, TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { Badge, type BadgeTone } from '@/shared/ui'
 
 import type {
@@ -105,13 +106,21 @@ export function ProcessCountChip({ children, label }: { children: ReactNode; lab
 }
 
 /** Short title plus the code in small type («Ishga qabul HR-F06»); nothing for a step without a blank. */
-export function ProcessBlankChip({ code, title }: { code: string | null; title: string | null }) {
+export function ProcessBlankChip({
+  code,
+  title,
+  className,
+}: {
+  code: string | null
+  title: string | null
+  className?: string
+}) {
   if (code === null) return null
 
   return (
     <Badge
       tone="neutral"
-      className="h-auto min-h-6 max-w-full py-0.5 whitespace-normal text-[var(--fg)]"
+      className={cn('h-auto min-h-6 max-w-full py-0.5 whitespace-normal text-[var(--fg)]', className)}
     >
       {title}
       <span className="font-mono text-caption2 text-[var(--fg-secondary)]">{code}</span>
@@ -151,6 +160,11 @@ function holderPerson(holder: ProcessHolder): { name: string; others: number } |
 
   const [first, ...rest] = holder.users
   return first === undefined ? null : { name: first.name, others: rest.length }
+}
+
+/** Nobody to do the work: flagged by the server, or no person on the case and no user holding the role. */
+export function isHolderUnassigned(holder: ProcessHolder): boolean {
+  return holder.role !== null && (holder.unassigned || holderPerson(holder) === null)
 }
 
 /** «HR-1 · Aliyev Vali», «Tizim», or an orange «HR-3 · Tayinlanmagan» when nobody holds the role. */

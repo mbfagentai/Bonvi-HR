@@ -40,7 +40,7 @@ function CaseColumns({
   panelRef?: Ref<HTMLDivElement>
 }) {
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-cols-[minmax(0,26fr)_minmax(0,63fr)_minmax(0,28fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-cols-[minmax(260px,26fr)_minmax(0,63fr)_minmax(240px,28fr)]">
       <div className="min-w-0">{stepper}</div>
       <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 xl:contents">
         <div ref={panelRef} className="min-w-0 scroll-mt-4 xl:sticky xl:top-4">
@@ -55,14 +55,14 @@ function CaseColumns({
 function CaseSkeleton() {
   return (
     <div className="space-y-5" aria-busy="true">
-      <Card className="space-y-2.5 rounded-xl px-6 py-5">
+      <Card className="space-y-2.5 px-5 py-5">
         <Skeleton className="h-4 w-28 rounded-md" />
         <Skeleton className="h-8 w-64 max-w-full rounded-md" />
         <Skeleton className="h-4 w-80 max-w-full rounded-md" />
       </Card>
       <CaseColumns
         stepper={
-          <Card className="space-y-4 rounded-xl p-5">
+          <Card className="space-y-4 p-5">
             {[0, 1, 2, 3, 4].map((row) => (
               <div key={row} className="flex gap-3">
                 <Skeleton className="size-[26px] shrink-0 rounded-full" />
@@ -75,14 +75,14 @@ function CaseSkeleton() {
           </Card>
         }
         panel={
-          <Card className="space-y-4 rounded-xl p-6">
+          <Card className="space-y-4 p-5">
             <Skeleton className="h-6 w-2/3 rounded-full" />
             <Skeleton className="h-7 w-1/2 rounded-md" />
             <Skeleton className="h-24 w-full rounded-lg" />
           </Card>
         }
         guide={
-          <Card className="space-y-3 rounded-xl p-5">
+          <Card className="space-y-3 p-5">
             <Skeleton className="h-5 w-32 rounded-md" />
             <Skeleton className="h-16 w-full rounded-md" />
           </Card>
@@ -173,14 +173,14 @@ export function ProcessCasePage() {
       <CaseHeader detail={detail} />
 
       {detail.steps.length === 0 ? (
-        <Card className="rounded-xl">
+        <Card>
           <EmptyState icon={ListChecks} title={t('processes.case.noSteps')} />
         </Card>
       ) : (
         <CaseColumns
           panelRef={panelRef}
           stepper={
-            <Card className="rounded-xl px-4 py-5 sm:px-5">
+            <Card className="px-[18px] py-5">
               <ProcessStepTimeline
                 columns={detail.columns}
                 steps={detail.steps}
@@ -216,7 +216,10 @@ function useCaseLine(detail: ProcessCaseDetail): string {
   return [detail.subject?.position, detail.departmentName, when].filter(Boolean).join(' · ')
 }
 
-/** The case at a glance: process, person, where they are, and how far along. Closing facts appear only once they are true. */
+/**
+ * The case at a glance: process, person, where they are, and how far along. Closing facts appear only once they are true,
+ * and the status only once it is not the normal one.
+ */
 function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
   const { t, num, date } = useLocale()
   const { done, total } = stepProgress(detail.steps)
@@ -225,7 +228,7 @@ function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
   const progressText = t('processes.case.progress', { done: num(done), total: num(total) })
 
   return (
-    <Card className="rounded-xl px-5 py-5 sm:px-6">
+    <Card className="p-5">
       <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-x-7">
         <div className="min-w-0">
           {name !== null && (
@@ -235,7 +238,7 @@ function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
             {name ?? detail.processTitle}
           </h1>
           {line !== '' && (
-            <p className="tabular mt-1 text-subhead break-words text-[var(--fg-secondary)]">{line}</p>
+            <p className="mt-1 text-subhead break-words text-[var(--fg-secondary)]">{line}</p>
           )}
         </div>
 
@@ -251,7 +254,7 @@ function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
 
         <div className="flex flex-wrap items-center gap-1.5 md:ml-auto md:self-start">
           {detail.legacy && <ProcessLegacyBadge />}
-          <ProcessStatusBadge status={detail.status} />
+          {detail.status !== 'Active' && <ProcessStatusBadge status={detail.status} />}
         </div>
       </div>
 
@@ -291,7 +294,7 @@ function CaseBlanks({ blanks }: { blanks: readonly ProcessLinkedBlank[] }) {
   if (blanks.length === 0) return null
 
   return (
-    <Card className="rounded-xl px-5 py-5 sm:px-6">
+    <Card className="p-5">
       <h2 className="text-body font-semibold">{t('processes.case.blanks')}</h2>
       <ul className="mt-3 space-y-1">
         {blanks.map((blank) => (
