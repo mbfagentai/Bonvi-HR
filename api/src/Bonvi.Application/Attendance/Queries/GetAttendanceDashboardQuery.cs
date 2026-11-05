@@ -46,15 +46,18 @@ public sealed class GetAttendanceDashboardQueryHandler
     private readonly IAttendanceReadModel _readModel;
     private readonly IAttendanceDeviceRepository _devices;
     private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
     public GetAttendanceDashboardQueryHandler(
         IAttendanceReadModel readModel,
         IAttendanceDeviceRepository devices,
-        IClock clock)
+        IClock clock,
+        IAttendanceScope scope)
     {
         _readModel = readModel;
         _devices = devices;
         _clock = clock;
+        _scope = scope;
     }
 
     public async Task<Result<AttendanceDashboardDto>> HandleAsync(
@@ -72,7 +75,12 @@ public sealed class GetAttendanceDashboardQueryHandler
 
         // Qurilmalar sog'lig'i filtrga BO'YSUNMAYDI (DTO izohi) va sana
         // tanlansa ham «hozir» bo'yicha: uzilish o'tgan kunga tegishli emas.
-        var devices = await _devices.ListAsync(includeInactive: false, cancellationToken).ConfigureAwait(false);
+        // Devices are not a scoped user's business: names and outages are the whole company's.
+        var deviceHealth = _scope.IsScoped
+            ? null
+            : AttendanceDeviceHealth.Of(
+                await _devices.ListAsync(includeInactive: false, cancellationToken).ConfigureAwait(false),
+                _clock.UtcNow);
 
         return new AttendanceDashboardDto(
             found.Date,
@@ -85,7 +93,7 @@ public sealed class GetAttendanceDashboardQueryHandler
             pageSize,
             found.TotalItems,
             AttendanceQueryParsing.PageCount(found.TotalItems, pageSize),
-            AttendanceDeviceHealth.Of(devices, _clock.UtcNow));
+            deviceHealth);
     }
 
     /// <summary>

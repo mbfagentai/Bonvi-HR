@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Bonvi.Domain.Attendance;
 
 namespace Bonvi.Application.Attendance.Dtos;
@@ -468,7 +469,8 @@ public sealed record AttendanceDashboardItemDto(
 /// <param name="DeviceHealth">
 /// Qurilmalar sog'lig'i — soat ogohlantirishi, «hech bir qurilma ulanmagan»
 /// holati va agent/terminal uzilishlari (SPEC §8.4, §8.7, SPEC-agent §L).
-/// Filtrlarga BO'YSUNMAYDI: qurilma butun korxonaniki.
+/// Filtrlarga BO'YSUNMAYDI: qurilma butun korxonaniki. Left out of the response for a scoped
+/// user: an empty summary would read as «no device connected» on their dashboard.
 /// </param>
 public sealed record AttendanceDashboardDto(
     DateOnly Date,
@@ -481,7 +483,8 @@ public sealed record AttendanceDashboardDto(
     int PageSize,
     int TotalItems,
     int PageCount,
-    AttendanceDeviceHealthDto DeviceHealth);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    AttendanceDeviceHealthDto? DeviceHealth);
 
 /// <summary>
 /// Qurilmalar sog'lig'i — Statistika sahifasining yuqorisidagi ogohlantirishlar uchun.

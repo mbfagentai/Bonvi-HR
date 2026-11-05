@@ -201,6 +201,39 @@ public sealed class AttendanceScopeReadTests : IClassFixture<BonviApiFactory>
         }
     }
 
+    // ── devices ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Device_health_never_reaches_a_scoped_user()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await SeedWorldAsync();
+        var deviceName = "Scope turnstile " + Guid.NewGuid().ToString("N")[..8];
+
+        await using (var serviceScope = _factory.Services.CreateAsyncScope())
+        {
+            var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var device = AttendanceDevice.Register(deviceName, RandomNumberGenerator.GetBytes(32), "tst00000", DateTimeOffset.UtcNow).Value;
+            device.NoteAgent(DateTimeOffset.UtcNow.AddHours(-1), null);
+            context.Add(device);
+            await context.SaveChangesAsync(ct);
+        }
+
+        var trendPath = $"/dashboard/trend?from={Iso(world.PastDay)}&to={Iso(world.PastDay)}";
+
+        using var viewer = await ClientAsync(Permissions.AttendanceView);
+        (await BodyAsync(viewer, "/dashboard")).ShouldContain(deviceName);
+        (await BodyAsync(viewer, trendPath)).ShouldContain(deviceName);
+
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+        (await BodyAsync(scoped, "/dashboard")).ShouldNotContain(deviceName);
+        (await BodyAsync(scoped, trendPath)).ShouldNotContain(deviceName);
+
+        // Left out rather than empty: the page reads zero connected devices as a warning banner.
+        (await JsonAsync(scoped, "/dashboard")).TryGetProperty("deviceHealth", out _).ShouldBeFalse();
+        (await JsonAsync(scoped, trendPath)).GetProperty("deviceHealth").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
     // ── no assignment: fail closed ────────────────────────────────
 
     [Fact]

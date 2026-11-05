@@ -46,15 +46,18 @@ public sealed class GetAttendanceTrendQueryHandler
     private readonly IAttendanceReadModel _readModel;
     private readonly IAttendanceDeviceRepository _devices;
     private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
     public GetAttendanceTrendQueryHandler(
         IAttendanceReadModel readModel,
         IAttendanceDeviceRepository devices,
-        IClock clock)
+        IClock clock,
+        IAttendanceScope scope)
     {
         _readModel = readModel;
         _devices = devices;
         _clock = clock;
+        _scope = scope;
     }
 
     public async Task<Result<AttendanceTrendDto>> HandleAsync(
@@ -81,6 +84,12 @@ public sealed class GetAttendanceTrendQueryHandler
                 new DashboardTrendFilter(from, to, query.LegalEntityId, query.DepartmentId, query.PositionId),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        // Devices are not a scoped user's business: names and outages are the whole company's.
+        if (_scope.IsScoped)
+        {
+            return trend;
+        }
 
         // Davr rejimida ham qurilma ogohlantirishlari ko'rinsin — Statistika
         // sahifasi shu rejimda `/dashboard` ni so'ramaydi.
