@@ -559,7 +559,11 @@ public sealed partial class ProcessWriteApiTests
         row.NewValues!.ShouldContain(step.EvidenceSha256!);
 
         (await AuditRowsAsync(nameof(ProcessCaseStep), stored.FindStep("r01-5")!.Id)).ShouldBeEmpty("a fact-driven step is not audited");
-        (await AuditRowsAsync(nameof(ProcessCase), processCase.Id)).ShouldBeEmpty("a step write is the step's entry, not the case's");
+
+        // The pass that opened the case wrote the one row it has. A step write is the step's entry, not the case's.
+        var opened = (await AuditRowsAsync(nameof(ProcessCase), processCase.Id)).ShouldHaveSingleItem();
+        opened.Action.ShouldBe(AuditAction.Create);
+        opened.ActorKind.ShouldBe(AuditActorKind.System);
     }
 
     [Fact]
@@ -596,8 +600,12 @@ public sealed partial class ProcessWriteApiTests
         var cancelled = await PostAsync(client, $"{Root}/cases/{processCase.Id}/cancel", new { version = Version(await DetailAsync(client, processCase.Id)), reason = "Bekor sababi" });
         cancelled.Status.ShouldBe(HttpStatusCode.OK, cancelled.Raw);
 
-        var row = (await AuditRowsAsync(nameof(ProcessCase), processCase.Id)).ShouldHaveSingleItem();
-        row.Action.ShouldBe(AuditAction.Update);
+        // Two rows: the pass that opened the case, and the cancel.
+        var rows = await AuditRowsAsync(nameof(ProcessCase), processCase.Id);
+        rows.Count.ShouldBe(2);
+        rows.Single(row => row.Action == AuditAction.Create).ActorKind.ShouldBe(AuditActorKind.System);
+        var row = rows.Single(row => row.Action == AuditAction.Update);
+        row.ActorKind.ShouldBe(AuditActorKind.User);
         row.UserId.ShouldBe(manager.UserId);
         row.NewValues.ShouldNotBeNull().ShouldContain("Bekor sababi");
     }
