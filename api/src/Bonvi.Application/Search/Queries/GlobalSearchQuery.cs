@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Search.Dtos;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -37,10 +38,11 @@ public sealed record GlobalSearchQuery(string? Q);
 /// </para>
 /// <para>
 /// <b>One exception: one person comes up in one place</b> (owner's request, 2026-11-05). A
-/// candidate of any status who already is an employee is left out of the candidate group,
-/// because the employee group shows that person. It applies only to a caller who can see
-/// employees: for anyone else the employee group is <c>null</c>, and hiding the candidate would
-/// leave them no row at all.
+/// candidate who already is an employee is left out of the candidate group, because the employee
+/// group shows that person. The test is stricter for live applicants and blacklist hits, which
+/// HR must not miss (<c>CandidateSearchQuery.WhoAreEmployees</c>). It applies only to a caller
+/// who can see employees: for anyone else the employee group is <c>null</c>, and hiding the
+/// candidate would leave them no row at all.
 /// </para>
 /// <para>
 /// <b>Ruxsat guruh bo'yicha.</b> Endpoint <c>employees.view</c> YOKI
@@ -72,15 +74,18 @@ public sealed class GlobalSearchQueryHandler
     private readonly IEmployeeReadModel _employees;
     private readonly IRecruitingReadModel _recruiting;
     private readonly ICurrentUser _currentUser;
+    private readonly IClock _clock;
 
     public GlobalSearchQueryHandler(
         IEmployeeReadModel employees,
         IRecruitingReadModel recruiting,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        IClock clock)
     {
         _employees = employees;
         _recruiting = recruiting;
         _currentUser = currentUser;
+        _clock = clock;
     }
 
     public async Task<Result<GlobalSearchDto>> HandleAsync(
@@ -168,7 +173,7 @@ public sealed class GlobalSearchQueryHandler
                     PageSize: CandidateLimit,
                     IncludeArchive: true,
                     AllStatuses: true,
-                    HideIfEmployee: canSeeEmployees),
+                    HideIfEmployeeOn: canSeeEmployees ? _clock.Today : null),
                 cancellationToken)
             .ConfigureAwait(false);
 

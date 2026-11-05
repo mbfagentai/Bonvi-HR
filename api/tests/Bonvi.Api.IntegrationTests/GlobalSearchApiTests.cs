@@ -52,7 +52,15 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
     /// <summary>Digits of the phone shared by a hired candidate and an employee.</summary>
     private const string YakkaTelefon = "901110022";
 
-    private const int YakkaXodimlarSoni = 15;
+    private const int YakkaXodimlarSoni = 14;
+
+    /// <summary>Surname of the former-employee and blacklist seed, with its own count.</summary>
+    private const string SobiqFamiliya = "Собиқов";
+
+    private const int SobiqXodimlarSoni = 8;
+
+    private static readonly string[] SobiqKorinadiganNomzodlar =
+        ["Собиқтел", "Собиқсана", "Муносабатсиз", "Ўчганиш", "Қораисм", "Бўшрад"];
 
     private static readonly string[] YakkaKorinadiganNomzodlar =
         ["Ёлғиз", "Эгизак", "Санасиз", "Ўчирилган", "Ўчганбоғ", "Бўштелефон"];
@@ -177,7 +185,6 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
     [InlineData("Радисм", "rejected, same name")]
     [InlineData("Возисм", "withdrawn, same name")]
     [InlineData("Резервисм", "reserve, same name")]
-    [InlineData("Қораисм", "blacklisted, same name")]
     [InlineData("Жараёнтел", "in progress, same phone")]
     [InlineData("Жараёнсана", "in progress, same name and birth date")]
     [InlineData("Жараёнбоғ", "in progress, linked by the hire event")]
@@ -224,6 +231,58 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
         natija.Candidates.ShouldNotBeNull();
         natija.Candidates.Total.ShouldBe(1, sabab);
         natija.Candidates.Items.Single().Status.ShouldBe(holat, sabab);
+    }
+
+    [Fact]
+    public async Task Sanoq_qatorlarga_teng_ikkinchi_guruhda_ham()
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, SobiqFamiliya);
+
+        natija.Candidates!.Total.ShouldBe(SobiqKorinadiganNomzodlar.Length);
+        natija.Candidates.Items.Count.ShouldBe(natija.Candidates.Total);
+        natija.Candidates.Items
+            .Select(x => x.FullName.Split(' ')[1])
+            .ShouldBe(SobiqKorinadiganNomzodlar, ignoreOrder: true);
+
+        natija.Employees!.Total.ShouldBe(SobiqXodimlarSoni);
+    }
+
+    [Theory]
+    [InlineData("Собиқтел", "InProgress", "in progress, same phone as a former employee")]
+    [InlineData("Собиқсана", "InProgress", "in progress, same name and birth date as a former employee")]
+    [InlineData("Муносабатсиз", "InProgress", "in progress, same phone as an employee with no employment")]
+    [InlineData("Ўчганиш", "InProgress", "in progress, same phone as an employee whose only employment is deleted")]
+    [InlineData("Қораисм", "Blacklisted", "blacklisted, same phone and name as a current employee")]
+    [InlineData("Бўшрад", "Rejected", "closed status, an empty phone must not match an empty phone")]
+    public async Task Tirik_ariza_va_qora_royxat_yashirilmaydi(string ism, string holat, string sabab)
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, $"{SobiqFamiliya} {ism}");
+
+        natija.Candidates.ShouldNotBeNull();
+        natija.Candidates.Total.ShouldBe(1, sabab);
+        natija.Candidates.Items.Single().Status.ShouldBe(holat, sabab);
+    }
+
+    [Theory]
+    [InlineData("Собиқрад", "rejected, same phone as a former employee")]
+    [InlineData("Жўнаётган", "in progress, the employee leaves on a future date, still current")]
+    [InlineData("Қораборғ", "blacklisted, linked by the hire event")]
+    public async Task Yopiq_holat_va_boglangan_qora_royxat_yashiriladi(string ism, string sabab)
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, $"{SobiqFamiliya} {ism}");
+
+        natija.Candidates.ShouldNotBeNull();
+        natija.Candidates.Total.ShouldBe(0, sabab);
+        natija.Candidates.Items.ShouldBeEmpty(sabab);
     }
 
     [Fact]
@@ -515,6 +574,10 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
         ochirilgan.DeletedAt = DateTimeOffset.UtcNow;
         ochirilganBoglangan.DeletedAt = DateTimeOffset.UtcNow;
         var boshXodim = YakkaXodim("Бўшходим");
+        var egizakXodim = YakkaXodim("Эгизак", egizakXodimTelefon, new DateOnly(1990, 1, 1));
+        var sanasizXodim = YakkaXodim("Санасиз");
+        var jarayonXodim = YakkaXodim("Жараёнходим", jarayonTelefon);
+        var jarayonSanaXodim = YakkaXodim("Жараёнсана", tugilgan: tugilgan);
         var formatXodim = YakkaXodim("Форматходим", formatTelefon);
 
         var xodimlar = new[]
@@ -523,17 +586,16 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
             jarayonBoglangan,
             boshXodim,
             formatXodim,
+            egizakXodim,
+            sanasizXodim,
+            jarayonXodim,
+            jarayonSanaXodim,
             YakkaXodim("Телефонходим", telefon),
             YakkaXodim("Исмдош"),
             YakkaXodim("Радходим", radTelefon),
             YakkaXodim("Радисм"),
             YakkaXodim("Возисм"),
             YakkaXodim("Резервисм"),
-            YakkaXodim("Қораисм"),
-            YakkaXodim("Эгизак", egizakXodimTelefon, new DateOnly(1990, 1, 1)),
-            YakkaXodim("Санасиз"),
-            YakkaXodim("Жараёнходим", jarayonTelefon),
-            YakkaXodim("Жараёнсана", tugilgan: tugilgan),
         };
         xodimlar.Length.ShouldBe(YakkaXodimlarSoni);
 
@@ -564,9 +626,6 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
         var rezervIsm = YakkaNomzod("Резервисм", vakansiya.Id);
         rezervIsm.MoveToReserve(sana).IsSuccess.ShouldBeTrue();
 
-        var qoraIsm = YakkaNomzod("Қораисм", vakansiya.Id);
-        qoraIsm.Blacklist(sana, "Тест").IsSuccess.ShouldBeTrue();
-
         var egizak = YakkaNomzod("Эгизак", vakansiya.Id, egizakNomzodTelefon, new DateOnly(1995, 5, 5));
         var sanasiz = YakkaNomzod("Санасиз", vakansiya.Id);
         var jarayonTel = YakkaNomzod("Жараёнтел", vakansiya.Id, jarayonTelefon);
@@ -581,6 +640,58 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
 
         var boshNomzod = YakkaNomzod("Бўштелефон", vakansiya.Id);
 
+        // Second group: who counts as a CURRENT employee, and the blacklist.
+        var sobiqTelefon = PhoneNumber.Create("+998901110031").Value;
+        var sobiqRadTelefon = PhoneNumber.Create("+998901110032").Value;
+        var munosabatsizTelefon = PhoneNumber.Create("+998901110033").Value;
+        var ketayotganTelefon = PhoneNumber.Create("+998901110034").Value;
+        var qoraTelefon = PhoneNumber.Create("+998901110035").Value;
+        var ochganIshTelefon = PhoneNumber.Create("+998901110036").Value;
+        var sobiqTugilgan = new DateOnly(1985, 3, 3);
+
+        var sobiqXodim = SobiqXodim("Собиқходим", sobiqTelefon);
+        var sobiqSanaXodim = SobiqXodim("Собиқсана", tugilgan: sobiqTugilgan);
+        var sobiqRadXodim = SobiqXodim("Собиқрадходим", sobiqRadTelefon);
+        var munosabatsizXodim = SobiqXodim("Ходимсиз", munosabatsizTelefon);
+        var ketayotgan = SobiqXodim("Кетаётган", ketayotganTelefon);
+        var qoraXodim = SobiqXodim("Қораисм", qoraTelefon);
+        var qoraBogXodim = SobiqXodim("Қораходим");
+        var ochganIshXodim = SobiqXodim("Ўчганмеҳнат", ochganIshTelefon);
+
+        var sobiqTel = SobiqNomzod("Собиқтел", vakansiya.Id, sobiqTelefon);
+        var sobiqSana = SobiqNomzod("Собиқсана", vakansiya.Id, tugilgan: sobiqTugilgan);
+        var munosabatsizNomzod = SobiqNomzod("Муносабатсиз", vakansiya.Id, munosabatsizTelefon);
+        var ochganIsh = SobiqNomzod("Ўчганиш", vakansiya.Id, ochganIshTelefon);
+        var jonayotgan = SobiqNomzod("Жўнаётган", vakansiya.Id, ketayotganTelefon);
+
+        var sobiqRad = SobiqNomzod("Собиқрад", vakansiya.Id, sobiqRadTelefon);
+        sobiqRad.Reject(sana).IsSuccess.ShouldBeTrue();
+
+        var boshRad = SobiqNomzod("Бўшрад", vakansiya.Id);
+        boshRad.Reject(sana).IsSuccess.ShouldBeTrue();
+
+        var qoraNomzod = SobiqNomzod("Қораисм", vakansiya.Id, qoraTelefon);
+        qoraNomzod.Blacklist(sana, "Тест").IsSuccess.ShouldBeTrue();
+
+        var qoraBog = SobiqNomzod("Қораборғ", vakansiya.Id);
+        qoraBog.Blacklist(sana, "Тест").IsSuccess.ShouldBeTrue();
+
+        Employment Ishlaydi(Employee xodim)
+            => Employment.Hire(xodim.Id, firma.Id, new DateOnly(2026, 1, 10)).Value;
+
+        Employment Ketgan(Employee xodim)
+        {
+            var munosabat = Employment.Hire(xodim.Id, firma.Id, new DateOnly(2020, 1, 10)).Value;
+            munosabat.CompleteProbation(new DateOnly(2020, 4, 10)).IsSuccess.ShouldBeTrue();
+            munosabat.Terminate(new DateOnly(2023, 6, 1), null).IsSuccess.ShouldBeTrue();
+
+            return munosabat;
+        }
+
+        var ketayotganIsh = Ishlaydi(ketayotgan);
+        var ochganMunosabat = Ishlaydi(ochganIshXodim);
+        ochganMunosabat.DeletedAt = DateTimeOffset.UtcNow;
+
         Employment Qabul(Employee xodim, Candidate nomzod)
             => Employment.Hire(xodim.Id, firma.Id, new DateOnly(2026, 10, 2), candidateId: nomzod.Id).Value;
 
@@ -590,12 +701,32 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
         kontekst.AddRange(ochirilgan, ochirilganBoglangan);
         kontekst.AddRange(
             boglanganNomzod, telefonli, lotincha, yolgiz, radTel, formatNomzod, radIsm, vozIsm, rezervIsm,
-            qoraIsm, egizak, sanasiz, jarayonTel, jarayonSana, jarayonBog, ochirilganNomzod,
+            egizak, sanasiz, jarayonTel, jarayonSana, jarayonBog, ochirilganNomzod,
             ochirilganBog, boshNomzod);
         kontekst.AddRange(
             Qabul(boglangan, boglanganNomzod),
             Qabul(jarayonBoglangan, jarayonBog),
             Qabul(ochirilganBoglangan, ochirilganBog));
+        kontekst.AddRange(
+            Ishlaydi(boshXodim),
+            Ishlaydi(egizakXodim),
+            Ishlaydi(sanasizXodim),
+            Ishlaydi(jarayonXodim),
+            Ishlaydi(jarayonSanaXodim));
+        kontekst.AddRange(
+            sobiqXodim, sobiqSanaXodim, sobiqRadXodim, munosabatsizXodim, ketayotgan, qoraXodim,
+            qoraBogXodim, ochganIshXodim);
+        kontekst.AddRange(
+            sobiqTel, sobiqSana, munosabatsizNomzod, ochganIsh, jonayotgan, sobiqRad, boshRad,
+            qoraNomzod, qoraBog);
+        kontekst.AddRange(
+            Ketgan(sobiqXodim),
+            Ketgan(sobiqSanaXodim),
+            Ketgan(sobiqRadXodim),
+            ketayotganIsh,
+            ochganMunosabat,
+            Ishlaydi(qoraXodim),
+            Qabul(qoraBogXodim, qoraBog));
 
         await kontekst.SaveChangesAsync(bekorQilish);
 
@@ -607,17 +738,40 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
             $"UPDATE candidates SET phone = '' WHERE id = {boshNomzod.Id}",
             bekorQilish);
         await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET phone = '' WHERE id = {boshRad.Id}",
+            bekorQilish);
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE employments SET termination_date = {new DateOnly(2099, 1, 1)} WHERE id = {ketayotganIsh.Id}",
+            bekorQilish);
+        await kontekst.Database.ExecuteSqlAsync(
             $"UPDATE employees SET phone = '+998 90 111 00 24' WHERE id = {formatXodim.Id}",
             bekorQilish);
     }
 
     private static Employee YakkaXodim(string ism, PhoneNumber? telefon = null, DateOnly? tugilgan = null)
+        => FamiliyaliXodim(YakkaFamiliya, ism, telefon, tugilgan);
+
+    private static Employee SobiqXodim(string ism, PhoneNumber? telefon = null, DateOnly? tugilgan = null)
+        => FamiliyaliXodim(SobiqFamiliya, ism, telefon, tugilgan);
+
+    private static Employee FamiliyaliXodim(string familiya, string ism, PhoneNumber? telefon, DateOnly? tugilgan)
     {
-        var xodim = Employee.Create(FullName.Create(YakkaFamiliya, ism, null).Value, tugilgan).Value;
+        var xodim = Employee.Create(FullName.Create(familiya, ism, null).Value, tugilgan).Value;
         xodim.SetPhones(telefon);
 
         return xodim;
     }
+
+    private static Candidate SobiqNomzod(
+        string ism,
+        Guid vakansiyaId,
+        PhoneNumber? telefon = null,
+        DateOnly? tugilgan = null)
+        => Candidate.Register(
+            FullName.Create(SobiqFamiliya, ism, null).Value,
+            vakansiyaId,
+            birthDate: tugilgan,
+            phone: telefon).Value;
 
     private static Candidate YakkaNomzod(
         string ism,

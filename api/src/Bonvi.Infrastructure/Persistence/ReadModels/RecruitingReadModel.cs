@@ -236,9 +236,9 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
 
         // Global search: a candidate who already is an employee is shown once, under employees.
         // Applied before the count, so `total` always matches the rows.
-        if (filter.HideIfEmployee)
+        if (filter.HideIfEmployeeOn is { } employeeOn)
         {
-            var alreadyEmployees = CandidateSearchQuery.WhoAreEmployees(_context);
+            var alreadyEmployees = CandidateSearchQuery.WhoAreEmployees(_context, employeeOn);
 
             // Narrowed to the search matches so the test runs on those rows, not on the whole
             // table: measured on 5,279 candidates, «каримов» takes about 5 ms instead of 220 ms.

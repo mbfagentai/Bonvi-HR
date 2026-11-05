@@ -565,24 +565,28 @@ internal static class CandidateSearchQuery
     }
 
     /// <summary>
-    /// Candidates who already are an employee: the same person, recorded twice.
+    /// Candidates who already are an employee on <paramref name="today"/>: the same person,
+    /// recorded twice.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Any one of these makes a candidate an employee, always against a non-deleted employee:
+    /// A hire event linking the candidate to a non-deleted employee is enough for every status.
+    /// Without a link, the test depends on the status:
     /// </para>
     /// <list type="bullet">
-    /// <item>a hire event links them (<c>employment_events.candidate_id</c>);</item>
-    /// <item>the same phone;</item>
-    /// <item>any status but InProgress: the same <c>search_key</c>;</item>
-    /// <item>InProgress: the same <c>search_key</c> AND the same birth date.</item>
+    /// <item>Blacklisted: never hidden. HR must always see a blacklist hit, and a name twin must
+    /// not be able to hide one.</item>
+    /// <item>InProgress: the same phone, or the same <c>search_key</c> AND birth date, against a
+    /// CURRENT employee only: a live employment whose <c>termination_date</c> is empty or still
+    /// ahead. A former employee who applies again is a live applicant HR must find, and a name
+    /// twin must not hide one. A missing birth date therefore never matches.</item>
+    /// <item>Every other status: the same phone or the same <c>search_key</c>, against any
+    /// non-deleted employee, former ones included.</item>
     /// </list>
     /// <para>
     /// The link alone is not enough: most candidates who became employees came from imports and
-    /// have no event. InProgress is stricter because a name twin must not hide a real applicant
-    /// HR is working on right now; a missing birth date therefore never matches. A candidate
-    /// whose only match is a soft-deleted employee is NOT returned, because hiding them would
-    /// leave nobody to find.
+    /// have no event. A candidate whose only match is a soft-deleted employee is NOT returned,
+    /// because hiding them would leave nobody to find.
     /// </para>
     /// <para>
     /// Phones are compared as digits, like <see cref="WithPhone"/>, and a candidate whose phone
@@ -598,12 +602,13 @@ internal static class CandidateSearchQuery
     /// once instead of scanning employees for every candidate.
     /// </para>
     /// </remarks>
-    public static IQueryable<Guid> WhoAreEmployees(AppDbContext context)
+    public static IQueryable<Guid> WhoAreEmployees(AppDbContext context, DateOnly today)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         // The column is an integer: see `status` in the model snapshot.
         var inProgress = (int)CandidateStatus.InProgress;
+        var blacklisted = (int)CandidateStatus.Blacklisted;
 
         return context.Candidates
             .FromSql(
@@ -618,27 +623,42 @@ internal static class CandidateSearchQuery
                            WHERE ev.candidate_id = x.id
                              AND e.deleted_at IS NULL)
                     OR (
-                           regexp_replace(x.phone, '\D', '', 'g') <> ''
-                           AND EXISTS (
-                               SELECT 1
-                               FROM employees AS e
-                               WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
-                                 AND e.deleted_at IS NULL))
-                    OR (
-                           x.status <> {inProgress}
-                           AND EXISTS (
-                               SELECT 1
-                               FROM employees AS e
-                               WHERE e.search_key = x.search_key
-                                 AND e.deleted_at IS NULL))
+                           x.status NOT IN ({inProgress}, {blacklisted})
+                           AND (
+                               (
+                                   regexp_replace(x.phone, '\D', '', 'g') <> ''
+                                   AND EXISTS (
+                                       SELECT 1
+                                       FROM employees AS e
+                                       WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
+                                         AND e.deleted_at IS NULL))
+                               OR EXISTS (
+                                   SELECT 1
+                                   FROM employees AS e
+                                   WHERE e.search_key = x.search_key
+                                     AND e.deleted_at IS NULL)))
                     OR (
                            x.status = {inProgress}
-                           AND EXISTS (
-                               SELECT 1
-                               FROM employees AS e
-                               WHERE e.search_key = x.search_key
-                                 AND e.birth_date = x.birth_date
-                                 AND e.deleted_at IS NULL))
+                           AND (
+                               (
+                                   regexp_replace(x.phone, '\D', '', 'g') <> ''
+                                   AND EXISTS (
+                                       SELECT 1
+                                       FROM employees AS e
+                                       JOIN employments AS em ON em.employee_id = e.id
+                                       WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
+                                         AND e.deleted_at IS NULL
+                                         AND em.deleted_at IS NULL
+                                         AND (em.termination_date IS NULL OR em.termination_date > {today})))
+                               OR EXISTS (
+                                   SELECT 1
+                                   FROM employees AS e
+                                   JOIN employments AS em ON em.employee_id = e.id
+                                   WHERE e.search_key = x.search_key
+                                     AND e.birth_date = x.birth_date
+                                     AND e.deleted_at IS NULL
+                                     AND em.deleted_at IS NULL
+                                     AND (em.termination_date IS NULL OR em.termination_date > {today}))))
                  """)
             .Select(candidate => candidate.Id);
     }
