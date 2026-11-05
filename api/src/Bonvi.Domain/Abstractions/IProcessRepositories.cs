@@ -48,6 +48,9 @@ public interface IProcessCaseRepository : IRepository<ProcessCase>
 
     /// <summary>The children of the given cases, any status, with steps.</summary>
     Task<IReadOnlyList<ProcessCase>> ListByParentIdsAsync(IReadOnlyCollection<Guid> parentIds, CancellationToken cancellationToken = default);
+
+    /// <summary>The cases of the given employments, any process and status, with steps: who already holds a hire.</summary>
+    Task<IReadOnlyList<ProcessCase>> ListByEmploymentIdsAsync(IReadOnlyCollection<Guid> employmentIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Storage port for gate overrides (§6.4).</summary>

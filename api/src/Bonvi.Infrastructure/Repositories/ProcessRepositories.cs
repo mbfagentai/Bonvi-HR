@@ -122,6 +122,23 @@ public sealed class ProcessCaseRepository : Repository<ProcessCase>, IProcessCas
                 .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessCase>> ListByEmploymentIdsAsync(
+        IReadOnlyCollection<Guid> employmentIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(employmentIds);
+
+        return employmentIds.Count == 0
+            ? []
+            : await WithSteps()
+                .Where(processCase => processCase.EmploymentId != null && employmentIds.Contains(processCase.EmploymentId.Value))
+                .OrderBy(processCase => processCase.CreatedAt)
+                .ThenBy(processCase => processCase.Id)
+                .AsSplitQuery()
+                .ToListAsync(cancellationToken);
+    }
+
     private IQueryable<ProcessCase> WithSteps()
         => Set.Include(processCase => processCase.Steps.OrderBy(step => step.OrderNo).ThenBy(step => step.StepCode));
 }
