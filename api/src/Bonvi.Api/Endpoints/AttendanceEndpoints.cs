@@ -1389,13 +1389,14 @@ public static class AttendanceEndpoints
 
                 return natija.ToHttpResult();
             })
-            .RequireAuthorization(Permissions.AttendanceView)
+            .RequireAuthorization(Permissions.AttendanceView, AuthenticationExtensions.AttendanceStaffLookupPolicy)
             .WithName("LookupAttendanceEmployees")
             .WithSummary("Davomat — xodim tanlash")
             .WithDescription(
                 "Bugun ishlayotgan xodimlar, ism bo'yicha alifbo tartibida. «search» faqat ismga qaraydi: JSHSHIR, " +
                 "pasport va telefon bo'yicha qidirilmaydi. «Davomat mas'uli» faqat o'z bo'limlarini ko'radi. " +
-                "«limit» sukut 20, eng ko'pi 50 — chegaradan tashqaridagi qiymat rad etilmaydi, QISILADI.")
+                "«limit» sukut 20, eng ko'pi 50 — chegaradan tashqaridagi qiymat rad etilmaydi, QISILADI. " +
+                "«attendance.view» bilan birga «Davomat mas'uli» yoki «employees.view» kerak.")
             .Produces<IReadOnlyList<AttendanceEmployeeLookupItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
@@ -1418,13 +1419,13 @@ public static class AttendanceEndpoints
                     ? natija.ToHttpResult()
                     : PhotoHttp.WriteRevalidated(context, natija.Value);
             })
-            .RequireAuthorization(Permissions.AttendanceView)
+            .RequireAuthorization(Permissions.AttendanceView, AuthenticationExtensions.AttendanceStaffLookupPolicy)
             .WithName("GetAttendanceEmployeePhoto")
             .WithSummary("Davomat — xodim rasmi")
             .WithDescription(
                 "Rasm baytlari (image/jpeg), «ETag» + «If-None-Match» → 304, kesh shaxsiy va har safar tekshiriladi " +
                 "(private, no-cache). Xodim yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «xodim.topilmadi», rasm yo'q — " +
-                "«xodim.rasm_yoq» (ikkalasi 404).")
+                "«xodim.rasm_yoq» (ikkalasi 404). «attendance.view» bilan birga «Davomat mas'uli» yoki «employees.view» kerak.")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)
             .ProducesProblem(StatusCodes.Status403Forbidden)

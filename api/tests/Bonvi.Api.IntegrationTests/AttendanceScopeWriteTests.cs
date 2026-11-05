@@ -348,6 +348,43 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         unauthorized.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task Employee_routes_are_closed_to_attendance_view_without_staff_access()
+    {
+        var world = await SeedWorldAsync();
+
+        using var viewerOnly = await ClientAsync(Permissions.AttendanceView);
+
+        using (var lookup = await viewerOnly.GetAsync(Path("/employees/lookup"), Ct))
+        {
+            await ExpectErrorAsync(lookup, HttpStatusCode.Forbidden, "auth.ruxsat_yoq");
+        }
+
+        using (var photo = await viewerOnly.GetAsync(Path($"/employees/{world.InA1}/photo"), Ct))
+        {
+            await ExpectErrorAsync(photo, HttpStatusCode.Forbidden, "auth.ruxsat_yoq");
+        }
+
+        using var staffReader = await ClientAsync(Permissions.AttendanceView, Permissions.EmployeesView);
+
+        using (var lookup = await staffReader.GetAsync(Path("/employees/lookup"), Ct))
+        {
+            lookup.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(lookup));
+        }
+
+        using (var photo = await staffReader.GetAsync(Path($"/employees/{world.InA1}/photo"), Ct))
+        {
+            await ExpectErrorAsync(photo, HttpStatusCode.NotFound, "xodim.rasm_yoq");
+        }
+
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+
+        using (var lookup = await scoped.GetAsync(Path("/employees/lookup"), Ct))
+        {
+            lookup.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(lookup));
+        }
+    }
+
     // ── own record ────────────────────────────────────────────────
 
     [Fact]

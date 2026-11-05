@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bonvi.Api.Common;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
@@ -484,6 +485,17 @@ public static partial class AuthenticationExtensions
     /// </remarks>
     public const string GlobalSearchPolicy = "global-search";
 
+    /// <summary>
+    /// The staff list and photos behind <c>attendance.view</c>: a scoped user, whose handlers
+    /// narrow them to the assigned departments, or anyone who may read staff anyway.
+    /// </summary>
+    /// <remarks>
+    /// <c>attendance.view</c> alone must not be enough: a custom role without
+    /// <c>employees.view</c> would gain the staff list and photos it is denied elsewhere.
+    /// Added next to the permission policy, not in place of it.
+    /// </remarks>
+    public const string AttendanceStaffLookupPolicy = "attendance-staff-lookup";
+
     public static IServiceCollection AddBonviAuthorization(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
@@ -545,6 +557,14 @@ public static partial class AuthenticationExtensions
             .AddPolicy(GlobalSearchPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(CurrentUser.PermissionClaimType, Permissions.EmployeesView, Permissions.RecruitingView));
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AttendanceStaffLookupPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context =>
+                    context.User.HasClaim(CurrentUser.PermissionClaimType, Permissions.EmployeesView)
+                    || (context.Resource is HttpContext http
+                        && http.RequestServices.GetRequiredService<ICurrentUser>().IsAttendanceScoped())));
 
         /*
           ⭐ XODIM SIYOSATI — ruxsat kodi YO'Q, AUDITORIYA bor.
