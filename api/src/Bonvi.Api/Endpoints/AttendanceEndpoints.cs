@@ -1345,7 +1345,7 @@ public static class AttendanceEndpoints
                 "hisoblanadi. Xatolar: «davomat.belgi_kelajakda», «davomat.belgi_juda_eski» (92 kun), " +
                 "«davomat.belgi_ishlamagan», «davomat.belgi_izoh_bosh», «davomat.belgi_izoh_uzun», " +
                 "«davomat.yonalish_notogri» (400); «davomat.xodim_topilmadi» (404, «Davomat mas'uli» bo'limlaridan tashqarida ham); " +
-                "«davomat.belgi_takror» (409).")
+                "«auth.ruxsat_yoq» (403, «Davomat mas'uli» o'ziga belgi qo'ya olmaydi); «davomat.belgi_takror» (409).")
             .Produces<AttendancePassDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -1368,7 +1368,8 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — HR qo'shgan belgini o'chirish")
             .WithDescription(
                 "Faqat HR qo'lda qo'shgan belgi; terminal yoki telefon belgisi — «davomat.belgi_qolda_emas» (400). " +
-                "Yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «davomat.otish_topilmadi» (404). Kunlar (±1) qayta hisoblanadi.")
+                "Yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «davomat.otish_topilmadi» (404). " +
+                "«Davomat mas'uli» o'z belgisini o'chira olmaydi — «auth.ruxsat_yoq» (403). Kunlar (±1) qayta hisoblanadi.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)

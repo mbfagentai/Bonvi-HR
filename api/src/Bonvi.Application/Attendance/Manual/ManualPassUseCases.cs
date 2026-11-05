@@ -33,6 +33,14 @@ public static class ManualPassErrors
 
     public static readonly Error Duplicate =
         Error.Conflict("davomat.belgi_takror", "Shu daqiqada shu yo'nalishdagi belgi allaqachon bor.");
+
+    /// <summary>A «Davomat mas'uli» cannot correct their own attendance.</summary>
+    /// <remarks>
+    /// The general <c>auth.ruxsat_yoq</c> (the <c>CatalogErrors.HeadPermissionRequired</c>
+    /// precedent): the check depends on whose pass it is, which a policy cannot see.
+    /// </remarks>
+    public static readonly Error OwnRecord =
+        Error.Forbidden("auth.ruxsat_yoq", "O'z davomatingizga belgi qo'shib yoki o'chirib bo'lmaydi.");
 }
 
 /// <summary>HR qo'lda belgi qo'shadi.</summary>
@@ -113,6 +121,11 @@ public sealed class AddManualPassCommandHandler
             || !await _scope.CanAccessEmployeeAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.EmployeeNotFound;
+        }
+
+        if (await _scope.IsOwnRecordAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return ManualPassErrors.OwnRecord;
         }
 
         var now = _clock.UtcNow;
@@ -229,6 +242,11 @@ public sealed class DeleteManualPassCommandHandler
         if (!pass.IsHrManual || pass.ResolvedEmployeeId is not { } employeeId)
         {
             return ManualPassErrors.NotManual;
+        }
+
+        if (await _scope.IsOwnRecordAsync(employeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return ManualPassErrors.OwnRecord;
         }
 
         if (await _manual.GetByIdAsync(pass.Id, cancellationToken).ConfigureAwait(false) is { } evidence)

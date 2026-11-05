@@ -39,6 +39,15 @@ public interface IAttendanceScope
 
     /// <summary>Whether this employee may be shown; always <c>true</c> when unrestricted.</summary>
     Task<bool> CanAccessEmployeeAsync(Guid employeeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether this employee is the restricted user themselves (<see cref="User.EmployeeId"/>).
+    /// </summary>
+    /// <remarks>
+    /// Always <c>false</c> when unrestricted, and for an account linked to no employee: with no
+    /// link there is nothing to compare, so this rule cannot apply to that account.
+    /// </remarks>
+    Task<bool> IsOwnRecordAsync(Guid employeeId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>The one definition of «scoped», shared by the guard and <see cref="IAttendanceScope"/>.</summary>

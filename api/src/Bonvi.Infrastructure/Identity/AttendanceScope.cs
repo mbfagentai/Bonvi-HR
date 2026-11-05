@@ -46,6 +46,23 @@ public sealed class AttendanceScope : IAttendanceScope
         return employees is null || employees.Contains(employeeId);
     }
 
+    public async Task<bool> IsOwnRecordAsync(Guid employeeId, CancellationToken cancellationToken = default)
+    {
+        if (!IsScoped || _user.UserId is not { } userId)
+        {
+            return false;
+        }
+
+        var ownEmployeeId = await _context.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.EmployeeId)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return ownEmployeeId == employeeId;
+    }
+
     private async Task<HashSet<Guid>> LoadAllowedDepartmentsAsync(CancellationToken cancellationToken)
     {
         if (_allowedDepartments is not null)

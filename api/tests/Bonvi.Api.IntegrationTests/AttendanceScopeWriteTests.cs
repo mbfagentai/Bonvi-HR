@@ -305,18 +305,83 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         unauthorized.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    // ── own record ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Scoped_user_cannot_add_or_delete_passes_on_their_own_employee_record()
+    {
+        var world = await SeedWorldAsync();
+        var account = await TestAccounts.CreateAsync(_factory, ScopedPermissions);
+        await AssignAsync(account.UserId, world.DepartmentA);
+        await LinkToEmployeeAsync(account.UserId, world.InA1);
+
+        using var scoped = Client(account.AccessToken);
+        using var hr = await ClientAsync(HrManagerPermissions);
+
+        using (var added = await AddPassAsync(scoped, world.InA1))
+        {
+            await ExpectErrorAsync(added, HttpStatusCode.Forbidden, "auth.ruxsat_yoq");
+        }
+
+        (await CountRowsAsync(world.InA1)).Passes.ShouldBe(0);
+
+        // Colleagues in the same branch are the point of the role.
+        using (var colleague = await AddPassAsync(scoped, world.InA))
+        {
+            colleague.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(colleague));
+        }
+
+        // A pass HR put on their record is theirs to live with, too.
+        using var byHr = await AddPassAsync(hr, world.InA1);
+        byHr.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(byHr));
+        var passId = (await JsonAsync(byHr)).GetProperty("id").GetGuid();
+
+        using (var deleted = await scoped.DeleteAsync(Path($"/manual-passes/{passId}"), Ct))
+        {
+            await ExpectErrorAsync(deleted, HttpStatusCode.Forbidden, "auth.ruxsat_yoq");
+        }
+
+        (await CountRowsAsync(world.InA1)).ManualPasses.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Hr_may_add_passes_on_their_own_employee_record()
+    {
+        var world = await SeedWorldAsync();
+        var account = await TestAccounts.CreateAsync(_factory, HrManagerPermissions);
+        await LinkToEmployeeAsync(account.UserId, world.InA1);
+
+        using var hr = Client(account.AccessToken);
+        using var added = await AddPassAsync(hr, world.InA1);
+
+        added.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(added));
+    }
+
     // ── helpers ───────────────────────────────────────────────────
 
     private async Task<HttpClient> ScopedClientAsync(Guid assignedDepartment)
     {
         var account = await TestAccounts.CreateAsync(_factory, ScopedPermissions);
-
-        await using var serviceScope = _factory.Services.CreateAsyncScope();
-        var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
-        context.UserAttendanceScopes.Add(new UserAttendanceScope(account.UserId, assignedDepartment));
-        await context.SaveChangesAsync(Ct);
+        await AssignAsync(account.UserId, assignedDepartment);
 
         return Client(account.AccessToken);
+    }
+
+    private async Task AssignAsync(Guid userId, Guid department)
+    {
+        await using var serviceScope = _factory.Services.CreateAsyncScope();
+        var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.UserAttendanceScopes.Add(new UserAttendanceScope(userId, department));
+        await context.SaveChangesAsync(Ct);
+    }
+
+    private async Task LinkToEmployeeAsync(Guid userId, Guid employeeId)
+    {
+        await using var serviceScope = _factory.Services.CreateAsyncScope();
+        var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await context.Users.SingleAsync(row => row.Id == userId, Ct);
+        user.LinkToEmployee(employeeId);
+        await context.SaveChangesAsync(Ct);
     }
 
     private async Task<HttpClient> ClientAsync(params string[] permissions)
