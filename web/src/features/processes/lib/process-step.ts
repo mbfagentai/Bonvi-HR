@@ -10,7 +10,7 @@ import { resolveProcessLink, type ProcessLinkTarget } from './process-link'
  * Slice P7 brings `POST /cases`, `/done`, `/skip`, `/undo`. Until it merges, the buttons are drawn from the server's
  * `canComplete`/`canSkip`/`canUndo` but stay disabled. Turning this on is the whole wiring.
  */
-export const PROCESS_WRITE_API_READY: boolean = false
+export const PROCESS_WRITE_API_READY: boolean = true
 
 export interface ProcessColumnSteps extends ProcessColumn {
   steps: ProcessCaseStep[]

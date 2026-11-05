@@ -11,7 +11,7 @@ import { api } from '@/shared/api/http-client'
  * Whether the server has #16–#18. While `false` the settings page sends none of those requests and draws their controls
  * disabled. Turn it on in the commit that merges P7; nothing else needs to change.
  */
-export const PROCESS_SETTINGS_API_READY: boolean = false
+export const PROCESS_SETTINGS_API_READY: boolean = true
 
 export type ProcessHolidayKind = 'Holiday' | 'WorkingDay'
 
