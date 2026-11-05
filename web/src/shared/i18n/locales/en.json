@@ -5,6 +5,7 @@
     "company": "MBF Company"
   },
   "nav": {
+    "myWork": "My work",
     "sectionMain": "Main",
     "sectionPeople": "People",
     "sectionCatalog": "Catalogue",
@@ -4002,6 +4003,72 @@
       "yourTurn": "Your signature is waiting — see «Signing steps» below.",
       "subjectEmptyTitle": "No blanks",
       "subjectEmptyText": "No blank has been opened for this employee yet."
+    }
+  },
+  "processes": {
+    "title": "My work",
+    "placeholder": "This section is coming soon.",
+    "loadFailed": "Could not load the data",
+    "noAccessTitle": "You do not have access here",
+    "noAccessText": "Viewing processes needs a permission. Ask the system administrator.",
+    "legacy": "Legacy",
+    "tabs": {
+      "label": "Sections",
+      "my": "My work",
+      "board": "Processes",
+      "late": "Who is late"
+    },
+    "due": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "late": "{{n}} days late",
+      "until": "by {{date}}"
+    },
+    "state": {
+      "Locked": "Not yet due",
+      "Active": "In progress",
+      "Waiting": "Waiting",
+      "Blocked": "Blocked",
+      "Done": "Done",
+      "Skipped": "Not needed"
+    },
+    "status": {
+      "Active": "Active",
+      "Completed": "Completed",
+      "Cancelled": "Cancelled"
+    },
+    "holder": {
+      "unassigned": "Unassigned",
+      "others": "and {{n}} more"
+    },
+    "warnings": {
+      "Q02": "Overdue: a step before the first day is not done",
+      "Q05": "Overdue",
+      "Q06": "Overdue or the checklist is incomplete",
+      "AKT": "The handover act is empty"
+    },
+    "roles": {
+      "system": "System",
+      "hr1": "HR-1",
+      "hr2": "HR-2",
+      "hr3": "HR-3",
+      "hr4": "HR-4",
+      "hr5": "HR-5",
+      "hr8": "HR-8",
+      "payrollAccountant": "Accountant (payroll)",
+      "chiefAccountant": "Chief accountant",
+      "director": "Director",
+      "lawyer": "Lawyer",
+      "safetyEngineer": "Safety engineer",
+      "council": "Council",
+      "departmentHead": "Department head",
+      "subjectEmployee": "The employee"
+    },
+    "case": {
+      "stepsTitle": "Steps"
+    },
+    "settings": {
+      "title": "Settings"
     }
   }
 }

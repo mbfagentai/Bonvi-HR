@@ -4,6 +4,7 @@ import { ArrowRight, Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
+import { landingPath } from '@/features/processes/lib/landing'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Button, Card, Checkbox, TextField } from '@/shared/ui'
 import { useAuth } from '../auth-context'
@@ -48,13 +49,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string | undefined }) {
     setFailure(null)
 
     try {
-      await login({
+      const user = await login({
         login: toFullPhone(values.phone),
         password: values.password,
         remember: values.remember,
       })
 
-      await navigate({ href: redirectTo ?? '/', replace: true })
+      await navigate({ href: redirectTo ?? landingPath(user), replace: true })
     } catch (error) {
       setFailure({ code: authErrorCode(error) })
     }

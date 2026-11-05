@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChartColumn,
   ChartPie,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Compass,
@@ -142,6 +143,17 @@ export interface NavSection {
  * shu sababli xodimlar bilan bog'liq bo'limlardan ajratilgan.
  */
 export const NAV: NavSection[] = [
+  {
+    /*
+      «Mening ishlarim» (docs/SPEC-mening-ishlarim.md §11.1): the viewer's own tasks, so it sits above everything. The
+      red count is #2 of that SPEC. Its own section, because a viewer without `processes.view` then loses the section
+      with the item (`sidebar.tsx` skips an empty one) and sees the menu exactly as before.
+    */
+    items: [
+      { key: 'myWork', to: '/mening-ishlarim', icon: ClipboardCheck,
+        permission: 'processes.view', countTone: 'danger' },
+    ],
+  },
   {
     /*
       Sarlavhasiz birinchi guruh — O'QISH uchun mo'ljallangan tahliliy
@@ -507,3 +519,29 @@ export const NAV: NavSection[] = [
     ],
   },
 ]
+
+/**
+ * Foydalanuvchiga ko'rinadigan band (`[]` — ko'rinmaydi), ruxsat bo'yicha.
+ *
+ * Oddiy band va guruhning o'zi — o'z `permission` i bilan (`nav-items.ts`
+ * dagi izoh), avvalgidek.
+ *
+ * Guruh BOLALARI esa faqat `filterChildrenByPermission` yoqilgan guruhda
+ * filtrlanadi — «Verifikatsiya» va «Ma'lumotnomalar» (faqat «Yo'qlik turlari»
+ * bandi ruxsatli; qolganlari ruxsatsiz, ya'ni o'zgarmaydi). Filtr ixtiyoriy qilindi,
+ * chunki uni hammaga yoqish «Rekruting» va «Ma'lumotnomalar» menyusini
+ * jimgina o'zgartirardi (egasi davomat moduli boshqa bo'limlarga
+ * tegmasligini talab qilgan). Yoqilgan guruhda birorta bola qolmasa,
+ * guruhning O'ZI ham yo'qoladi: hech narsa ochmaydigan sarlavha tugmasi
+ * bo'lim uchun yuqorida qo'llangan qoidaning aynan o'zi.
+ */
+export function visibleItem(item: NavItem, hasPermission: (code: string) => boolean): NavItem[] {
+  if (item.permission !== undefined && !hasPermission(item.permission)) return []
+  if (item.children === undefined || item.filterChildrenByPermission !== true) return [item]
+
+  const children = item.children.filter(
+    (child) => child.permission === undefined || hasPermission(child.permission),
+  )
+
+  return children.length === 0 ? [] : [{ ...item, children }]
+}
