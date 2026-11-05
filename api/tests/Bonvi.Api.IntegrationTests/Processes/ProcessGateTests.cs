@@ -556,6 +556,29 @@ public sealed class ProcessGateTests : IClassFixture<BonviApiFactory>
         (await EmploymentAsync(employed)).Status.ShouldBe(EmploymentStatus.Terminated);
     }
 
+    /// <summary>A failed probation is a termination too, so its reply has to carry the same warnings to HR.</summary>
+    [Fact]
+    public async Task Warn_mode_probation_failure_reports_the_terminate_warnings()
+    {
+        await EnforceAsync();
+        await ModeAsync("warn");
+        var employed = await EmployedAsync();
+        var probationId = await DbAsync(async db =>
+        {
+            var probation = Probation.Start(employed.EmploymentId, Today.AddDays(-30)).Value;
+            db.Probations.Add(probation);
+            await db.SaveChangesAsync(Ct);
+            return probation.Id;
+        });
+        using var hr = await ClientAsync(Permissions.EmploymentProbationComplete, Permissions.EmploymentTerminate);
+
+        var reply = await PostAsync(hr, $"/api/probations/{probationId}/resolve", new { status = "Failed", termination = new { terminationDate = Today } });
+
+        reply.ShouldBeOk();
+        reply.ResultWarnings.ShouldBe([AktYoq, SuhbatYoq], ignoreOrder: true);
+        (await EmploymentAsync(employed)).Status.ShouldBe(EmploymentStatus.Terminated);
+    }
+
     [Fact]
     public async Task Warn_mode_gate_that_cannot_answer_lets_the_terminate_through_and_journals_it()
     {

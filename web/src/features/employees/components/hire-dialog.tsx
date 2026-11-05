@@ -30,6 +30,8 @@ import {
 } from '@/shared/ui'
 import type { FilterOptions } from '../api/employees-queries'
 import { useHire, usePositionDefaults, usePositionDuties } from '../api/employees-queries'
+import type { HrWarning } from '../lib/hr-warnings'
+import { HrOutcomeDialog } from './hr-outcome-dialog'
 import { HIRE_ERROR_FIELD, HIRE_FIELD_STEP, employeeErrorCode } from '../lib/employee-error'
 import { SALARY_VIEW } from '../lib/employee-presentation'
 import {
@@ -101,6 +103,7 @@ export function HireDialog({
 
   const [step, setStep] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<HrWarning[] | null>(null)
 
   const {
     register,
@@ -125,6 +128,7 @@ export function HireDialog({
     if (!open) return
     setStep(0)
     setFailure(null)
+    setOutcome(null)
     reset(emptyHireValues())
   }, [open, reset])
 
@@ -176,7 +180,7 @@ export function HireDialog({
     setFailure(null)
 
     try {
-      await hire.mutateAsync({
+      const hired = await hire.mutateAsync({
         employeeId: null,
         lastName: values.lastName.trim(),
         firstName: values.firstName.trim(),
@@ -205,7 +209,8 @@ export function HireDialog({
         orderDate: orNull(values.orderDate),
       })
 
-      onClose()
+      if (hired.warnings.length > 0) setOutcome(hired.warnings)
+      else onClose()
     } catch (error) {
       const code = employeeErrorCode(error)
       const field = HIRE_ERROR_FIELD[code]
@@ -229,6 +234,17 @@ export function HireDialog({
   }
 
   const last = step === STEP_FIELDS.length - 1
+
+  if (open && outcome !== null) {
+    return (
+      <HrOutcomeDialog
+        title={t('employees.hireTitle')}
+        done={t('employees.hiredDone')}
+        warnings={outcome}
+        onClose={onClose}
+      />
+    )
+  }
 
   return (
     <Dialog

@@ -165,7 +165,11 @@ public sealed record ProbationDto(
     string? Conclusion,
     Guid? ReviewerEmployeeId,
     int DaysLeft,
-    bool NeedsWarning);
+    bool NeedsWarning)
+{
+    /// <summary>What the termination of a leaving result warned about; these reach HR only through this reply.</summary>
+    public IReadOnlyList<HrWarning> Warnings { get; init; } = [];
+}
 
 /// <summary>Sinov muddati — xodim ma'lumoti bilan (ro'yxat ekrani uchun).</summary>
 public sealed record ProbationListItemDto(

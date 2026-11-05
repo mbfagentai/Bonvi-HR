@@ -21,6 +21,8 @@ import { api } from '@/shared/api/http-client'
 import { fileNameFromDisposition } from '@/shared/lib/download'
 import { todayIso } from '@/shared/lib/today'
 
+import { readHrWarnings, type HrWarning } from '../lib/hr-warnings'
+
 /* ═══════════════════════════════════════════════════════════ SANOQ TIPLARI */
 
 /**
@@ -1482,6 +1484,15 @@ export function toHireBody(request: HireRequest): Record<string, unknown> {
   }
 }
 
+export interface HireResult {
+  employment: EmploymentSummary
+  warnings: HrWarning[]
+}
+
+export interface TerminateResult {
+  warnings: HrWarning[]
+}
+
 /**
  * Ishga qabul.
  *
@@ -1490,11 +1501,14 @@ export function toHireBody(request: HireRequest): Record<string, unknown> {
  * hamma maydoni bo'sh munosabat qaytardi — xato chiqmasdi, chunki
  * xaritalash yetishmagan maydonni jimgina `null` qiladi.
  */
-export async function hire(body: HireRequest): Promise<EmploymentSummary> {
+export async function hire(body: HireRequest): Promise<HireResult> {
   const { data } = await api.post<unknown>('/api/employments/hire', toHireBody(body))
 
   const envelope = (data ?? {}) as Record<string, unknown>
-  return toEmployment(envelope['employment'] ?? envelope)
+  return {
+    employment: toEmployment(envelope['employment'] ?? envelope),
+    warnings: readHrWarnings(envelope['warnings']),
+  }
 }
 
 /**
@@ -1508,10 +1522,13 @@ export async function terminate(
   employmentId: string,
   body: TerminateRequest,
   confirm = false,
-): Promise<void> {
-  await api.post(`/api/employments/${employmentId}/terminate`, body, {
+): Promise<TerminateResult> {
+  const { data } = await api.post<unknown>(`/api/employments/${employmentId}/terminate`, body, {
     params: confirm ? { confirm: true } : undefined,
   })
+
+  // `EmploymentChangeDto`: warn mode passes the process gates and names what was missing only here.
+  return { warnings: readHrWarnings(((data ?? {}) as Record<string, unknown>)['warnings']) }
 }
 
 /**

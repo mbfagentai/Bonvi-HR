@@ -493,7 +493,8 @@
     "resolveAndTerminate": "Complete and dismiss",
     "terminateTitle": "Dismissal",
     "terminateHint": "An employee who failed probation or left on their own is dismissed right here and moves to «Former employees».",
-    "terminateLockedHint": "«Failed» and «Left early» mean dismissal, which requires the permission to dismiss."
+    "terminateLockedHint": "«Failed» and «Left early» mean dismissal, which requires the permission to dismiss.",
+    "terminatedDone": "Probation is complete and the employee has been terminated."
   },
   "flags": {
     "subtitle": "{{n}} records",
@@ -1461,7 +1462,10 @@
     "correctedAt": "Corrected: {{date}}",
     "showCorrections": "Show corrections",
     "probationAlreadyOver": "The probation period ended on {{date}} — the employee will be added as permanent right away.",
-    "tabBlanks": "Blanks"
+    "tabBlanks": "Blanks",
+    "outcomeWarnings": "Please note",
+    "terminatedDone": "The employee has been terminated.",
+    "hiredDone": "The employee has been hired."
   },
   "employments": {
     "anyType": "All types",

@@ -493,7 +493,8 @@
     "resolveAndTerminate": "Yakunlash va bo‘shatish",
     "terminateTitle": "Ishdan bo‘shatish",
     "terminateHint": "Sinovdan o‘tmagan yoki o‘zi ketgan xodim shu yerning o‘zida ishdan bo‘shatiladi va «Ketganlar»ga o‘tadi.",
-    "terminateLockedHint": "«O‘tmadi» va «O‘zi ketdi» — bu ishdan bo‘shatish, buning uchun bo‘shatish ruxsati kerak."
+    "terminateLockedHint": "«O‘tmadi» va «O‘zi ketdi» — bu ishdan bo‘shatish, buning uchun bo‘shatish ruxsati kerak.",
+    "terminatedDone": "Sinov yakunlandi, xodim ishdan bo‘shatildi."
   },
   "flags": {
     "subtitle": "{{n}} ta yozuv",
@@ -1461,7 +1462,10 @@
     "correctedAt": "Tuzatilgan: {{date}}",
     "showCorrections": "Tuzatishlarni ko‘rish",
     "probationAlreadyOver": "Sinov muddati {{date}} da tugagan — xodim darhol doimiy bo‘lib qo‘shiladi.",
-    "tabBlanks": "Blankalar"
+    "tabBlanks": "Blankalar",
+    "outcomeWarnings": "Diqqat qiling",
+    "terminatedDone": "Xodim ishdan bo‘shatildi.",
+    "hiredDone": "Xodim ishga qabul qilindi."
   },
   "employments": {
     "anyType": "Barcha turlar",

@@ -7,6 +7,7 @@
  *   api/src/Bonvi.Domain/Employees/Probation.cs
  *   api/src/Bonvi.Application/Employees/Abstractions/IEmployeeReadModel.cs
  */
+import { readHrWarnings, type HrWarning } from '@/features/employees/lib/hr-warnings'
 import { api } from '@/shared/api/http-client'
 
 /**
@@ -253,11 +254,15 @@ export async function fetchEndingSoon(
   return toList(data)
 }
 
+export interface ResolveProbationResult {
+  warnings: HrWarning[]
+}
+
 export async function resolveProbation(
   id: string,
   request: ResolveProbationRequest,
-): Promise<void> {
-  await api.post(`/api/probations/${id}/resolve`, {
+): Promise<ResolveProbationResult> {
+  const { data } = await api.post<unknown>(`/api/probations/${id}/resolve`, {
     status: statusName(request.status),
     conclusion: request.conclusion,
     // `undefined` maydonni axios butunlay tashlab yuboradi, `null` esa
@@ -271,6 +276,9 @@ export async function resolveProbation(
     orderDate: request.orderDate,
     termination: request.termination,
   }, request.confirm === true ? { params: { confirm: true } } : undefined)
+
+  // A leaving result terminates the employment, so warn mode's gate warnings arrive here too.
+  return { warnings: readHrWarnings(((data ?? {}) as Record<string, unknown>)['warnings']) }
 }
 
 /** Sinov yozuvisiz «sinovda» qolganlar. Server sahifalamaydi. */
