@@ -2,6 +2,7 @@ using ProcessGateCodes = Bonvi.Application.Processes.Definitions.ProcessGateCode
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Application.Processes.Facts;
+using Bonvi.Domain.Common;
 using Bonvi.Domain.Processes;
 
 namespace Bonvi.Application.Processes.Queries;
@@ -13,11 +14,14 @@ public sealed record ProcessHolderRef(string? Role, Guid? EmployeeId);
 public static class ProcessGateReading
 {
     /// <summary>The <c>jarayon.*</c> code whose translation is a blocking gate's text; warn gates have none.</summary>
-    public static string? ErrorCodeOf(string? gateCode) => gateCode switch
+    public static string? ErrorCodeOf(string? gateCode) => ErrorOf(gateCode)?.Code;
+
+    /// <summary>The refusal of a blocking gate; warn gates have none.</summary>
+    public static Error? ErrorOf(string? gateCode) => gateCode switch
     {
-        ProcessGateCodes.Q03 => ProcessErrors.PinflMissing.Code,
-        ProcessGateCodes.Q04 => ProcessErrors.SafetyBriefingMissing.Code,
-        ProcessGateCodes.Q12 => ProcessErrors.HandoverActOpen.Code,
+        ProcessGateCodes.Q03 => ProcessErrors.PinflMissing,
+        ProcessGateCodes.Q04 => ProcessErrors.SafetyBriefingMissing,
+        ProcessGateCodes.Q12 => ProcessErrors.HandoverActOpen,
         _ => null,
     };
 

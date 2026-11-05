@@ -27,6 +27,16 @@ internal sealed class PostgresFault : IDatabaseFault
     /// o'zgartiriladi.
     /// </remarks>
     private const string NameIndexPrefix = "ux_";
+
+    /// <summary>The natural keys of the process tables, names from the <c>Processes</c> migration.</summary>
+    /// <remarks>Renamed there and not here, a lost race answers 500 instead of 409, so both change together.</remarks>
+    private static readonly HashSet<string> ProcessNaturalKeyIndexes = new(StringComparer.Ordinal)
+    {
+        "ix_process_cases_process_code_subject_ref",
+        "ux_process_cases_process_code_employment_id",
+        "ix_process_stage_bindings_binding_code",
+        "ix_process_holidays_date",
+    };
     private const string NameIndexSuffix = "_name";
 
     /// <summary>
@@ -191,6 +201,20 @@ internal sealed class PostgresFault : IDatabaseFault
 
         return exception is DbUpdateConcurrencyException concurrency
             && concurrency.Entries.Any(entry => entry.Entity is ProcessGateOverride);
+    }
+
+    public bool IsStaleProcessWrite(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        if (UniqueViolation(exception)?.ConstraintName is { } constraint && ProcessNaturalKeyIndexes.Contains(constraint))
+        {
+            return true;
+        }
+
+        return exception is DbUpdateConcurrencyException concurrency
+            && concurrency.Entries.Count > 0
+            && concurrency.Entries.All(entry => entry.Entity is ProcessCase or ProcessCaseStep or ProcessStageBinding or ProcessHoliday);
     }
 
     /// <summary>Unikallik buzilishi bo'lsa — drayver istisnosi, aks holda <c>null</c>.</summary>

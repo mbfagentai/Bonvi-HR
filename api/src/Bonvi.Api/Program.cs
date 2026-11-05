@@ -372,6 +372,7 @@ app.MapSettingsEndpoints();
 // yangilash» esa «settings.manage».
 app.MapHrMentorBlankEndpoints();
 app.MapProcessEndpoints();
+app.MapProcessWriteEndpoints();
 
 // Tashqi API kalitlari — ICHKI boshqaruv (JWT + «settings.manage»).
 // Sozlamalar bilan yonma-yon, chunki ekranda ular bitta bo'limda.

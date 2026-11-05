@@ -139,4 +139,11 @@ public interface IDatabaseFault
     /// (409 <c>jarayon.istisno_yaroqsiz</c>). Nothing of the command was written.
     /// </summary>
     bool IsConsumedGateOverrideWrite(Exception exception);
+
+    /// <summary>
+    /// A process write lost a race: the case's <c>version</c> moved under it (another user, or a pass), or a parallel
+    /// request took the same <c>subject_ref</c>, stage binding or holiday date first (409 <c>jarayon.versiya</c>).
+    /// Nothing of the command was written and it is not retried: the loser reads the new state and decides again.
+    /// </summary>
+    bool IsStaleProcessWrite(Exception exception);
 }

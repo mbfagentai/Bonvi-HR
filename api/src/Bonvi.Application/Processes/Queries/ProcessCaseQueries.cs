@@ -397,6 +397,15 @@ public sealed class GetProcessCaseQueryHandler
 /// </summary>
 public static class ProcessStepAbility
 {
+    /// <summary>§9.3: the resolved holder, or any <c>processes.manage</c> holder.</summary>
+    public static bool MayAct(ProcessStepRow step, ProcessViewer viewer)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(viewer);
+
+        return viewer.CanManage || viewer.Holds(step.HolderRole, step.HolderEmployeeId);
+    }
+
     public static bool CanComplete(ProcessStep? definition, ProcessStepRow step, ProcessCaseRow processCase, ProcessViewer viewer)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -408,7 +417,7 @@ public static class ProcessStepAbility
             && step.State == ProcessStepState.Active
             && definition is not null
             && (definition.Kind == ProcessStepKind.Manual || definition.HasManualFallback)
-            && (viewer.CanManage || viewer.Holds(step.HolderRole, step.HolderEmployeeId));
+            && MayAct(step, viewer);
     }
 
     public static bool CanSkip(ProcessStep? definition, ProcessStepRow step, ProcessCaseRow processCase, ProcessViewer viewer)
@@ -422,7 +431,7 @@ public static class ProcessStepAbility
             && step.IsOpen
             && definition is not null
             && (definition.Skippable || (processCase.Legacy && definition.LegacySkippable))
-            && (viewer.CanManage || viewer.Holds(step.HolderRole, step.HolderEmployeeId));
+            && MayAct(step, viewer);
     }
 
     /// <summary>The window and the manager's exemption are the aggregate's own (<see cref="ProcessCase.UndoStep"/>).</summary>
