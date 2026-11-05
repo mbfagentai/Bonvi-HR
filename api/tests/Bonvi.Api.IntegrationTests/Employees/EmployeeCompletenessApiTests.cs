@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Bonvi.Domain.Catalog;
@@ -225,6 +226,64 @@ public sealed class EmployeeCompletenessApiTests : IClassFixture<BonviApiFactory
         Codes((await RowsAsync(client, onEmployee)).ShouldHaveSingleItem()).ShouldContain("needsReview");
         Codes((await RowsAsync(client, onEmployment)).ShouldHaveSingleItem()).ShouldContain("needsReview");
         Codes((await RowsAsync(client, neither)).ShouldHaveSingleItem()).ShouldNotContain("needsReview");
+    }
+
+    [Fact]
+    public async Task Saving_the_hire_record_enters_the_order_and_answers_the_jobs_review_flag()
+    {
+        var name = Name();
+        var employeeId = await HireAsync(name);
+
+        var (employmentId, hireEventId) = await DbAsync(async db =>
+        {
+            var employment = await db.Employments.Include(item => item.Events).SingleAsync(item => item.EmployeeId == employeeId, Ct);
+            employment.FlagForReview("tekshirish");
+            await db.SaveChangesAsync(Ct);
+            return (employment.Id, employment.Events.Single(item => item.Type == EmploymentEventType.Hire).Id);
+        });
+
+        using var client = await ClientAsync(Permissions.EmployeesView, Permissions.EmploymentCorrect);
+
+        var before = Codes((await RowsAsync(client, name)).ShouldHaveSingleItem());
+        before.ShouldContain("orderNo");
+        before.ShouldContain("needsReview");
+
+        using var saved = await client.PutAsJsonAsync(
+            new Uri($"/api/employments/{employmentId}/events/{hireEventId}", UriKind.Relative),
+            new { effectiveDate = "2024-03-01", orderNo = "ORD-77" },
+            Ct);
+        saved.IsSuccessStatusCode.ShouldBeTrue();
+
+        var after = Codes((await RowsAsync(client, name)).ShouldHaveSingleItem());
+        after.ShouldNotContain("orderNo");
+        after.ShouldNotContain("needsReview");
+    }
+
+    [Fact]
+    public async Task Correcting_another_record_leaves_the_jobs_review_flag()
+    {
+        var name = Name();
+        var employeeId = await HireAsync(name);
+
+        var (employmentId, salaryEventId) = await DbAsync(async db =>
+        {
+            var employment = await db.Employments.Include(item => item.Events).SingleAsync(item => item.EmployeeId == employeeId, Ct);
+            employment.FlagForReview("tekshirish");
+            var set = employment.SetSalary(Money.Create(5_000_000m, Money.Uzs).Value, Day(2024, 6, 1));
+            set.IsSuccess.ShouldBeTrue();
+            await db.SaveChangesAsync(Ct);
+            return (employment.Id, employment.Events.Single(item => item.Type != EmploymentEventType.Hire).Id);
+        });
+
+        using var client = await ClientAsync(Permissions.EmployeesView, Permissions.EmploymentCorrect);
+
+        using var saved = await client.PutAsJsonAsync(
+            new Uri($"/api/employments/{employmentId}/events/{salaryEventId}", UriKind.Relative),
+            new { effectiveDate = "2024-06-01", note = "izoh" },
+            Ct);
+        saved.IsSuccessStatusCode.ShouldBeTrue();
+
+        Codes((await RowsAsync(client, name)).ShouldHaveSingleItem()).ShouldContain("needsReview");
     }
 
     [Fact]
@@ -494,8 +553,7 @@ public sealed class EmployeeCompletenessApiTests : IClassFixture<BonviApiFactory
     }
 
     private static string RandomPinfl()
-        => "3" + RandomNumberGenerator.GetInt32(100_000, 999_999).ToString(CultureInfo.InvariantCulture)
-            + RandomNumberGenerator.GetInt32(1_000_000, 9_999_999).ToString(CultureInfo.InvariantCulture);
+        => "3150690" + RandomNumberGenerator.GetInt32(1_000_000, 9_999_999).ToString(CultureInfo.InvariantCulture);
 
     private static string RandomPassport()
         => "AB" + RandomNumberGenerator.GetInt32(1_000_000, 9_999_999).ToString(CultureInfo.InvariantCulture);

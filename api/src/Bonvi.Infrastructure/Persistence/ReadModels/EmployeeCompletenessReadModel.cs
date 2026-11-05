@@ -133,16 +133,24 @@ internal sealed class EmployeeCompletenessReadModel : IEmployeeCompletenessReadM
         }
 
         var terminated = (int)EmploymentStatus.Terminated;
+        var hire = (int)EmploymentEventType.Hire;
         var includeSalary = filter.IncludeSalary;
 
         // The literals in the array are the codes of EmployeeCompletenessKinds; EmployeeCompletenessApiTests pins them.
+        // An order number counts on the employment or on its hire record: the record is where HR can still enter one
+        // (the employment's own column is written only at hire), and 25 imported people already have it only there.
         // A department filter narrows which employment is shown, as in the list: «Sotuv» shows the Sotuv job of someone
         // whose primary one is elsewhere.
         var rows = _context.Database.SqlQuery<GapRow>($"""
             WITH current_jobs AS (
                 SELECT m.employee_id,
                        bool_or(m.needs_review) AS review,
-                       bool_or(m.hire_order_no IS NULL OR btrim(m.hire_order_no) = '') AS no_order,
+                       bool_or((m.hire_order_no IS NULL OR btrim(m.hire_order_no) = '')
+                           AND NOT EXISTS (
+                               SELECT 1
+                               FROM employment_events h
+                               WHERE h.employment_id = m.id AND h.type = {hire}
+                                 AND h.order_no IS NOT NULL AND btrim(h.order_no) <> '')) AS no_order,
                        bool_or(m.salary_amount IS NULL) AS no_salary
                 FROM employments m
                 WHERE m.deleted_at IS NULL AND m.status <> {terminated}
@@ -161,14 +169,14 @@ internal sealed class EmployeeCompletenessReadModel : IEmployeeCompletenessReadM
                 FROM document_types t
                 WHERE t.deleted_at IS NULL AND t.is_active AND t.is_required
             )
-            SELECT e.id AS "EmployeeId",
-                   e.last_name AS "LastName",
-                   e.first_name AS "FirstName",
-                   e.middle_name AS "MiddleName",
-                   d.name AS "Department",
-                   p.name AS "Position",
-                   s.hire_date AS "HireDate",
-                   (e.photo_key IS NOT NULL AND e.photo_key <> '') AS "HasPhoto",
+            SELECT e.id AS employee_id,
+                   e.last_name AS last_name,
+                   e.first_name AS first_name,
+                   e.middle_name AS middle_name,
+                   d.name AS department,
+                   p.name AS position,
+                   s.hire_date AS hire_date,
+                   (e.photo_key IS NOT NULL AND e.photo_key <> '') AS has_photo,
                    array_remove(ARRAY[
                        CASE WHEN e.pinfl IS NULL OR btrim(e.pinfl) = '' THEN 'pinfl' END,
                        CASE WHEN e.passport IS NULL OR btrim(e.passport) = '' THEN 'passport' END,
@@ -187,7 +195,7 @@ internal sealed class EmployeeCompletenessReadModel : IEmployeeCompletenessReadM
                            FROM employee_documents x
                            WHERE x.employee_id = e.id AND x.document_type_id = r.id AND x.deleted_at IS NULL)
                        ORDER BY r.name, r.id
-                   )::text[] AS "Missing"
+                   )::text[] AS missing
             FROM employees e
             JOIN current_jobs c ON c.employee_id = e.id
             JOIN shown s ON s.employee_id = e.id
@@ -205,7 +213,7 @@ internal sealed class EmployeeCompletenessReadModel : IEmployeeCompletenessReadM
         return rows;
     }
 
-    /// <summary>The shape of the statement above; its column aliases are these names.</summary>
+    /// <summary>The shape of the statement above. Its aliases are these names in the project's snake_case convention: EF composes over them by the mapped column name.</summary>
     private sealed class GapRow
     {
         public Guid EmployeeId { get; init; }

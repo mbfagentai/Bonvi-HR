@@ -482,6 +482,13 @@ public sealed class EditEmploymentEventCommandHandler
             return salaryResult.Error;
         }
 
+        // The rule of the employee's form: a record saved by hand counts as checked. Nothing else ever clears this
+        // flag, and the employment card shows the note and says that saving the hire record answers it.
+        if (target is { Type: EmploymentEventType.Hire } && employment.NeedsReview)
+        {
+            employment.MarkReviewed();
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var hodisa = employment.Events.First(item => item.Id == command.EventId);
