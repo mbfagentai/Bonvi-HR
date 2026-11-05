@@ -1147,8 +1147,9 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         var lateStep = Task(late, "late", processCase.Id, "r01-2");
         lateStep.GetProperty("daysLate").GetInt32().ShouldBeGreaterThanOrEqualTo(30);
 
-        StepsOf(late, "warn", processCase.Id).ShouldContain("r01-6", "Q02: past its due");
-        Task(late, "warn", processCase.Id, "r01-6").GetProperty("warnings").EnumerateArray().Select(item => item.GetString()).ShouldBe([ProcessGateCodes.Q02]);
+        StepsOf(late, "warn", processCase.Id).ShouldContain("r01-6", "Q05: past its due");
+        Task(late, "warn", processCase.Id, "r01-6").GetProperty("warnings").EnumerateArray().Select(item => item.GetString()).ShouldBe([ProcessGateCodes.Q05]);
+        Task(late, "warn", processCase.Id, "r01-8a").GetProperty("warnings").EnumerateArray().Select(item => item.GetString()).ShouldBe([ProcessGateCodes.Q02], "not done by the hire date");
         StepsOf(late, "late", processCase.Id).ShouldContain("r01-6", "a step can stand in both lists");
 
         var lateDays = late.GetProperty("late").EnumerateArray().Select(task => task.GetProperty("daysLate").GetInt32()).ToList();
