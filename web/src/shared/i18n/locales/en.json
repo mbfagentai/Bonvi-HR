@@ -4255,7 +4255,11 @@
         "done": "done",
         "skipped": "not needed"
       },
-      "guideEmpty": "This step has no guide."
+      "guideEmpty": "This step has no guide.",
+      "gate": {
+        "openCase": "Open the process",
+        "openWork": "Open «My work»"
+      }
     },
     "settings": {
       "title": "Settings",

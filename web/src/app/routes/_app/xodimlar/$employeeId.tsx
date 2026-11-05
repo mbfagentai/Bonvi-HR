@@ -234,6 +234,7 @@ function EmployeeCardPage() {
 
     return {
       id: employment.probationId,
+      employeeId,
       // Oyna sarlavhasi ostida kimning sinovi yopilayotgani turadi —
       // sinov ro'yxatidagi bilan bir xil ko'rinish.
       employeeName: fullName,
@@ -248,7 +249,7 @@ function EmployeeCardPage() {
       bog'lansak, HR yozayotgan xulosa alt-tab bosilishi bilan o'chib
       ketardi.
     */
-  }, [action, fullName])
+  }, [action, employeeId, fullName])
 
   /*
     ⭐ «Orqaga» — HR KELGAN ro'yxatga, uning filtrlari, qidiruvi va sahifasi

@@ -56,6 +56,7 @@ export const LEAVING_RESULTS: readonly ProbationStatus[] = ['failed', 'leftEarly
  */
 export interface ProbationTarget {
   id: string
+  employeeId: string
   employeeName: string
   /** Identifikator — «doimiyga o'tkazish» formasi tanlovni shu bilan to'ldiradi. */
   departmentId: string | null

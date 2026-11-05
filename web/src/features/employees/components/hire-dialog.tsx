@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { Controller, useForm, type FieldPath } from 'react-hook-form'
 
 import { useAuth } from '@/features/auth'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { todayIso } from '@/shared/lib/today'
@@ -30,6 +31,7 @@ import {
 } from '@/shared/ui'
 import type { FilterOptions } from '../api/employees-queries'
 import { useHire, usePositionDefaults, usePositionDuties } from '../api/employees-queries'
+import { processGateBlock } from '../lib/employee-error'
 import type { HrWarning } from '../lib/hr-warnings'
 import { HrOutcomeDialog } from './hr-outcome-dialog'
 import { HIRE_ERROR_FIELD, HIRE_FIELD_STEP, employeeErrorCode } from '../lib/employee-error'
@@ -234,6 +236,7 @@ export function HireDialog({
   }
 
   const last = step === STEP_FIELDS.length - 1
+  const gateBlock = processGateBlock(hire.error)
 
   if (open && outcome !== null) {
     return (
@@ -292,11 +295,14 @@ export function HireDialog({
       <Steps current={step} onSelect={setStep} />
 
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
-        {failure !== null && (
-          <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
-            {errorMessage(failure)}
-          </Alert>
-        )}
+        {failure !== null &&
+          (gateBlock !== null ? (
+            <ProcessGateBlockAlert block={gateBlock} />
+          ) : (
+            <Alert tone="danger" className="[animation:pop-in_180ms_var(--ease-ios-out)]">
+              {errorMessage(failure)}
+            </Alert>
+          ))}
 
         {/* ───────── 1-bosqich: shaxs ───────── */}
         <fieldset className={cn('space-y-4', step === 0 ? 'block' : 'hidden')}>

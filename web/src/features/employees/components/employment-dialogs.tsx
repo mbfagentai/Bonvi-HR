@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import {
   Alert,
@@ -26,7 +27,7 @@ import {
   useTerminate,
   useTransfer,
 } from '../api/employees-queries'
-import { employeeErrorCode, terminationWarning } from '../lib/employee-error'
+import { employeeErrorCode, processGateBlock, terminationWarning } from '../lib/employee-error'
 import { EMPLOYMENT_SALARY, SALARY_EXTRA_VIEW, SALARY_VIEW } from '../lib/employee-presentation'
 import { warningsToShow, type HrWarning } from '../lib/hr-warnings'
 import { HrOutcomeDialog } from './hr-outcome-dialog'
@@ -717,6 +718,7 @@ export function TerminateDialog({
   if (employment === null) return null
 
   const warning = terminationWarning(leave.error)
+  const block = processGateBlock(leave.error)
 
   if (outcome !== null) {
     return (
@@ -769,7 +771,12 @@ export function TerminateDialog({
       danger
       error={
         leave.isError &&
-        (warning === null ? (
+        (block !== null ? (
+          <ProcessGateBlockAlert
+            block={block}
+            cases={{ employee: employeeId, process: 'dismissal' }}
+          />
+        ) : warning === null ? (
           <Alert tone="danger">{errorMessage(employeeErrorCode(leave.error))}</Alert>
         ) : (
           <Alert tone="warning" title={errorMessage(warning.code)}>

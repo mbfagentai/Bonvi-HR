@@ -5,8 +5,13 @@ import { useAuth } from '@/features/auth'
 import { useCatalogList } from '@/features/catalog/api/catalog-queries'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { HrOutcomeDialog } from '@/features/employees/components/hr-outcome-dialog'
-import { employeeErrorCode, terminationWarning } from '@/features/employees/lib/employee-error'
+import {
+  employeeErrorCode,
+  processGateBlock,
+  terminationWarning,
+} from '@/features/employees/lib/employee-error'
 import { warningsToShow, type HrWarning } from '@/features/employees/lib/hr-warnings'
+import { ProcessGateBlockAlert } from '@/features/processes/components/process-gate-block'
 import {
   EMPLOYMENT_SALARY,
   EMPLOYMENT_TERMINATE,
@@ -163,6 +168,7 @@ export function ResolveDialog({
   const promoting = status === 'passed'
   const leaving = LEAVING_RESULTS.includes(status)
   const warning = leaving ? terminationWarning(resolve.error) : null
+  const block = leaving ? processGateBlock(resolve.error) : null
 
   const results = PROBATION_RESULTS.filter((value) => canTerminate || !LEAVING_RESULTS.includes(value))
 
@@ -255,7 +261,12 @@ export function ResolveDialog({
     >
       <div className="space-y-4">
         {resolve.isError &&
-          (warning === null ? (
+          (block !== null ? (
+            <ProcessGateBlockAlert
+              block={block}
+              cases={{ employee: item.employeeId, process: 'dismissal' }}
+            />
+          ) : warning === null ? (
             <Alert tone="danger">{errorMessage(employeeErrorCode(resolve.error))}</Alert>
           ) : (
             <Alert tone="warning" title={errorMessage(warning.code)}>

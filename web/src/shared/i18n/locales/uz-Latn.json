@@ -4255,7 +4255,11 @@
         "done": "qo‘yilgan",
         "skipped": "kerak bo‘lmadi"
       },
-      "guideEmpty": "Bu qadam uchun ko‘rsatma yozilmagan."
+      "guideEmpty": "Bu qadam uchun ko‘rsatma yozilmagan.",
+      "gate": {
+        "openCase": "Jarayonni ochish",
+        "openWork": "«Mening ishlarim»ni ochish"
+      }
     },
     "settings": {
       "title": "Sozlamalar",
