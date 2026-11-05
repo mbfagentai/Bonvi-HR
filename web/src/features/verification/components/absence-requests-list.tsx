@@ -8,6 +8,7 @@ import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
 import { useListExport } from '@/features/reports/api/list-export'
 import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
   Badge,
@@ -594,24 +595,30 @@ function RequestFilterBar({
         ikkitadan, keng ekranda bitta qatorda (tur, shakl, davr, tozalash).
       */}
       <div
-        className={
-          onRangeChange === undefined
-            ? 'grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
-            : 'grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,340px)_auto]'
-        }
+        className={cn(
+          'grid items-end gap-3',
+          isAttendanceScoped
+            ? onRangeChange === undefined
+              ? 'sm:grid-cols-[minmax(0,220px)_auto]'
+              : 'sm:grid-cols-2 xl:grid-cols-[minmax(0,220px)_minmax(0,340px)_auto]'
+            : onRangeChange === undefined
+              ? 'sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
+              : 'sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,340px)_auto]',
+        )}
       >
-        <Select
-          size="sm"
-          className={isAttendanceScoped ? 'hidden' : undefined}
-          label={t('attendance.requestKind')}
-          placeholder={t('common.all')}
-          options={typeOptions}
-          value={value.absenceTypeId}
-          disabled={types.isPending}
-          onChange={(event) => onChange({ ...value, absenceTypeId: event.target.value })}
-          // Ma'lumotnomani o'qib bo'lmasa — jimgina bo'sh ro'yxat emas
-          error={types.isError ? t('catalog.loadFailed') : undefined}
-        />
+        {!isAttendanceScoped && (
+          <Select
+            size="sm"
+            label={t('attendance.requestKind')}
+            placeholder={t('common.all')}
+            options={typeOptions}
+            value={value.absenceTypeId}
+            disabled={types.isPending}
+            onChange={(event) => onChange({ ...value, absenceTypeId: event.target.value })}
+            // Ma'lumotnomani o'qib bo'lmasa — jimgina bo'sh ro'yxat emas
+            error={types.isError ? t('catalog.loadFailed') : undefined}
+          />
+        )}
         <Select
           size="sm"
           label={t('attendance.requestMode')}
