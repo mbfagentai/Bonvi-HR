@@ -1,3 +1,4 @@
+using Bonvi.Application.Processes.Definitions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Processes;
@@ -12,6 +13,8 @@ public static class ProcessesApplicationRegistration
     public static IServiceCollection AddProcessesApplication(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.AddProcessDefinitions();
 
         return services;
     }

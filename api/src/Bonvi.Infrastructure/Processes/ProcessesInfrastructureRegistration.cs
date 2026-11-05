@@ -1,4 +1,5 @@
 using Bonvi.Domain.Abstractions;
+using Bonvi.Infrastructure.Processes.Facts;
 using Bonvi.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +23,8 @@ public static class ProcessesInfrastructureRegistration
         services.AddScoped<IProcessGateOverrideRepository, ProcessGateOverrideRepository>();
         services.AddScoped<IProcessStageBindingRepository, ProcessStageBindingRepository>();
         services.AddScoped<IProcessHolidayRepository, ProcessHolidayRepository>();
+
+        services.AddProcessFacts();
 
         return services;
     }
