@@ -516,6 +516,7 @@ public sealed partial class ProcessWriteApiTests
             await PostRawAsync(client, $"{Root}/cases", $$"""{"processCode":"dismissal","employmentId":"{{hire.EmploymentId}}","lastWorkDay":"{{Iso(Today)}}","basis":"{{Nul}}"}"""),
             await PostRawAsync(client, $"{Root}/cases/{candidate.Id}/steps/r02-7/skip", $$"""{"version":{{candidateVersion}},"reason":"{{Nul}}"}"""),
             await PostRawAsync(client, $"{Root}/cases/{candidate.Id}/cancel", $$"""{"version":{{candidateVersion}},"reason":"{{Nul}}"}"""),
+            await PostRawAsync(client, $"{Root}/cases/{candidate.Id}/reopen", $$"""{"version":{{candidateVersion}},"reason":"{{Nul}}"}"""),
             await PostRawAsync(client, $"{Root}/holidays", $$"""{"date":"2033-05-06","kind":"Holiday","title":"{{Nul}}"}"""),
         };
 

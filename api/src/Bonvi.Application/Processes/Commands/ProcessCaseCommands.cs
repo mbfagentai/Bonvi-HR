@@ -89,7 +89,8 @@ public sealed class StartProcessCaseCommandHandler
         if (command.ProcessCode != ProcessCodes.Dismissal
             || command.EmploymentId is not { } employmentId
             || command.LastWorkDay is not { } lastWorkDay
-            || basis is { Length: > ProcessCase.MaxCancelReasonLength })
+            || basis is { Length: > ProcessCase.MaxCancelReasonLength }
+            || ProcessFreeText.HasNul(basis))
         {
             return ProcessErrors.Invalid;
         }
@@ -241,7 +242,7 @@ public sealed class CancelProcessCaseCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (command.Version is not { } version)
+        if (command.Version is not { } version || ProcessFreeText.HasNul(command.Reason))
         {
             return ProcessErrors.Invalid;
         }
@@ -339,7 +340,10 @@ public sealed class ReopenProcessCaseCommandHandler
         ArgumentNullException.ThrowIfNull(command);
 
         var reason = command.Reason?.Trim();
-        if (command.Version is not { } version || string.IsNullOrEmpty(reason) || reason.Length > ProcessCase.MaxCancelReasonLength)
+        if (command.Version is not { } version
+            || string.IsNullOrEmpty(reason)
+            || reason.Length > ProcessCase.MaxCancelReasonLength
+            || ProcessFreeText.HasNul(reason))
         {
             return ProcessErrors.Invalid;
         }

@@ -315,7 +315,9 @@ public sealed class SkipProcessStepCommandHandler
         var reason = rawReason?.Trim();
         var legacySkip = !target.Definition!.Skippable;
 
-        if ((legacySkip && string.IsNullOrEmpty(reason)) || reason is { Length: > ProcessCase.MaxCancelReasonLength })
+        if ((legacySkip && string.IsNullOrEmpty(reason))
+            || reason is { Length: > ProcessCase.MaxCancelReasonLength }
+            || ProcessFreeText.HasNul(reason))
         {
             return ProcessErrors.Invalid;
         }

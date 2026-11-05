@@ -188,7 +188,7 @@ public static class ProcessManualInputs
         }
 
         var text = element.GetString()!.Trim();
-        if (text.Length > maxLength)
+        if (text.Length > maxLength || ProcessFreeText.HasNul(text))
         {
             return false;
         }

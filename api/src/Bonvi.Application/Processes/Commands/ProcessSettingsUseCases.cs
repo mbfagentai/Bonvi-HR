@@ -193,7 +193,7 @@ public sealed class SaveProcessHolidayCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (command.Date is not { } date || command.Kind is not { } kind)
+        if (command.Date is not { } date || command.Kind is not { } kind || ProcessFreeText.HasNul(command.Title))
         {
             return ProcessErrors.Invalid;
         }
