@@ -208,14 +208,14 @@ function ManualChecklist({
               <Button
                 type="button"
                 size="sm"
-                variant={mark === 'notNeeded' ? 'soft' : 'ghost'}
-                aria-pressed={mark === 'notNeeded'}
-                aria-label={`${option.label}: ${t('processes.case.marks.notNeeded')}`}
+                variant={mark === 'na' ? 'soft' : 'ghost'}
+                aria-pressed={mark === 'na'}
+                aria-label={`${option.label}: ${t('processes.case.marks.na')}`}
                 onClick={() =>
-                  setMark(option.value, mark === 'notNeeded' ? undefined : 'notNeeded')
+                  setMark(option.value, mark === 'na' ? undefined : 'na')
                 }
               >
-                {t('processes.case.marks.notNeeded')}
+                {t('processes.case.marks.na')}
               </Button>
             </li>
           )

@@ -69,7 +69,7 @@ describe('validateManualValues', () => {
         x: 'matn',
         n: '3',
         c: 'b',
-        l: { a: 'done', b: 'notNeeded' },
+        l: { a: 'done', b: 'na' },
       }),
     ).toEqual({})
   })
@@ -95,7 +95,7 @@ describe('validateManualValues', () => {
   it('wants every required checklist item marked, either way', () => {
     const list = input({ id: 'l', type: 'Checklist', required: true, options })
     expect(validateManualValues([list], { l: { a: 'done' } })).toEqual({ l: 'checklistIncomplete' })
-    expect(validateManualValues([list], { l: { a: 'notNeeded', b: 'notNeeded' } })).toEqual({})
+    expect(validateManualValues([list], { l: { a: 'na', b: 'na' } })).toEqual({})
   })
 
   it('checks a number for shape and range', () => {
@@ -162,7 +162,7 @@ describe('describeRecordedInputs', () => {
         input({ id: 'n', type: 'WholeNumber', label: 'Baho' }),
         input({ id: 'l', type: 'Checklist', label: 'Ro‘yxat', options }),
       ],
-      { c: 'b', d: '2026-11-05', n: 4, l: { a: 'done', b: 'notNeeded' } },
+      { c: 'b', d: '2026-11-05', n: 4, l: { a: 'done', b: 'na' } },
     )
     expect(rows).toEqual([
       { kind: 'text', id: 'c', label: 'Tanlov', text: 'Ikkinchi' },
@@ -174,7 +174,7 @@ describe('describeRecordedInputs', () => {
         label: 'Ro‘yxat',
         items: [
           { value: 'a', label: 'Birinchi', mark: 'done' },
-          { value: 'b', label: 'Ikkinchi', mark: 'notNeeded' },
+          { value: 'b', label: 'Ikkinchi', mark: 'na' },
         ],
       },
     ])

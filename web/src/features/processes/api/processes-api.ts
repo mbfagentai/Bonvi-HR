@@ -431,38 +431,41 @@ export async function fetchProcessEngineStatus(signal?: AbortSignal): Promise<Pr
 }
 
 /*
- * The write endpoints (SPEC §10 #9–#12). They arrive with slice P7, so the screens keep their controls disabled behind
- * `PROCESS_WRITE_API_READY` (`lib/process-step.ts`). The bodies are the agreed reading of §10, recorded in
- * docs/ASSUMPTIONS.md; if P7 settles on other field names, these functions are the one place to change.
+ * The write endpoints (SPEC §10 #9–#12), as slice P7 wrote them. The screens keep their controls disabled behind
+ * `PROCESS_WRITE_API_READY` (`lib/process-step.ts`) until P7 merges. Recorded in docs/ASSUMPTIONS.md. Every write takes
+ * `version` from `GET /cases/{id}`: missing answers 400 `jarayon.kiritish_notogri`, stale answers 409 `jarayon.versiya`.
  */
 
-export type ProcessChecklistMark = 'done' | 'notNeeded'
+export type ProcessChecklistMark = 'done' | 'na'
 
-/** Text, Date and Choice go as a string, WholeNumber as a number, Checklist as `{ optionValue: mark }`. */
+/** Text, LongText and Choice go as a string, Date as yyyy-MM-dd, WholeNumber as a number, Checklist as `{ item: mark }`. */
 export type ProcessStepInputValue = string | number | Readonly<Record<string, ProcessChecklistMark>>
 
 export type ProcessStepInputs = Readonly<Record<string, ProcessStepInputValue>>
 
 export interface ProcessStepCompleteInput {
+  /** `ProcessCaseDetail.version`. */
+  version: number
   inputs: ProcessStepInputs
-  /** `ProcessCaseDetail.version`: another user's change answers 409 `jarayon.versiya`. */
-  expectedVersion: number
 }
 
 export interface ProcessStepSkipInput {
+  version: number
   /** Required on a legacy case, optional otherwise (#11). */
   reason: string | null
-  expectedVersion: number
 }
 
 export interface ProcessStepUndoInput {
-  expectedVersion: number
+  version: number
 }
 
 /** #9: `dismissal` is the only process started by hand in Phase 1. */
 export interface ProcessCaseStartInput {
   processCode: 'dismissal'
   employmentId: string
+  /** yyyy-MM-dd; a day before the hire date answers 400. */
+  lastWorkDay: string
+  basis: string | null
 }
 
 function stepPath(caseId: string, stepCode: string): string {

@@ -87,3 +87,16 @@ describe('resolveProcessLink', () => {
     expect(resolveProcessLink(link('futureScreen'), SUBJECT, null)).toEqual({ kind: 'none' })
   })
 })
+
+describe('resolveProcessLink without a subject', () => {
+  it('treats a missing subject as no ids instead of crashing', () => {
+    expect(resolveProcessLink({ screen: 'employee', args: {} }, null, null)).toEqual({ kind: 'none' })
+    expect(resolveProcessLink({ screen: 'candidate', args: {} }, undefined, null)).toEqual({
+      kind: 'none',
+    })
+    expect(resolveProcessLink({ screen: 'employment', args: {} }, null, null)).toEqual({
+      kind: 'internal',
+      href: '/buyruqlar',
+    })
+  })
+})

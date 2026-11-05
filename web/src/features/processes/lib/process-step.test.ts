@@ -7,6 +7,7 @@ import {
   groupStepsByColumn,
   pendingPrereqTitles,
   stepEntry,
+  stepProgress,
 } from './process-step'
 
 const holder = { role: 'hr1', employeeId: null, employeeName: null, users: [], unassigned: false }
@@ -217,5 +218,40 @@ describe('pendingPrereqTitles', () => {
     expect(
       pendingPrereqTitles(step({ stepCode: 'd', prereqs: ['a', 'b', 'c', 'gone'] }), steps),
     ).toEqual(['Uchinchi'])
+  })
+})
+
+describe('stepProgress', () => {
+  it('counts a skipped step as finished, and nothing else', () => {
+    expect(
+      stepProgress([
+        { state: 'Done' },
+        { state: 'Skipped' },
+        { state: 'Active' },
+        { state: 'Blocked' },
+        { state: 'Waiting' },
+        { state: 'Locked' },
+      ]),
+    ).toEqual({ done: 2, total: 6 })
+  })
+
+  it('is zero of zero on no steps', () => {
+    expect(stepProgress([])).toEqual({ done: 0, total: 0 })
+  })
+})
+
+describe('without a subject', () => {
+  it('stepEntry and blankCreateBody do not crash and offer nothing that needs one', () => {
+    const blankStep = step({
+      stepCode: 'x',
+      state: 'Active',
+      viewerHolds: true,
+      link: { screen: 'blank', args: { template: 'HR-F08', subject: 'employee' } },
+    })
+
+    expect(stepEntry(blankStep, undefined, true)).toBeNull()
+    expect(
+      blankCreateBody({ kind: 'createBlank', template: 'HR-F08', subject: 'candidate' }, null),
+    ).toBeNull()
   })
 })

@@ -1,3 +1,6 @@
+import { MONTH_NAMES } from '@/shared/i18n/calendar'
+import type { LocaleCode } from '@/shared/i18n/locales'
+
 import type { ProcessStepState } from '../api/processes-api'
 
 export type ProcessDue =
@@ -33,6 +36,39 @@ export function describeDue(dueDate: string | null, daysLate: number, today: str
 export function shortDueDate(isoDate: string, locale: string): string {
   const [, month = '', day = ''] = isoDate.split('-')
   return locale === 'en' ? `${month}-${day}` : `${day}.${month}`
+}
+
+/** Russian needs the genitive, which `MONTH_NAMES` (a picker's nominative) does not carry. */
+const RU_MONTHS_GENITIVE = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+] as const
+
+/** «2026-11-05» → «5-noyabr», «5 ноября», «5 November». An unreadable date is shown as it came. */
+export function longDueDate(isoDate: string, locale: LocaleCode): string {
+  const [, month, day] = isoDate.split('-').map(Number)
+  if (month === undefined || day === undefined || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return isoDate
+  }
+
+  switch (locale) {
+    case 'ru':
+      return `${day} ${RU_MONTHS_GENITIVE[month - 1] ?? month}`
+    case 'en':
+      return `${day} ${MONTH_NAMES.en[month - 1] ?? month}`
+    default:
+      return `${day}-${(MONTH_NAMES[locale][month - 1] ?? String(month)).toLowerCase()}`
+  }
 }
 
 export type ProcessTaskTone = 'late' | 'today' | 'blocked' | 'normal'

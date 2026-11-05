@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { describeDue, shortDueDate, taskTone } from './process-due'
+import { longDueDate, describeDue, shortDueDate, taskTone } from './process-due'
 
 const TODAY = '2026-11-05'
 
@@ -41,5 +41,18 @@ describe('taskTone', () => {
     expect(taskTone('Active', TODAY, 0, TODAY)).toBe('today')
     expect(taskTone('Active', '2026-11-24', 0, TODAY)).toBe('normal')
     expect(taskTone('Active', null, 0, TODAY)).toBe('normal')
+  })
+})
+
+describe('longDueDate', () => {
+  it('writes the date the way each language says it', () => {
+    expect(longDueDate('2026-11-05', 'uz-Latn')).toBe('5-noyabr')
+    expect(longDueDate('2026-11-05', 'uz-Cyrl')).toBe('5-ноябр')
+    expect(longDueDate('2026-11-05', 'ru')).toBe('5 ноября')
+    expect(longDueDate('2026-11-05', 'en')).toBe('5 November')
+  })
+
+  it('shows an unreadable date as it came', () => {
+    expect(longDueDate('soon', 'uz-Latn')).toBe('soon')
   })
 })
