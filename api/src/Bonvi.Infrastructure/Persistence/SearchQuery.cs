@@ -1,5 +1,6 @@
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.Recruiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence;
@@ -312,6 +313,40 @@ internal static class EmployeeSearchQuery
 
         return employees.Where(employee => matching.Contains(employee.Id));
     }
+
+    /// <summary>
+    /// Search for a scoped attendance user: full name only.
+    /// </summary>
+    /// <remarks>
+    /// Narrower than <see cref="MatchingTeam"/> on purpose. A scoped user sees neither PINFL,
+    /// passport nor phone, and a match on any of them would answer «whose number is this»
+    /// even though the value never appears in the response. The name condition is the same
+    /// as in <see cref="MatchingIds"/>; the two change together.
+    /// </remarks>
+    public static IQueryable<Employee> MatchingName(AppDbContext context, string? search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var employees = context.Employees.AsNoTracking();
+
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return employees;
+        }
+
+        var namePattern = SearchPattern.For(search);
+
+        var matching = context.Employees
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM employees AS x
+                 WHERE x.search_key LIKE search_key({namePattern})
+                 """)
+            .Select(employee => employee.Id);
+
+        return employees.Where(employee => matching.Contains(employee.Id));
+    }
 }
 
 /// <summary>
@@ -525,6 +560,105 @@ internal static class CandidateSearchQuery
                  WHERE x.birth_date = {birthDate}
                    AND search_key(x.last_name || ' ' || x.first_name)
                        IN (search_key({direct}), search_key({swapped}))
+                 """)
+            .Select(candidate => candidate.Id);
+    }
+
+    /// <summary>
+    /// Candidates who already are an employee on <paramref name="today"/>: the same person,
+    /// recorded twice.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A hire event linking the candidate to a non-deleted employee is enough for every status.
+    /// Without a link, the test depends on the status:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>Blacklisted: never hidden. HR must always see a blacklist hit, and a name twin must
+    /// not be able to hide one.</item>
+    /// <item>InProgress: the same phone, or the same <c>search_key</c> AND birth date, against a
+    /// CURRENT employee only: a live employment whose <c>termination_date</c> is empty or still
+    /// ahead. A former employee who applies again is a live applicant HR must find, and a name
+    /// twin must not hide one. A missing birth date therefore never matches.</item>
+    /// <item>Every other status: the same phone or the same <c>search_key</c>, against any
+    /// non-deleted employee, former ones included.</item>
+    /// </list>
+    /// <para>
+    /// The link alone is not enough: most candidates who became employees came from imports and
+    /// have no event. A candidate whose only match is a soft-deleted employee is NOT returned,
+    /// because hiding them would leave nobody to find.
+    /// </para>
+    /// <para>
+    /// Phones are compared as digits, like <see cref="WithPhone"/>, and a candidate whose phone
+    /// has no digits never matches: an empty phone says nothing about who the person is. NULL
+    /// phones drop out of the comparison on their own. <c>second_phone</c> is left out on
+    /// purpose, since it is often a relative's number. <c>search_key</c> covers the full name
+    /// including the patronymic, so «Karimov Aziz» does not match «Каримов Азиз Анварович».
+    /// </para>
+    /// <para>
+    /// Raw SQL for the reasons in <see cref="MatchingIds"/>: <c>Phone</c> sits behind a value
+    /// converter and <c>search_key</c> is not in the EF model. The conditions stay separate
+    /// <c>EXISTS</c> blocks with a plain equality so that PostgreSQL hashes each employee set
+    /// once instead of scanning employees for every candidate.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Guid> WhoAreEmployees(AppDbContext context, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        // The column is an integer: see `status` in the model snapshot.
+        var inProgress = (int)CandidateStatus.InProgress;
+        var blacklisted = (int)CandidateStatus.Blacklisted;
+
+        return context.Candidates
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM candidates AS x
+                 WHERE EXISTS (
+                           SELECT 1
+                           FROM employment_events AS ev
+                           JOIN employments AS em ON em.id = ev.employment_id
+                           JOIN employees AS e ON e.id = em.employee_id
+                           WHERE ev.candidate_id = x.id
+                             AND e.deleted_at IS NULL)
+                    OR (
+                           x.status NOT IN ({inProgress}, {blacklisted})
+                           AND (
+                               (
+                                   regexp_replace(x.phone, '\D', '', 'g') <> ''
+                                   AND EXISTS (
+                                       SELECT 1
+                                       FROM employees AS e
+                                       WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
+                                         AND e.deleted_at IS NULL))
+                               OR EXISTS (
+                                   SELECT 1
+                                   FROM employees AS e
+                                   WHERE e.search_key = x.search_key
+                                     AND e.deleted_at IS NULL)))
+                    OR (
+                           x.status = {inProgress}
+                           AND (
+                               (
+                                   regexp_replace(x.phone, '\D', '', 'g') <> ''
+                                   AND EXISTS (
+                                       SELECT 1
+                                       FROM employees AS e
+                                       JOIN employments AS em ON em.employee_id = e.id
+                                       WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
+                                         AND e.deleted_at IS NULL
+                                         AND em.deleted_at IS NULL
+                                         AND (em.termination_date IS NULL OR em.termination_date > {today})))
+                               OR EXISTS (
+                                   SELECT 1
+                                   FROM employees AS e
+                                   JOIN employments AS em ON em.employee_id = e.id
+                                   WHERE e.search_key = x.search_key
+                                     AND e.birth_date = x.birth_date
+                                     AND e.deleted_at IS NULL
+                                     AND em.deleted_at IS NULL
+                                     AND (em.termination_date IS NULL OR em.termination_date > {today}))))
                  """)
             .Select(candidate => candidate.Id);
     }

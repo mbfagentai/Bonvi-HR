@@ -107,7 +107,8 @@
       "salary.view": "Просмотр оклада",
       "salary.extra.view": "Просмотр доплат",
       "mcp.connect": "Чтение через ИИ (MCP)",
-      "employees.personal.view": "Личные данные"
+      "employees.personal.view": "Личные данные",
+      "attendance.scoped": "Ответственный за посещаемость"
     }
   },
   "settings": {
@@ -1650,6 +1651,14 @@
   "users": {
     "active": "Активен",
     "activate": "Активировать",
+    "attendanceScope": "Какие отделы",
+    "attendanceScopeEmpty": "Отделов пока нет. Сначала добавьте отдел в «Справочниках».",
+    "attendanceScopeHint": "Если отдел не выбран, пользователь ничего не увидит. Вложенные отделы выбранного отдела входят автоматически.",
+    "attendanceScopeLoadFailed": "Не удалось загрузить отделы",
+    "attendanceScopeLoadFailedText": "Пока список не загружен, сохранение отключено — иначе текущие отделы могли бы стереться.",
+    "attendanceScopeRequired": "Выберите хотя бы один отдел — без отдела пользователь ничего не увидит.",
+    "attendanceScopeSaveFailed": "Учётная запись сохранена, но отделы не сохранились. Нажмите «Сохранить» ещё раз.",
+    "attendanceScopeSelected": "Выбрано: {{selected}}",
     "columnLastLogin": "Последний вход",
     "columnRole": "Роль",
     "columnStatus": "Статус",

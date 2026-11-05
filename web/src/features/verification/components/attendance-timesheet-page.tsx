@@ -34,10 +34,11 @@ import {
   Select,
 } from '@/shared/ui'
 
-import type { TimesheetFilters, TimesheetRow } from '../api/attendance-api'
+import type { AttendancePass, TimesheetFilters, TimesheetRow } from '../api/attendance-api'
 import { useExportTimesheet, useRecompute, useTimesheet } from '../api/attendance-queries'
 import {
   ATTENDANCE_MANAGE,
+  ATTENDANCE_REQUESTS_MANAGE,
   ATTENDANCE_VIEW,
   DEFAULT_PAGE_SIZE,
   REPORTS_EXPORT,
@@ -51,6 +52,8 @@ import {
   type MonthValue,
   type TimesheetSearch,
 } from '../lib/attendance-search'
+import { AttendanceDayDialog } from './attendance-day-dialog'
+import { AttendancePassPhotoDialog } from './attendance-pass-photo-dialog'
 import { AttendanceTimesheetGrid, TimesheetLegend } from './attendance-timesheet-grid'
 
 /**
@@ -87,13 +90,13 @@ const NO_ORG_FILTERS: OrgFilters = { legalEntityId: '', departmentId: '', positi
 export function AttendanceTimesheetPage() {
   const { t, num, locale, date, dateTime } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
   // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -104,6 +107,9 @@ export function AttendanceTimesheetPage() {
 
   const [org, setOrg] = useState<OrgFilters>(NO_ORG_FILTERS)
   const [panelOpen, setPanelOpen] = useState(false)
+  // Only the day's address: the cell itself is re-read from the current rows, so a manual pass shows up
+  const [openDay, setOpenDay] = useState<{ employeeId: string; date: string } | null>(null)
+  const [openPass, setOpenPass] = useState<AttendancePass | null>(null)
 
   /**
    * Manzilni yangilash.
@@ -126,7 +132,8 @@ export function AttendanceTimesheetPage() {
     setSearch((previous) => ({ ...previous, q: toSearchParam(value), page: undefined }))
   })
 
-  const options = useFilterOptions()
+  // Catalogs are closed to a «Davomat mas'uli»; their org filters are hidden below
+  const options = useFilterOptions(!isAttendanceScoped)
 
   /**
    * So'rov filtri — ekrandagi grid ham, Excel ham AYNAN shundan
@@ -203,6 +210,13 @@ export function AttendanceTimesheetPage() {
   const days = data?.days ?? EMPTY_DAYS
   const total = data?.total ?? 0
   const firstLoad = query.isPending
+
+  const openCell =
+    openDay === null
+      ? null
+      : (rows
+          .find((row) => row.employeeId === openDay.employeeId)
+          ?.cells.find((cell) => cell.date === openDay.date) ?? null)
 
   const filtered =
     q.trim() !== '' || org.legalEntityId !== '' || org.departmentId !== '' || org.positionId !== ''
@@ -371,21 +385,24 @@ export function AttendanceTimesheetPage() {
               />
             </div>
 
-            <Button
-              type="button"
-              pill
-              variant={panelOpen ? 'soft' : 'secondary'}
-              aria-expanded={panelOpen}
-              onClick={() => setPanelOpen((previous) => !previous)}
-            >
-              <ListFilter />
-              <span className="hidden sm:inline">{t('common.filters')}</span>
-              {panelCount > 0 && (
-                <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
-                  {num(panelCount)}
-                </span>
-              )}
-            </Button>
+            {/* Catalogs are closed to a «Davomat mas'uli»: the panel would hold three empty selects */}
+            {!isAttendanceScoped && (
+              <Button
+                type="button"
+                pill
+                variant={panelOpen ? 'soft' : 'secondary'}
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen((previous) => !previous)}
+              >
+                <ListFilter />
+                <span className="hidden sm:inline">{t('common.filters')}</span>
+                {panelCount > 0 && (
+                  <span className="tabular grid size-5 place-items-center rounded-full bg-[var(--accent)] text-caption2 font-semibold text-[var(--fg-on-accent)]">
+                    {num(panelCount)}
+                  </span>
+                )}
+              </Button>
+            )}
 
             {/*
               Tozalash — «Filtrlar» yonida, faqat filtr qo'yilganda. Panel ostidagi
@@ -409,7 +426,7 @@ export function AttendanceTimesheetPage() {
             )}
           </div>
 
-          {panelOpen && (
+          {panelOpen && !isAttendanceScoped && (
             <div className="border-t border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-4 sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <Select
@@ -474,6 +491,9 @@ export function AttendanceTimesheetPage() {
             rows={rows}
             loading={firstLoad}
             canOpenEmployee={canOpenEmployee}
+            onOpenDay={
+              isAttendanceScoped ? (employeeId, date) => setOpenDay({ employeeId, date }) : undefined
+            }
           />
         )}
 
@@ -499,6 +519,29 @@ export function AttendanceTimesheetPage() {
       <Alert tone="info" title={t('attendance.cannotEditTitle')}>
         {t('attendance.cannotEditText')}
       </Alert>
+
+      {/*
+        The employee card holds this dialog for everyone else. A «Davomat mas'uli» cannot reach
+        the card, and manual passes are the point of their role.
+      */}
+      {isAttendanceScoped && (
+        <>
+          <AttendanceDayDialog
+            employeeId={openDay?.employeeId ?? ''}
+            cell={openPass === null ? openCell : null}
+            canManage={hasPermission(ATTENDANCE_REQUESTS_MANAGE)}
+            onOpenPass={setOpenPass}
+            onClose={() => setOpenDay(null)}
+          />
+
+          <AttendancePassPhotoDialog
+            passId={openPass?.id ?? null}
+            pass={openPass}
+            canOpenEmployee={canOpenEmployee}
+            onClose={() => setOpenPass(null)}
+          />
+        </>
+      )}
     </div>
   )
 }

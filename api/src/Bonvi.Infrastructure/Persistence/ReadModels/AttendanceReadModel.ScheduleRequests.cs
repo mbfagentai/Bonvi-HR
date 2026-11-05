@@ -24,6 +24,11 @@ public sealed partial class AttendanceReadModel : IScheduleChangeRequestReadMode
 
         var query = _context.ScheduleChangeRequests.AsNoTracking();
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            query = query.Where(request => inScope.Contains(request.EmployeeId));
+        }
+
         if (filter.EmployeeId is { } employeeId)
         {
             query = query.Where(request => request.EmployeeId == employeeId);
@@ -63,7 +68,7 @@ public sealed partial class AttendanceReadModel : IScheduleChangeRequestReadMode
 
         if (filter.Search is { } search)
         {
-            var matching = EmployeeSearchQuery.Matching(_context, search).Select(employee => employee.Id);
+            var matching = EmployeesMatching(search).Select(employee => employee.Id);
             query = query.Where(request => matching.Contains(request.EmployeeId));
         }
 
@@ -88,8 +93,14 @@ public sealed partial class AttendanceReadModel : IScheduleChangeRequestReadMode
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var request = await _context.ScheduleChangeRequests
-            .AsNoTracking()
+        var requests = _context.ScheduleChangeRequests.AsNoTracking();
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            requests = requests.Where(item => inScope.Contains(item.EmployeeId));
+        }
+
+        var request = await requests
             .Include(item => item.Days)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
             .ConfigureAwait(false);

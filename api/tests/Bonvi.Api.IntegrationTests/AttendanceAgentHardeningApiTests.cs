@@ -512,7 +512,7 @@ public sealed class AttendanceAgentHardeningApiTests : IClassFixture<BonviApiFac
         using var viewer = await ClientAsync(Permissions.AttendanceView);
         var dashboard = await viewer.GetFromJsonAsync<AttendanceDashboardDto>("/api/attendance/dashboard", Json, cancel);
 
-        dashboard!.DeviceHealth.Outages.ShouldContain(outage =>
+        dashboard!.DeviceHealth!.Outages.ShouldContain(outage =>
             outage.DeviceId == deviceId && outage.State == DeviceLinkState.TerminalUnreachable);
     }
 
@@ -535,10 +535,10 @@ public sealed class AttendanceAgentHardeningApiTests : IClassFixture<BonviApiFac
         using var viewer = await ClientAsync(Permissions.AttendanceView);
         var dashboard = await viewer.GetFromJsonAsync<AttendanceDashboardDto>("/api/attendance/dashboard", Json, cancel);
 
-        var outage = dashboard!.DeviceHealth.Outages.Single(item => item.DeviceId == deviceId);
+        var outage = dashboard!.DeviceHealth!.Outages.Single(item => item.DeviceId == deviceId);
         outage.State.ShouldBe(DeviceLinkState.AgentOffline);
         outage.DeviceName.ShouldBe($"{tag} terminal");
-        dashboard.DeviceHealth.ActiveDevices.ShouldBeGreaterThanOrEqualTo(1);
+        dashboard.DeviceHealth!.ActiveDevices.ShouldBeGreaterThanOrEqualTo(1);
     }
 
     // ────────────────────────────────────────────────────────────

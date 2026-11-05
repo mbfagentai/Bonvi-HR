@@ -84,10 +84,11 @@ export function ScheduleRequestsList({
   onRangeChange?: (next: DateRange) => void
 }) {
   const { t, date } = useLocale()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
   const text = useScheduleRequestText()
 
-  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
+  // A «Davomat mas'uli» holds this permission for manual passes only: the server refuses requests
+  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE) && !isAttendanceScoped
   /*
     Excelga yuklash — faqat umumiy navbatda (sana filtri kartasi bor joyda),
     ro'yxatni ko'rish VA `reports.export` bilan (`AbsenceRequestsList` dagi qoida).

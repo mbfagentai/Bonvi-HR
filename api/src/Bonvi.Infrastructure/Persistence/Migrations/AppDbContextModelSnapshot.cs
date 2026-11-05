@@ -3798,6 +3798,25 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Identity.UserAttendanceScope", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.HasKey("UserId", "DepartmentId")
+                        .HasName("pk_user_attendance_scopes");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_user_attendance_scopes_department_id");
+
+                    b.ToTable("user_attendance_scopes", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Mcp.McpAuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -6497,6 +6516,23 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Identity.UserAttendanceScope", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Organization.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_attendance_scopes_departments_department_id");
+
+                    b.HasOne("Bonvi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_attendance_scopes_users_user_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Mcp.McpGrant", b =>

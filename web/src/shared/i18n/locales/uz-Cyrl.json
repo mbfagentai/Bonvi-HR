@@ -107,7 +107,8 @@
       "salary.view": "Окладни кўриш",
       "salary.extra.view": "Қўшимча ҳақни кўриш",
       "mcp.connect": "AI орқали ўқиш (MCP)",
-      "employees.personal.view": "Шахсий маълумотлар"
+      "employees.personal.view": "Шахсий маълумотлар",
+      "attendance.scoped": "Давомат масъули"
     }
   },
   "settings": {
@@ -1650,6 +1651,14 @@
   "users": {
     "active": "Фаол",
     "activate": "Фаоллаштириш",
+    "attendanceScope": "Қайси бўлимлар",
+    "attendanceScopeEmpty": "Бўлимлар ҳали йўқ. Аввал «Маълумотномалар»да бўлим қўшинг.",
+    "attendanceScopeHint": "Бўлим белгиланмаса, фойдаланувчи ҳеч нарсани кўрмайди. Белгиланган бўлимнинг ички бўлимлари ҳам киради.",
+    "attendanceScopeLoadFailed": "Бўлимларни юклаб бўлмади",
+    "attendanceScopeLoadFailedText": "Рўйхат юкланмагунча сақлаш ўчирилган — акс ҳолда мавжуд бўлимлар ўчиб кетиши мумкин эди.",
+    "attendanceScopeRequired": "Камида битта бўлимни белгиланг — бўлимсиз фойдаланувчи ҳеч нарсани кўрмайди.",
+    "attendanceScopeSaveFailed": "Ҳисоб сақланди, лекин бўлимлар сақланмади. «Сақлаш»ни қайта босинг.",
+    "attendanceScopeSelected": "Танланди: {{selected}}",
     "columnLastLogin": "Охирги кириш",
     "columnRole": "Рол",
     "columnStatus": "Ҳолат",

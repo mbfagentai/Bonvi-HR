@@ -5,6 +5,9 @@ import { problemCode } from '@/shared/api/problem-details'
 import { saveBlobAs } from '@/shared/lib/download'
 
 import {
+  fetchAttendanceEmployeeLookup,
+  fetchUserAttendanceScope,
+  putUserAttendanceScope,
   confirmIdentityImport,
   createAssignment,
   createDevice,
@@ -1020,4 +1023,33 @@ export function useAddManualPass() {
 /** HR qo'shgan belgini o'chiradi. */
 export function useRemoveManualPass() {
   return useMutation({ mutationFn: (passId: string) => removeManualPass(passId) })
+}
+
+/* ═══════════════════════════════════ «Davomat mas'uli» — xodimlar routes */
+
+/** Search only: the server decides whom a scoped user may find. */
+export function useAttendanceEmployeeLookup(search: string, limit: number, enabled: boolean) {
+  return useQuery({
+    queryKey: [...attendanceKeys.root, 'employee-lookup', search, limit] as const,
+    queryFn: ({ signal }) => fetchAttendanceEmployeeLookup(search, limit, signal),
+    enabled,
+  })
+}
+
+export function useUserAttendanceScope(userId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: [...attendanceKeys.root, 'user-scope', userId] as const,
+    queryFn: ({ signal }) => fetchUserAttendanceScope(userId ?? '', signal),
+    enabled: enabled && userId !== null,
+    // Always the server's current list: saving a stale one would silently undo a colleague's edit
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export function useSaveUserAttendanceScope() {
+  return useMutation({
+    mutationFn: ({ userId, departmentIds }: { userId: string; departmentIds: string[] }) =>
+      putUserAttendanceScope(userId, { departmentIds }),
+  })
 }

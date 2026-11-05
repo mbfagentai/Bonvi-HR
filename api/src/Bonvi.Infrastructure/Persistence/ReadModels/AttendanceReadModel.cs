@@ -50,12 +50,18 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
     private readonly AppDbContext _context;
     private readonly IDepartmentRepository _departments;
     private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
-    public AttendanceReadModel(AppDbContext context, IDepartmentRepository departments, IClock clock)
+    public AttendanceReadModel(
+        AppDbContext context,
+        IDepartmentRepository departments,
+        IClock clock,
+        IAttendanceScope scope)
     {
         _context = context;
         _departments = departments;
         _clock = clock;
+        _scope = scope;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -128,6 +134,13 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
             .AsNoTracking()
             .Where(pass => pass.LocalDate >= filter.From && pass.LocalDate <= filter.To);
 
+        // Unmatched passes have no department, so a scoped user does not see them.
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            passes = passes.Where(pass =>
+                pass.ResolvedEmployeeId != null && inScope.Contains(pass.ResolvedEmployeeId.Value));
+        }
+
         if (filter.EmployeeId is { } employeeId)
         {
             passes = passes.Where(pass => pass.ResolvedEmployeeId == employeeId);
@@ -183,12 +196,16 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
             // o'tdi» (xodim) va «00731 kimligini bilmayman» (qurilma raqami).
             // Xodim sharti barcha ro'yxatlardagi bilan AYNAN bir xil
             // (`EmployeeSearchQuery`), raqam esa ichida qidiriladi.
-            var matching = EmployeeSearchQuery.MatchingIds(_context, search);
+            var matching = EmployeeIdsMatching(search);
             var pattern = SearchPattern.For(search);
 
-            passes = passes.Where(pass =>
-                (pass.ResolvedEmployeeId != null && matching.Contains(pass.ResolvedEmployeeId.Value)) ||
-                EF.Functions.ILike(pass.RawPersonId, pattern, SearchPattern.Escape));
+            // The device number is one more identifier a scoped user cannot search by.
+            passes = _scope.IsScoped
+                ? passes.Where(pass =>
+                    pass.ResolvedEmployeeId != null && matching.Contains(pass.ResolvedEmployeeId.Value))
+                : passes.Where(pass =>
+                    (pass.ResolvedEmployeeId != null && matching.Contains(pass.ResolvedEmployeeId.Value)) ||
+                    EF.Functions.ILike(pass.RawPersonId, pattern, SearchPattern.Escape));
         }
 
         var total = await passes.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -220,9 +237,17 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         Guid passId,
         CancellationToken cancellationToken = default)
     {
-        var row = await _context.AttendancePasses
+        var passes = _context.AttendancePasses
             .AsNoTracking()
-            .Where(pass => pass.Id == passId)
+            .Where(pass => pass.Id == passId);
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            passes = passes.Where(pass =>
+                pass.ResolvedEmployeeId != null && inScope.Contains(pass.ResolvedEmployeeId.Value));
+        }
+
+        var row = await passes
             .Select(PassRowProjection)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -402,6 +427,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         DateOnly date,
         CancellationToken cancellationToken = default)
     {
+        if (!await _scope.CanAccessEmployeeAsync(employeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return new AttendanceDayPassesDto(employeeId, date, []);
+        }
+
         var from = date.AddDays(-1);
         var to = date.AddDays(1);
 
@@ -863,16 +893,23 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
             : null;
 
         HashSet<Guid>? matching = filter.Search is { } search
-            ? [.. await EmployeeSearchQuery.MatchingIds(_context, search)
+            ? [.. await EmployeeIdsMatching(search)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false)]
             : null;
+
+        var inScope = await _scope.EmployeeIdsInScopeAsync(cancellationToken).ConfigureAwait(false);
 
         // Filtr BUGUNGI asosiy munosabatga qo'llanadi. Bugun munosabati yo'q
         // odam firma/bo'lim filtri bilan hech qachon mos kelmaydi — u
         // ogohlantirishda turibdi, filtrsiz.
         bool MatchesFilter(Guid employeeId)
         {
+            if (inScope is not null && !inScope.Contains(employeeId))
+            {
+                return false;
+            }
+
             if (matching is not null && !matching.Contains(employeeId))
             {
                 return false;
@@ -1009,13 +1046,19 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
           ham «soat og'ishi» banneriga tushardi. Qurilmalar o'ntadan oshmaydi —
           xotirada sanash qoidani SQL'da ikkinchi marta yozishdan xavfsizroq.
         */
-        var activeDevices = await _context.AttendanceDevices
-            .AsNoTracking()
-            .Where(device => device.IsActive)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var clockWarnings = 0;
 
-        var clockWarnings = activeDevices.Count(device => !device.IsSynthetic && device.ClockWarningAt(now));
+        // Devices are not a scoped user's business, and the page that fixes them is closed to them.
+        if (!_scope.IsScoped)
+        {
+            var activeDevices = await _context.AttendanceDevices
+                .AsNoTracking()
+                .Where(device => device.IsActive)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            clockWarnings = activeDevices.Count(device => !device.IsSynthetic && device.ClockWarningAt(now));
+        }
 
         return new AttendanceBoardDto(
             now,
@@ -1065,7 +1108,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         var since = now.AddHours(-AttendanceRules.FormerEmployeeAlertHours).ToUniversalTime();
         var sinceDate = since.TashkentDate();
 
-        var passes = await _context.AttendancePasses
+        var alertPasses = _context.AttendancePasses
             .AsNoTracking()
             .Where(pass =>
                 pass.LocalDate >= sinceDate &&
@@ -1074,7 +1117,14 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 !_context.Employments.Any(employment =>
                     employment.EmployeeId == pass.ResolvedEmployeeId &&
                     employment.HireDate <= pass.LocalDate &&
-                    (employment.TerminationDate == null || employment.TerminationDate >= pass.LocalDate)))
+                    (employment.TerminationDate == null || employment.TerminationDate >= pass.LocalDate)));
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            alertPasses = alertPasses.Where(pass => inScope.Contains(pass.ResolvedEmployeeId!.Value));
+        }
+
+        var passes = await alertPasses
             .OrderByDescending(pass => pass.OccurredAt)
             .ThenByDescending(pass => pass.Id)
             .Select(pass => new
@@ -1243,6 +1293,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                      (item.ToDepartmentId != null && scope.Contains(item.ToDepartmentId.Value)))));
         }
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            covering = covering.Where(employment => inScope.Contains(employment.EmployeeId));
+        }
+
         var coveringEmployeeIds = covering.Select(employment => employment.EmployeeId);
 
         var people = await _context.Employees
@@ -1269,9 +1324,9 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         // Qidiruv sharti barcha ro'yxatlardagi bilan AYNAN bir xil (`EmployeeSearchQuery`);
         // boshliq panelida — faqat ism va asosiy telefon (`DashboardFilter.SearchNameAndPhoneOnly`).
         HashSet<Guid>? matching = filter.Search is { } search
-            ? [.. await (filter.SearchNameAndPhoneOnly
+            ? [.. await (filter.SearchNameAndPhoneOnly && !_scope.IsScoped
                     ? EmployeeSearchQuery.MatchingTeam(_context, search)
-                    : EmployeeSearchQuery.Matching(_context, search))
+                    : EmployeesMatching(search))
                 .Where(employee => populationIds.Contains(employee.Id))
                 .Select(employee => employee.Id)
                 .ToListAsync(cancellationToken)
@@ -1576,6 +1631,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            covering = covering.Where(employment => inScope.Contains(employment.EmployeeId));
+        }
+
         var spans = await covering
             .Select(employment => new TrendSpan(
                 employment.EmployeeId,
@@ -1788,6 +1848,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            covering = covering.Where(employment => inScope.Contains(employment.EmployeeId));
+        }
+
         var coveringEmployeeIds = covering.Select(employment => employment.EmployeeId);
 
         // Sanasi yo'q xodim ro'yxatda umuman qatnashmaydi — «noma'lum» qatori
@@ -1965,6 +2030,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
         var query = _context.AbsenceRequests.AsNoTracking();
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            query = query.Where(request => inScope.Contains(request.EmployeeId));
+        }
+
         if (filter.EmployeeId is { } employeeId)
         {
             query = query.Where(request => request.EmployeeId == employeeId);
@@ -2009,7 +2079,7 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
         if (filter.Search is { } search)
         {
-            var matching = EmployeeSearchQuery.Matching(_context, search).Select(employee => employee.Id);
+            var matching = EmployeesMatching(search).Select(employee => employee.Id);
             query = query.Where(request => matching.Contains(request.EmployeeId));
         }
 
@@ -2052,9 +2122,16 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var row = await _context.AbsenceRequests
+        var requests = _context.AbsenceRequests
             .AsNoTracking()
-            .Where(request => request.Id == id)
+            .Where(request => request.Id == id);
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            requests = requests.Where(request => inScope.Contains(request.EmployeeId));
+        }
+
+        var row = await requests
             .Select(request => new RequestRow(
                 request.Id,
                 request.EmployeeId,
@@ -2094,13 +2171,20 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
     /// </remarks>
     public async Task<int> CountPendingAbsenceRequestsAsync(CancellationToken cancellationToken = default)
     {
-        var absences = await _context.AbsenceRequests
-            .AsNoTracking()
+        var absenceRequests = _context.AbsenceRequests.AsNoTracking();
+        var scheduleRequests = _context.ScheduleChangeRequests.AsNoTracking();
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            absenceRequests = absenceRequests.Where(request => inScope.Contains(request.EmployeeId));
+            scheduleRequests = scheduleRequests.Where(request => inScope.Contains(request.EmployeeId));
+        }
+
+        var absences = await absenceRequests
             .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken)
             .ConfigureAwait(false);
 
-        var schedules = await _context.ScheduleChangeRequests
-            .AsNoTracking()
+        var schedules = await scheduleRequests
             .CountAsync(request => request.Status == AbsenceRequestStatus.Pending, cancellationToken)
             .ConfigureAwait(false);
 
@@ -2286,9 +2370,13 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
             .Select(employment => employment.EmployeeId)
             .Union(days.Select(day => day.EmployeeId));
 
-        var employees = EmployeeSearchQuery
-            .Matching(_context, filter.Search)
+        var employees = EmployeesMatching(filter.Search)
             .Where(employee => candidateIds.Contains(employee.Id));
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            employees = employees.Where(employee => inScope.Contains(employee.Id));
+        }
 
         if (filter.EmployeeId is { } employeeId)
         {
@@ -2611,6 +2699,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            days = days.Where(day => inScope.Contains(day.EmployeeId));
+        }
+
         if (filter.EmployeeId is { } employeeId)
         {
             days = days.Where(day => day.EmployeeId == employeeId);
@@ -2754,6 +2847,11 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
                 filter.PositionId,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            days = days.Where(day => inScope.Contains(day.EmployeeId));
+        }
 
         var grouped = days
             .GroupBy(day => day.EmployeeId)
@@ -3305,6 +3403,67 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<AttendanceEmployeeLookupItemDto>> LookupEmployeesAsync(
+        string? search,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var today = _clock.Today;
+        var employees = EmployeeSearchQuery.MatchingName(_context, search);
+
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            employees = employees.Where(employee => inScope.Contains(employee.Id));
+        }
+
+        // «Active» is `PrimaryEmployment.Covers` in SQL. It must hold before `Take`, or former
+        // staff would use up the limit and hide active people with the same name.
+        var people = await employees
+            .Where(employee => _context.Employments.Any(employment =>
+                employment.EmployeeId == employee.Id &&
+                employment.HireDate <= today &&
+                (employment.TerminationDate == null || employment.TerminationDate >= today)))
+            .OrderBy(employee => employee.FullName.LastName)
+            .ThenBy(employee => employee.FullName.FirstName)
+            .ThenBy(employee => employee.Id)
+            .Take(limit)
+            .Select(employee => new
+            {
+                employee.Id,
+                employee.FullName.LastName,
+                employee.FullName.FirstName,
+                employee.FullName.MiddleName,
+                HasPhoto = employee.PhotoKey != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var employments = await EmploymentsAsync([.. people.Select(person => person.Id)], cancellationToken)
+            .ConfigureAwait(false);
+
+        var primaries = people.ToDictionary(
+            person => person.Id,
+            person => PrimaryEmployment.Select(employments.GetValueOrDefault(person.Id) ?? [], today));
+
+        var names = await CatalogNamesAsync(
+                primaries.Values.Select(employment => employment?.DepartmentId),
+                primaries.Values.Select(employment => employment?.PositionId),
+                [],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. people.Select(person => new AttendanceEmployeeLookupItemDto(
+                person.Id,
+                FullName.FromTrusted(person.LastName, person.FirstName, person.MiddleName).Full,
+                names.Department(primaries[person.Id]?.DepartmentId),
+                names.Position(primaries[person.Id]?.PositionId),
+                person.HasPhoto)),
+        ];
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlySet<Guid>> ExistingEmployeeIdsAsync(
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken = default)
@@ -3357,6 +3516,21 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
         ArgumentNullException.ThrowIfNull(filter);
 
         var assignments = _context.ScheduleAssignments.AsNoTracking();
+
+        // Position and default rows span factories, so a scoped user sees neither.
+        if (await EmployeesInScopeAsync(cancellationToken).ConfigureAwait(false) is { } inScope)
+        {
+            var allowed = await _scope.AllowedDepartmentIdsAsync(cancellationToken).ConfigureAwait(false);
+            var departments = allowed?.ToArray() ?? [];
+
+            assignments = assignments.Where(assignment =>
+                (assignment.Scope == ScheduleScope.Employee &&
+                 assignment.EmployeeId != null &&
+                 inScope.Contains(assignment.EmployeeId.Value)) ||
+                (assignment.Scope == ScheduleScope.Department &&
+                 assignment.DepartmentId != null &&
+                 departments.Contains(assignment.DepartmentId.Value)));
+        }
 
         if (filter.Scope is { } scope)
         {
@@ -3684,6 +3858,25 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
 
         return [.. union];
     }
+
+    /// <summary>
+    /// Employees the current user may see, as an array EF sends as one parameter; <c>null</c>
+    /// when unrestricted, which must leave the query exactly as it was.
+    /// </summary>
+    private async Task<Guid[]?> EmployeesInScopeAsync(CancellationToken cancellationToken)
+        => (await _scope.EmployeeIdsInScopeAsync(cancellationToken).ConfigureAwait(false))?.ToArray();
+
+    /// <summary>Employee search for this user: a scoped user searches by name alone.</summary>
+    private IQueryable<Employee> EmployeesMatching(string? search)
+        => _scope.IsScoped
+            ? EmployeeSearchQuery.MatchingName(_context, search)
+            : EmployeeSearchQuery.Matching(_context, search);
+
+    /// <summary>The ids behind <see cref="EmployeesMatching"/>, for filtering another table.</summary>
+    private IQueryable<Guid> EmployeeIdsMatching(string search)
+        => _scope.IsScoped
+            ? EmployeeSearchQuery.MatchingName(_context, search).Select(employee => employee.Id)
+            : EmployeeSearchQuery.MatchingIds(_context, search);
 
     /// <summary>Xodimlar ismi va rasmi — o'chirilganlari bilan birga.</summary>
     private async Task<Dictionary<Guid, EmployeeCard>> EmployeeCardsAsync(

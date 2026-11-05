@@ -107,7 +107,8 @@
       "salary.view": "See salaries",
       "salary.extra.view": "View extra pay",
       "mcp.connect": "Read through AI (MCP)",
-      "employees.personal.view": "Personal details"
+      "employees.personal.view": "Personal details",
+      "attendance.scoped": "Attendance officer"
     }
   },
   "settings": {
@@ -1650,6 +1651,14 @@
   "users": {
     "active": "Active",
     "activate": "Activate",
+    "attendanceScope": "Which departments",
+    "attendanceScopeEmpty": "There are no departments yet. Add one under “Catalogue” first.",
+    "attendanceScopeHint": "With no department selected, the user sees nothing. Sub-departments of a selected department are included.",
+    "attendanceScopeLoadFailed": "Could not load the departments",
+    "attendanceScopeLoadFailedText": "Saving is off until the list loads; otherwise the current departments could be erased.",
+    "attendanceScopeRequired": "Select at least one department: without one, the user sees nothing.",
+    "attendanceScopeSaveFailed": "The account was saved, but the departments were not. Press Save again.",
+    "attendanceScopeSelected": "Selected: {{selected}}",
     "columnLastLogin": "Last login",
     "columnRole": "Role",
     "columnStatus": "Status",

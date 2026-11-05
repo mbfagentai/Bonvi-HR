@@ -269,6 +269,11 @@ app.UseBonviMcpAuthentication();
 */
 app.UseRateLimiter();
 
+// «Davomat mas'uli»: deny-by-default outside attendance. After every authentication step,
+// because MCP principals carry permissions too; after the limiter, because a refused
+// request still has to count (same reasoning as the comment above).
+app.UseBonviAttendanceScopeGuard();
+
 app.UseAuthorization();
 
 app.MapBonviHealthChecks();

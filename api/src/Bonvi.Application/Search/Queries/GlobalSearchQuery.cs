@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Search.Dtos;
+using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -36,6 +37,14 @@ public sealed record GlobalSearchQuery(string? Q);
 /// QAYERDA?» degan savolga javob beradi.
 /// </para>
 /// <para>
+/// <b>One exception: one person comes up in one place</b> (owner's request, 2026-11-05). A
+/// candidate who already is an employee is left out of the candidate group, because the employee
+/// group shows that person. The test is stricter for live applicants and blacklist hits, which
+/// HR must not miss (<c>CandidateSearchQuery.WhoAreEmployees</c>). It applies only to a caller
+/// who can see employees: for anyone else the employee group is <c>null</c>, and hiding the
+/// candidate would leave them no row at all.
+/// </para>
+/// <para>
 /// <b>Ruxsat guruh bo'yicha.</b> Endpoint <c>employees.view</c> YOKI
 /// <c>recruiting.view</c> bilan ochiladi, javob esa torayadi: ruxsati yo'q
 /// guruh <c>null</c> bo'ladi va uning so'rovi bazaga UMUMAN yuborilmaydi.
@@ -65,15 +74,18 @@ public sealed class GlobalSearchQueryHandler
     private readonly IEmployeeReadModel _employees;
     private readonly IRecruitingReadModel _recruiting;
     private readonly ICurrentUser _currentUser;
+    private readonly IClock _clock;
 
     public GlobalSearchQueryHandler(
         IEmployeeReadModel employees,
         IRecruitingReadModel recruiting,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        IClock clock)
     {
         _employees = employees;
         _recruiting = recruiting;
         _currentUser = currentUser;
+        _clock = clock;
     }
 
     public async Task<Result<GlobalSearchDto>> HandleAsync(
@@ -110,7 +122,7 @@ public sealed class GlobalSearchQueryHandler
             : null;
 
         var candidates = canSeeRecruiting
-            ? await SearchCandidatesAsync(text, cancellationToken).ConfigureAwait(false)
+            ? await SearchCandidatesAsync(text, canSeeEmployees, cancellationToken).ConfigureAwait(false)
             : null;
 
         var vacancies = canSeeRecruiting
@@ -151,6 +163,7 @@ public sealed class GlobalSearchQueryHandler
 
     private async Task<GlobalSearchCandidatesDto> SearchCandidatesAsync(
         string text,
+        bool canSeeEmployees,
         CancellationToken cancellationToken)
     {
         var page = await _recruiting
@@ -159,7 +172,8 @@ public sealed class GlobalSearchQueryHandler
                     Search: text,
                     PageSize: CandidateLimit,
                     IncludeArchive: true,
-                    AllStatuses: true),
+                    AllStatuses: true,
+                    HideIfEmployeeOn: canSeeEmployees ? _clock.Today : null),
                 cancellationToken)
             .ConfigureAwait(false);
 

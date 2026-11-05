@@ -1,5 +1,6 @@
 import type { Ref } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { NotificationsBell } from '@/features/notifications'
 import { GlobalSearch } from '@/features/search'
 import { LanguageSwitcher } from '@/shared/ui/language-switcher'
@@ -36,6 +37,9 @@ export function Topbar({
   titleSlotRef: Ref<HTMLDivElement>
   actionsSlotRef: Ref<HTMLDivElement>
 }) {
+  // `/api/search` is closed to a «Davomat mas'uli». The bell stays: `/api/notifications/**` is open.
+  const { isAttendanceScoped } = useAuth()
+
   return (
     <header className="blur-bar z-30 shrink-0 border-b border-[var(--border)]">
       <div className="flex h-16 items-center gap-3 px-5 lg:gap-4 lg:px-6">
@@ -63,7 +67,7 @@ export function Topbar({
         */}
         <div className="min-w-0 flex-1">
           <div className="lg:max-w-[480px]">
-            <GlobalSearch />
+            {!isAttendanceScoped && <GlobalSearch />}
           </div>
         </div>
 

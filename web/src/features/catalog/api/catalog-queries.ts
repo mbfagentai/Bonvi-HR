@@ -45,17 +45,20 @@ export const catalogKeys = {
 export function useCatalogList<T extends CatalogItem = CatalogItem>(
   kind: CatalogKind,
   onlyActive: boolean,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: catalogKeys.list(kind, onlyActive),
     queryFn: ({ signal }) => fetchCatalog<T>(kind, onlyActive, signal),
+    enabled,
   })
 }
 
-export function useDepartmentTree(onlyActive: boolean) {
+export function useDepartmentTree(onlyActive: boolean, enabled = true) {
   return useQuery({
     queryKey: catalogKeys.tree(onlyActive),
     queryFn: ({ signal }) => fetchDepartmentTree(onlyActive, signal),
+    enabled,
   })
 }
 

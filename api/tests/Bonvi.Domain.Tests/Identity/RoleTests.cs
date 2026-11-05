@@ -326,8 +326,43 @@ public sealed class RoleTests
                 SystemRoles.MainBoss,
                 SystemRoles.HrManager,
                 SystemRoles.RecruitingBot,
+                SystemRoles.AttendanceResponsible,
             ],
             ignoreOrder: true);
+    }
+
+    /// <summary>
+    /// «Davomat mas'uli» holds exactly this: it reads attendance, writes manual passes,
+    /// exports, and carries the marker that restricts it. Nothing else in HR.
+    /// </summary>
+    [Fact]
+    public void Attendance_responsible_holds_exactly_its_four_codes()
+    {
+        var (_, ruxsatlar) = SystemRoles.Defaults[SystemRoles.AttendanceResponsible];
+
+        ruxsatlar.ShouldBe(
+            [
+                Permissions.AttendanceView,
+                Permissions.AttendanceRequestsManage,
+                Permissions.ReportsExport,
+                Permissions.AttendanceScoped,
+            ],
+            ignoreOrder: true);
+
+        ruxsatlar.ShouldNotContain(Permissions.AttendanceManage);
+    }
+
+    /// <summary>The marker means nothing next to <c>attendance.manage</c> and is dropped there only.</summary>
+    [Fact]
+    public void Attendance_marker_is_dropped_only_when_attendance_is_managed()
+    {
+        var manager = new HashSet<string> { Permissions.AttendanceManage, Permissions.AttendanceScoped };
+        Permissions.DropAttendanceMarkerIfManaging(manager);
+        manager.ShouldBe([Permissions.AttendanceManage]);
+
+        var scoped = new HashSet<string> { Permissions.AttendanceView, Permissions.AttendanceScoped };
+        Permissions.DropAttendanceMarkerIfManaging(scoped);
+        scoped.ShouldContain(Permissions.AttendanceScoped);
     }
 
     /// <summary>

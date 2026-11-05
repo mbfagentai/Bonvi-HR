@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Recompute;
+using Bonvi.Application.Attendance.Scheduling;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
@@ -33,6 +34,14 @@ public static class ManualPassErrors
 
     public static readonly Error Duplicate =
         Error.Conflict("davomat.belgi_takror", "Shu daqiqada shu yo'nalishdagi belgi allaqachon bor.");
+
+    /// <summary>A «Davomat mas'uli» cannot correct their own attendance.</summary>
+    /// <remarks>
+    /// The general <c>auth.ruxsat_yoq</c> (the <c>CatalogErrors.HeadPermissionRequired</c>
+    /// precedent): the check depends on whose pass it is, which a policy cannot see.
+    /// </remarks>
+    public static readonly Error OwnRecord =
+        Error.Forbidden("auth.ruxsat_yoq", "O'z davomatingizga belgi qo'shib yoki o'chirib bo'lmaydi.");
 }
 
 /// <summary>HR qo'lda belgi qo'shadi.</summary>
@@ -73,6 +82,7 @@ public sealed class AddManualPassCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDatabaseFault _databaseFault;
     private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
     public AddManualPassCommandHandler(
         IEmployeeRepository employees,
@@ -83,7 +93,8 @@ public sealed class AddManualPassCommandHandler
         AttendanceDayRecomputer recomputer,
         IUnitOfWork unitOfWork,
         IDatabaseFault databaseFault,
-        IClock clock)
+        IClock clock,
+        IAttendanceScope scope)
     {
         _employees = employees;
         _employments = employments;
@@ -94,6 +105,7 @@ public sealed class AddManualPassCommandHandler
         _unitOfWork = unitOfWork;
         _databaseFault = databaseFault;
         _clock = clock;
+        _scope = scope;
     }
 
     public async Task<Result<AttendancePassDto>> HandleAsync(
@@ -102,10 +114,19 @@ public sealed class AddManualPassCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // Scope comes before every other rule, so a date error cannot confirm that someone
+        // outside it exists. It also keeps `FindPassAsync` below, which applies the same
+        // scope, from returning null on a row this request has just written.
         if (command.EmployeeId == Guid.Empty
-            || !await _employees.ExistsAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
+            || !await _employees.ExistsAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false)
+            || !await _scope.CanAccessEmployeeAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.EmployeeNotFound;
+        }
+
+        if (await _scope.IsOwnRecordAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return ManualPassErrors.OwnRecord;
         }
 
         var now = _clock.UtcNow;
@@ -125,6 +146,19 @@ public sealed class AddManualPassCommandHandler
         if (!await _employments.IsEmployedOnAsync(command.EmployeeId, command.Date, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.NotEmployed;
+        }
+
+        // The scope check above asks about today; the day being corrected may belong to the
+        // department this person worked in before a transfer, and that one may be out of scope.
+        if (await _scope.AllowedDepartmentIdsAsync(cancellationToken).ConfigureAwait(false) is { } allowed)
+        {
+            var employments = await _employments.GetByEmployeeAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false);
+
+            if (PrimaryEmployment.Select(employments, command.Date)?.DepartmentId is not { } department
+                || !allowed.Contains(department))
+            {
+                return ManualPassErrors.EmployeeNotFound;
+            }
         }
 
         var recorded = AttendancePass.RecordByHr(command.EmployeeId, occurredAt, now, command.Direction);
@@ -182,17 +216,23 @@ public sealed class DeleteManualPassCommandHandler
     private readonly IAttendanceManualPassRepository _manual;
     private readonly AttendanceDayRecomputer _recomputer;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IClock _clock;
+    private readonly IAttendanceScope _scope;
 
     public DeleteManualPassCommandHandler(
         IAttendancePassRepository passes,
         IAttendanceManualPassRepository manual,
         AttendanceDayRecomputer recomputer,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IClock clock,
+        IAttendanceScope scope)
     {
         _passes = passes;
         _manual = manual;
         _recomputer = recomputer;
         _unitOfWork = unitOfWork;
+        _clock = clock;
+        _scope = scope;
     }
 
     public async Task<Result> HandleAsync(
@@ -207,9 +247,30 @@ public sealed class DeleteManualPassCommandHandler
             return ManualPassErrors.PassNotFound;
         }
 
+        // Before the «not manual» rule: a 400 on someone else's terminal pass would confirm
+        // that the id exists. Unmatched passes are hidden from a scoped user in the same way.
+        if (_scope.IsScoped
+            && (pass.ResolvedEmployeeId is not { } owner
+                || !await _scope.CanAccessEmployeeAsync(owner, cancellationToken).ConfigureAwait(false)))
+        {
+            return ManualPassErrors.PassNotFound;
+        }
+
         if (!pass.IsHrManual || pass.ResolvedEmployeeId is not { } employeeId)
         {
             return ManualPassErrors.NotManual;
+        }
+
+        if (await _scope.IsOwnRecordAsync(employeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return ManualPassErrors.OwnRecord;
+        }
+
+        // The same window as adding. HR keeps no limit here: a wrong pass must stay removable.
+        if (_scope.IsScoped
+            && pass.LocalDate < _clock.UtcNow.TashkentDate().AddDays(-AttendanceRules.MaxRecomputeDays))
+        {
+            return ManualPassErrors.TooOld;
         }
 
         if (await _manual.GetByIdAsync(pass.Id, cancellationToken).ConfigureAwait(false) is { } evidence)
@@ -247,11 +308,16 @@ public sealed class GetDayPassesQueryHandler
 {
     private readonly IEmployeeRepository _employees;
     private readonly IAttendanceReadModel _readModel;
+    private readonly IAttendanceScope _scope;
 
-    public GetDayPassesQueryHandler(IEmployeeRepository employees, IAttendanceReadModel readModel)
+    public GetDayPassesQueryHandler(
+        IEmployeeRepository employees,
+        IAttendanceReadModel readModel,
+        IAttendanceScope scope)
     {
         _employees = employees;
         _readModel = readModel;
+        _scope = scope;
     }
 
     public async Task<Result<AttendanceDayPassesDto>> HandleAsync(
@@ -260,7 +326,8 @@ public sealed class GetDayPassesQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (!await _employees.ExistsAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false))
+        if (!await _employees.ExistsAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false) ||
+            !await _scope.CanAccessEmployeeAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.EmployeeNotFound;
         }

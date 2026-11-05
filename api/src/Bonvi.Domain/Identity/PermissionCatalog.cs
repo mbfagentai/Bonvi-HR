@@ -113,7 +113,7 @@ public static class PermissionCatalog
     /// (u ruxsatsiz saqlangan) muharrirda «o'zgartirish» emas, chala holatda ko'rinardi.
     /// </remarks>
     public static IReadOnlyList<string> Extras { get; } =
-        [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect, Permissions.EmployeesPersonalView];
+        [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect, Permissions.EmployeesPersonalView, Permissions.AttendanceScoped];
 
     /// <summary>
     /// Bo'lim yig'uvchisi: har bir daraja faqat O'ZI QO'SHADIGAN kodlarni

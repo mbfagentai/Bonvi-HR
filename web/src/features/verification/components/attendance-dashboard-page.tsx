@@ -231,7 +231,7 @@ const PERIOD_LABEL_KEY: Readonly<Record<DashboardPreset, string>> = {
 export function AttendanceDashboardPage() {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission, user } = useAuth()
+  const { hasPermission, user, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   /*
@@ -239,7 +239,7 @@ export function AttendanceDashboardPage() {
     bo'lmasa ism HAVOLA EMAS — oddiy matn: bosiladigan, lekin 403 ga olib
     boradigan havola bajarilmaydigan va'da bo'lardi.
   */
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
   // Jadvalning Excel eksporti — statistikani ko'rish VA `reports.export` (SPEC-excel-eksport §1)
   const canExport = canView && hasPermission(REPORTS_EXPORT)
 
@@ -344,7 +344,8 @@ export function AttendanceDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const options = useFilterOptions()
+  // Catalogs are closed to a «Davomat mas'uli»; their org filters are hidden below
+  const options = useFilterOptions(!isAttendanceScoped)
 
   /*
     Jadval filtri SAHIFASIZ — ekrandagi jadval ham, Excel eksporti ham AYNAN
@@ -693,7 +694,7 @@ export function AttendanceDashboardPage() {
         almashtirilganda bular yo'qolib qolgan edi. Ikkala rejimda ham:
         davr rejimida ma'lumot `/dashboard/trend` javobidan keladi.
       */}
-      <DeviceHealthBanners health={range ? (trendData?.deviceHealth ?? undefined) : data?.deviceHealth} />
+      <DeviceHealthBanners health={range ? (trendData?.deviceHealth ?? undefined) : (data?.deviceHealth ?? undefined)} />
 
       {/* Keyingi yangilanish yiqildi — eski surat joyida qoladi, sabab tepada */}
       {active.isError && active.data !== undefined && (
@@ -908,7 +909,7 @@ export function AttendanceDashboardPage() {
 
                   <div className="ml-auto flex flex-wrap items-center gap-1">
                     {/* Filtr ustuni bor maydonda bu tugma ortiqcha */}
-                    <div className="@min-[1100px]/page:hidden">
+                    <div className={cn('@min-[1100px]/page:hidden', isAttendanceScoped && 'hidden')}>
                       <FilterPopover
                         entity={search.entity}
                         department={search.department}
@@ -1486,6 +1487,7 @@ function FilterColumn({
   onRefresh: () => void
 }) {
   const { t } = useLocale()
+  const { isAttendanceScoped } = useAuth()
 
   return (
     /*
@@ -1521,34 +1523,37 @@ function FilterColumn({
           <PeriodPicker period={period} today={today} onChange={onPeriod} full />
         </div>
 
-        <Select
-          label={t('employee.legalEntity')}
-          placeholder={t('employees.anyLegalEntity')}
-          options={legalEntities}
-          value={entity ?? ''}
-          onChange={(event) =>
-            onOrg({ entity: blankToUndefined(event.target.value), department, position })
-          }
-        />
-        <Select
-          label={t('employee.department')}
-          placeholder={t('employees.anyDepartment')}
-          options={departments}
-          value={department ?? ''}
-          onChange={(event) =>
-            onOrg({ entity, department: blankToUndefined(event.target.value), position })
-          }
-        />
-        <Select
-          label={t('employee.position')}
-          placeholder={t('employees.anyPosition')}
-          options={positions}
-          value={position ?? ''}
-          onChange={(event) =>
-            onOrg({ entity, department, position: blankToUndefined(event.target.value) })
-          }
-        />
-
+        {!isAttendanceScoped && (
+          <>
+            <Select
+              label={t('employee.legalEntity')}
+              placeholder={t('employees.anyLegalEntity')}
+              options={legalEntities}
+              value={entity ?? ''}
+              onChange={(event) =>
+                onOrg({ entity: blankToUndefined(event.target.value), department, position })
+              }
+            />
+            <Select
+              label={t('employee.department')}
+              placeholder={t('employees.anyDepartment')}
+              options={departments}
+              value={department ?? ''}
+              onChange={(event) =>
+                onOrg({ entity, department: blankToUndefined(event.target.value), position })
+              }
+            />
+            <Select
+              label={t('employee.position')}
+              placeholder={t('employees.anyPosition')}
+              options={positions}
+              value={position ?? ''}
+              onChange={(event) =>
+                onOrg({ entity, department, position: blankToUndefined(event.target.value) })
+              }
+            />
+          </>
+        )}
         <div className="space-y-1.5 pt-1">
           <Button type="button" variant="primary" className="w-full" onClick={onRefresh}>
             <RefreshCw className={cn(refreshing && 'animate-spin')} />
@@ -1576,7 +1581,10 @@ function FilterColumn({
         natijadan oldin qo'yadi. Faqat keng ekranda: tor ekranda ustun
         umuman chizilmaydi va telefon ko'rinishi o'zgarmaydi (§E5).
       */}
-      <BirthdaysCard filters={birthdays} enabled={canView} canOpenEmployee={canOpenEmployee} />
+      {/* `/api/dashboard/birthdays` is closed to a «Davomat mas'uli» */}
+      {!isAttendanceScoped && (
+        <BirthdaysCard filters={birthdays} enabled={canView} canOpenEmployee={canOpenEmployee} />
+      )}
     </aside>
   )
 }

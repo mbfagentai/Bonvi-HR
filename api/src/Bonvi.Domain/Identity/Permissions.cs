@@ -334,6 +334,26 @@ public static class Permissions
     /// </remarks>
     public const string AttendanceRequestsManage = "attendance.requests.manage";
 
+    /// <summary>
+    /// Marker, not a grant: the holder works ONLY in the attendance section and ONLY for
+    /// the staff of the departments assigned to them (<c>user_attendance_scopes</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A user is scoped when they hold this marker AND NOT <see cref="AttendanceManage"/>.
+    /// The second half matters because <c>super_admin</c> holds all of <see cref="All"/>
+    /// and a new database's <c>main_boss</c> nearly all of it, so both carry the marker
+    /// while staying unrestricted.
+    /// </para>
+    /// <para>
+    /// No endpoint requires it. It narrows what a user reaches, which is why
+    /// <c>UserRoleRules</c> ignores it when comparing role breadth, and why
+    /// <see cref="DropAttendanceMarkerIfManaging"/> hides it from the lists a client sees
+    /// when it would mean nothing.
+    /// </para>
+    /// </remarks>
+    public const string AttendanceScoped = "attendance.scoped";
+
     // ---------- Ma'lumotnomalar ----------
     public const string CatalogView = "catalog.view";
     public const string CatalogManage = "catalog.manage";
@@ -425,7 +445,7 @@ public static class Permissions
         RecruitingView, RecruitingManage,
         BlanksView, BlanksFill, BlanksManage, BlanksApprove,
         ProcessesView, ProcessesWork, ProcessesManage, ProcessesOverride,
-        AttendanceView, AttendanceManage, AttendanceRequestsManage,
+        AttendanceView, AttendanceManage, AttendanceRequestsManage, AttendanceScoped,
         CatalogView, CatalogManage,
         ReportsView, ReportsExport,
         UsersManage, RolesManage, AuditView, SettingsManage,
@@ -433,6 +453,22 @@ public static class Permissions
     };
 
     public static bool Exists(string permission) => All.Contains(permission);
+
+    /// <summary>
+    /// Removes <see cref="AttendanceScoped"/> from a user's effective permissions when
+    /// <see cref="AttendanceManage"/> makes it meaningless, so that <c>/api/auth/me</c>
+    /// does not tell a client that the owner is scoped.
+    /// </summary>
+    /// <param name="permissions">The union of the user's role permissions; changed in place.</param>
+    public static void DropAttendanceMarkerIfManaging(ISet<string> permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        if (permissions.Contains(AttendanceManage))
+        {
+            permissions.Remove(AttendanceScoped);
+        }
+    }
 }
 
 /// <summary>
@@ -530,6 +566,17 @@ public static class SystemRoles
     public const string RecruitingBot = "recruiting_bot";
 
     /// <summary>
+    /// «Davomat mas'uli»: factory staff who work only in the attendance section, only for
+    /// their own factory's staff, and may add or delete manual passes.
+    /// </summary>
+    /// <remarks>
+    /// Which departments they see is stored per user (<c>user_attendance_scopes</c>); with
+    /// no assignment they see nothing. The marker <see cref="Permissions.AttendanceScoped"/>
+    /// is what restricts them, the guard middleware then closes every other route.
+    /// </remarks>
+    public const string AttendanceResponsible = "attendance_responsible";
+
+    /// <summary>
     /// Eski (uch rolli modelga o'tishdan oldingi) administrator roli kodi.
     /// </summary>
     /// <remarks>
@@ -607,6 +654,20 @@ public static class SystemRoles
     public static readonly IReadOnlySet<string> SingleHolder =
         new HashSet<string>(StringComparer.Ordinal) { SuperAdmin, MainBoss };
 
+    /// <summary>
+    /// Ordinary roles the seeder creates on EVERY start if they are missing, never only on
+    /// the first one, and whose permissions it then leaves alone.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MainBoss"/> and <see cref="HrManager"/> are created on a new database only,
+    /// so a role added to the code later would never reach production that way. It cannot be
+    /// <see cref="Protected"/> either: only the super administrator may touch a protected
+    /// role's holders, and the bosh rahbar has to be able to assign this one. The price is
+    /// that a role deleted by the owner returns on the next start, without holders.
+    /// </remarks>
+    public static readonly IReadOnlySet<string> CreatedWhenMissing =
+        new HashSet<string>(StringComparer.Ordinal) { AttendanceResponsible };
+
     public static IReadOnlyDictionary<string, (string Name, string[] Permissions)> Defaults { get; } =
         new Dictionary<string, (string, string[])>(StringComparer.Ordinal)
         {
@@ -678,6 +739,14 @@ public static class SystemRoles
                 // Ochiq vakansiyalarni o'qish va nomzod yozish — boshqa
                 // hech narsa (izohi `RecruitingBot` da).
                 Permissions.RecruitingView, Permissions.RecruitingManage,
+            ]),
+
+            [AttendanceResponsible] = ("Davomat mas'uli",
+            [
+                Permissions.AttendanceView,
+                Permissions.AttendanceRequestsManage,
+                Permissions.ReportsExport,
+                Permissions.AttendanceScoped,
             ]),
         };
 }
