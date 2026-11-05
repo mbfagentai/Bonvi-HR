@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using Bonvi.Api.Startup;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Domain.Abstractions;
+using Hangfire;
+using Hangfire.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -107,6 +110,104 @@ public sealed partial class ProcessReconcilerTests
         await Should.ThrowAsync<OperationCanceledException>(() => inline.BeforeReadAsync(cancelled.Token));
     }
 
+    [Fact]
+    public async Task Slow_pass_does_not_hold_the_reader_and_does_not_end_with_its_request()
+    {
+        await StartEngineAsync();
+        var slow = new HeldLock();
+        await using var host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services
+            => services.AddScoped<IProcessEngineLock>(_ => slow)));
+        var inline = new ProcessInlineReconcile(host.Services.GetRequiredService<IServiceScopeFactory>(), new SteppingClock(DateTimeOffset.UtcNow));
+        using var request = new CancellationTokenSource();
+
+        try
+        {
+            var waited = System.Diagnostics.Stopwatch.StartNew();
+            await inline.BeforeReadAsync(request.Token);
+            waited.Stop();
+
+            (await slow.Entered.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct)).ShouldBeTrue();
+            waited.Elapsed.ShouldBeLessThan(ProcessInlineReconcile.ReaderWait + TimeSpan.FromSeconds(5));
+            slow.Running.ShouldBeTrue("the pass is still inside the lock");
+
+            await request.CancelAsync();
+            slow.PassToken.IsCancellationRequested.ShouldBeFalse("the pass works for everyone, not for this request");
+        }
+        finally
+        {
+            slow.Release();
+        }
+    }
+
+    [Fact]
+    public async Task Reader_leaves_a_slow_pass_on_its_own_cancellation()
+    {
+        await StartEngineAsync();
+        var slow = new HeldLock();
+        await using var host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services
+            => services.AddScoped<IProcessEngineLock>(_ => slow)));
+        var inline = new ProcessInlineReconcile(host.Services.GetRequiredService<IServiceScopeFactory>(), new SteppingClock(DateTimeOffset.UtcNow));
+        using var request = new CancellationTokenSource();
+
+        try
+        {
+            var reading = inline.BeforeCaseReadAsync(Guid.NewGuid(), request.Token);
+            await slow.Entered.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+            await request.CancelAsync();
+
+            await Should.ThrowAsync<OperationCanceledException>(() => reading);
+            slow.Running.ShouldBeTrue();
+        }
+        finally
+        {
+            slow.Release();
+        }
+    }
+
+    [Fact]
+    public async Task Pass_that_runs_out_of_its_timeout_is_journalled_and_the_read_goes_on()
+    {
+        await StartEngineAsync();
+        var slow = new HeldLock();
+        var journal = new RecordingJournal();
+        await using var host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddScoped<IProcessEngineLock>(_ => slow);
+            services.AddSingleton<IProcessEngineJournal>(journal);
+        }));
+        var inline = new ProcessInlineReconcile(
+            host.Services.GetRequiredService<IServiceScopeFactory>(),
+            new SteppingClock(DateTimeOffset.UtcNow),
+            passTimeout: TimeSpan.FromMilliseconds(200));
+
+        await inline.BeforeReadAsync(Ct);
+
+        journal.Failures.ShouldHaveSingleItem().ShouldBeOfType<TimeoutException>();
+        slow.Running.ShouldBeFalse("the pass ended with its own timeout");
+    }
+
+    [Fact]
+    public void Job_is_not_retried_by_Hangfire()
+    {
+        var job = Job.FromExpression<ProcessReconcileHangfireJob>(hangfire => hangfire.RunAsync(CancellationToken.None));
+
+        var retries = JobFilterProviders.Providers.GetFilters(job).Select(filter => filter.Instance).OfType<AutomaticRetryAttribute>();
+
+        retries.ShouldHaveSingleItem().Attempts.ShouldBe(0, "the next run comes five minutes later");
+    }
+
+    [Fact]
+    public async Task Hangfire_wrapper_runs_a_full_pass_as_Hangfire_activates_it()
+    {
+        await StartEngineAsync();
+        var request = await VacancyRequestAsync();
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        await ActivatorUtilities.GetServiceOrCreateInstance<ProcessReconcileHangfireJob>(scope.ServiceProvider).RunAsync(Ct);
+
+        (await FindCaseAsync(ProcessCodes.HireRequest, ProcessSubjectRefs.VacancyRequest(request.Id))).ShouldNotBeNull();
+    }
+
     private async Task<Guid?> CaseAuditUserAsync(string subjectRef)
     {
         var processCase = await CaseAsync(ProcessCodes.HireRequest, subjectRef);
@@ -125,6 +226,37 @@ public sealed partial class ProcessReconcilerTests
         public DateTimeOffset UtcNow => Now;
 
         public DateOnly Today => DateOnly.FromDateTime(Now.UtcDateTime);
+    }
+
+    /// <summary>A pass stays inside it until released or until its token ends; then it finds the lock taken.</summary>
+    private sealed class HeldLock : IProcessEngineLock
+    {
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public CancellationToken PassToken { get; private set; }
+
+        public bool Running { get; private set; }
+
+        public void Release() => _release.TrySetResult();
+
+        public async Task<bool> TryAcquireAsync(CancellationToken cancellationToken)
+        {
+            PassToken = cancellationToken;
+            Running = true;
+            Entered.TrySetResult(true);
+
+            try
+            {
+                await _release.Task.WaitAsync(cancellationToken);
+                return false;
+            }
+            finally
+            {
+                Running = false;
+            }
+        }
     }
 
     /// <summary>A pass cannot get past it: the same failure wherever the pass is entered from.</summary>

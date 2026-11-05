@@ -211,10 +211,9 @@ public static class BackgroundJobs
             "1-59/5 * * * *",
             utc);
 
-        // Every 5 minutes (:02, :07, :12, …), a minute after `hrmentor:sync`, which holds the SPEC's `1-59/5`.
-        // Shares :12, :27, :42, :57 with `attendance:employment-changes`; the server has two workers for that.
+        // Every 5 minutes (:04, :09, :14, …), three minutes after `hrmentor:sync`, which holds the SPEC's `1-59/5`.
         // Dormant until `processes.startedOn` is written: a run then reads one setting and ends.
-        jobs.AddOrUpdate<ProcessReconcileJob>(
+        jobs.AddOrUpdate<ProcessReconcileHangfireJob>(
             ProcessReconcileJobId,
             job => job.RunAsync(CancellationToken.None),
             "4-59/5 * * * *",

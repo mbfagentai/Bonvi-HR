@@ -32,6 +32,8 @@ public sealed partial class ProcessEngineJournal : IProcessEngineJournal
 
     public void TemplateUnreadable(Guid versionId, Exception exception) => LogTemplateUnreadable(exception, versionId);
 
+    public void GateFailedOpen(string operation, Guid employeeId, Exception exception) => LogGateFailedOpen(exception, operation, employeeId);
+
     [LoggerMessage(
         EventId = 2507,
         Level = LogLevel.Information,
@@ -67,4 +69,10 @@ public sealed partial class ProcessEngineJournal : IProcessEngineJournal
         Level = LogLevel.Error,
         Message = "Process template version {VersionId} cannot be read; its cases wait")]
     private partial void LogTemplateUnreadable(Exception exception, Guid versionId);
+
+    [LoggerMessage(
+        EventId = 2513,
+        Level = LogLevel.Error,
+        Message = "Process gate failed in warn mode; {Operation} of employee {EmployeeId} went on without it")]
+    private partial void LogGateFailedOpen(Exception exception, string operation, Guid employeeId);
 }

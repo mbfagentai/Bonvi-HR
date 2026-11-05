@@ -612,6 +612,10 @@ public sealed partial class ProcessReconcilerTests : IClassFixture<BonviApiFacto
         public void TemplateUnreadable(Guid versionId, Exception exception)
         {
         }
+
+        public void GateFailedOpen(string operation, Guid employeeId, Exception exception)
+        {
+        }
     }
 
     private static string Suffix() => Guid.NewGuid().ToString("N")[..8];
@@ -640,6 +644,8 @@ public sealed partial class ProcessReconcilerTests : IClassFixture<BonviApiFacto
 
     private Task<int> SetStartedOnAsync(DateOnly? startedOn) => DbAsync(async db =>
     {
+        await ProcessTestGates.EnforceAsync(_factory.Services, Ct);
+
         var value = startedOn?.ToString(SystemSettingKeys.ProcessesStartedOnFormat, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
         var row = await db.SystemSettings.SingleOrDefaultAsync(setting => setting.Key == SystemSettingKeys.ProcessesStartedOn, Ct);
 

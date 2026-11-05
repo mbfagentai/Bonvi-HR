@@ -22,6 +22,8 @@ using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -552,6 +554,73 @@ public sealed class ProcessGateTests : IClassFixture<BonviApiFactory>
         reply.ShouldBeOk();
         reply.ResultWarnings.ShouldBe([AktYoq, SuhbatYoq], ignoreOrder: true);
         (await EmploymentAsync(employed)).Status.ShouldBe(EmploymentStatus.Terminated);
+    }
+
+    [Fact]
+    public async Task Warn_mode_gate_that_cannot_answer_lets_the_terminate_through_and_journals_it()
+    {
+        await EnforceAsync();
+        await ModeAsync(SystemSettingKeys.ProcessesGatesWarn);
+        var employed = await EmployedAsync();
+        var journal = new GateJournal();
+        await using var broken = BrokenFactsHost(journal);
+        using var hr = ClientOf(broken, await AccountAsync(Permissions.EmploymentTerminate));
+
+        var reply = await TerminateAsync(hr, employed);
+
+        reply.ShouldBeOk();
+        reply.ResultWarnings.ShouldBeEmpty();
+        (await EmploymentAsync(employed)).Status.ShouldBe(EmploymentStatus.Terminated);
+        journal.FailedOpen.ShouldHaveSingleItem().ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task Warn_mode_gate_that_cannot_answer_lets_the_hire_through()
+    {
+        await EnforceAsync();
+        await ModeAsync(SystemSettingKeys.ProcessesGatesWarn);
+        var candidate = await CandidateAsync();
+        var target = await HireTargetAsync();
+        var journal = new GateJournal();
+        await using var broken = BrokenFactsHost(journal);
+        using var hr = ClientOf(broken, await AccountAsync(Permissions.EmploymentHire));
+
+        var reply = await HireAsync(hr, target, candidate);
+
+        reply.ShouldBeOk();
+        (await EmploymentCountAsync(target)).ShouldBe(1);
+        journal.FailedOpen.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Enforce_mode_gate_that_cannot_answer_does_not_let_the_terminate_through()
+    {
+        await EnforceAsync();
+        var employed = await EmployedAsync();
+        var journal = new GateJournal();
+        await using var broken = BrokenFactsHost(journal);
+        using var hr = ClientOf(broken, await AccountAsync(Permissions.EmploymentTerminate));
+
+        var reply = await TerminateAsync(hr, employed);
+
+        reply.Status.ShouldBe(HttpStatusCode.InternalServerError);
+        (await EmploymentAsync(employed)).Status.ShouldNotBe(EmploymentStatus.Terminated);
+        journal.FailedOpen.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Warn_mode_keeps_the_callers_own_cancellation()
+    {
+        await EnforceAsync();
+        await ModeAsync(SystemSettingKeys.ProcessesGatesWarn);
+        using var request = new CancellationTokenSource();
+        await using var host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services
+            => services.AddScoped<IProcessFactSource>(_ => new CancellingFacts(request))));
+        await using var scope = host.Services.CreateAsyncScope();
+        var gate = scope.ServiceProvider.GetRequiredService<IProcessGate>();
+        var context = GateContext.ForTerminate(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => gate.CheckAsync(context, request.Token));
     }
 
     [Fact]
@@ -1810,6 +1879,64 @@ public sealed class ProcessGateTests : IClassFixture<BonviApiFactory>
     }
 
     private async Task<HttpClient> ClientAsync(params string[] permissions) => Client(await AccountAsync(permissions));
+
+    private static HttpClient ClientOf(WebApplicationFactory<Program> host, TestAccount account)
+    {
+        var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", account.AccessToken);
+        return client;
+    }
+
+    private WebApplicationFactory<Program> BrokenFactsHost(IProcessEngineJournal journal)
+        => _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddScoped<IProcessFactSource, BrokenFacts>();
+            services.AddSingleton(journal);
+        }));
+
+    private sealed class BrokenFacts : IProcessFactSource
+    {
+        public Task<ProcessFactSnapshot> LoadAsync(ProcessFactQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("The fact source is broken on purpose.");
+    }
+
+    /// <summary>Cancelled while the gate is inside it, so the settings read before it has already gone through.</summary>
+    private sealed class CancellingFacts(CancellationTokenSource request) : IProcessFactSource
+    {
+        public async Task<ProcessFactSnapshot> LoadAsync(ProcessFactQuery query, CancellationToken cancellationToken = default)
+        {
+            await request.CancelAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("The request was not the one given to the gate.");
+        }
+    }
+
+    private sealed class GateJournal : IProcessEngineJournal
+    {
+        public List<Exception> FailedOpen { get; } = [];
+
+        public void GateFailedOpen(string operation, Guid employeeId, Exception exception) => FailedOpen.Add(exception);
+
+        public void PassFinished(int started, int changedRows)
+        {
+        }
+
+        public void PassFailed(Exception exception)
+        {
+        }
+
+        public void CaseProblem(Guid caseId, string processCode, string problem)
+        {
+        }
+
+        public void TemplateMissing(string processCode)
+        {
+        }
+
+        public void TemplateUnreadable(Guid versionId, Exception exception)
+        {
+        }
+    }
 
     private Task<HttpClient> HrAsync() => ClientAsync(Permissions.EmploymentHire);
 

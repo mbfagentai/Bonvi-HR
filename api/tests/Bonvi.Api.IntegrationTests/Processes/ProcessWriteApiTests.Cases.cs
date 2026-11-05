@@ -1131,6 +1131,8 @@ public sealed partial class ProcessWriteApiTests
 
     private Task<int> SetStartedOnAsync(DateOnly? startedOn) => DbAsync(async db =>
     {
+        await ProcessTestGates.EnforceAsync(_factory.Services, Ct);
+
         var value = startedOn?.ToString(SystemSettingKeys.ProcessesStartedOnFormat, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
         var row = await db.SystemSettings.SingleOrDefaultAsync(setting => setting.Key == SystemSettingKeys.ProcessesStartedOn, Ct);
 

@@ -182,6 +182,7 @@ public sealed class ProcessReadQueryCountTests : IClassFixture<BonviApiFactory>
     {
         await DbAsync(host, db => db.Database.ExecuteSqlAsync($"DELETE FROM blank_role_assignments", Ct));
         await DbAsync(host, db => ProcessTestBlanks.EnsureStandInsAsync(db, Ct));
+        await ProcessTestGates.EnforceAsync(host.Services, Ct);
         await DbAsync(host, async db =>
         {
             var value = Today(host).ToString(SystemSettingKeys.ProcessesStartedOnFormat, System.Globalization.CultureInfo.InvariantCulture);

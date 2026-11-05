@@ -831,6 +831,14 @@ public static class SystemSettingKeys
     /// <summary><see cref="ProcessesGatesMode"/> value: gates block.</summary>
     public const string ProcessesGatesEnforce = "enforce";
 
+    /// <summary>
+    /// <see cref="ProcessesGatesMode"/> value and its default: a failing gate is only a warning. The owner runs the
+    /// first one or two weeks in this mode and then switches to <see cref="ProcessesGatesEnforce"/> in the settings:
+    /// the seeder writes <c>processes.startedOn</c> at first boot, so an <c>enforce</c> default would refuse
+    /// terminations and direct hires from the first day.
+    /// </summary>
+    public const string ProcessesGatesWarn = "warn";
+
     /// <summary><see cref="ProcessesGatesMode"/> value: kill switch, gates do nothing at all.</summary>
     public const string ProcessesGatesOff = "off";
 
@@ -1174,7 +1182,7 @@ public static class SystemSettingKeys
         new(
             ProcessesGatesMode,
             SystemSettingKind.Text,
-            ProcessesGatesEnforce,
+            ProcessesGatesWarn,
             MaxLength: 7,
             Pattern: ProcessesGatesModePattern),
         new(
