@@ -94,6 +94,18 @@ public static class ProcessEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/cases/{id:guid}/chain", async (Guid id, GetProcessCaseChainQueryHandler handler, CancellationToken cancellationToken) =>
+                (await handler.HandleAsync(id, cancellationToken).ConfigureAwait(false)).ToHttpResult())
+            .RequireAuthorization(Permissions.ProcessesView)
+            .WithName("GetProcessCaseChain")
+            .WithSummary("The cases one person's hiring reads as, in order")
+            .WithDescription(
+                "A hire-candidate or hire-formalise case: its hire-request, its hire-candidate, its hire-formalise, " +
+                "as far as they exist. Any other case, a hire-request included: just itself. Runs no engine pass.")
+            .Produces<ProcessCaseChainDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/late", async (GetProcessLateQueryHandler handler, CancellationToken cancellationToken) =>
                 (await handler.HandleAsync(cancellationToken).ConfigureAwait(false)).ToHttpResult())
             .RequireAuthorization(Permissions.ProcessesView)

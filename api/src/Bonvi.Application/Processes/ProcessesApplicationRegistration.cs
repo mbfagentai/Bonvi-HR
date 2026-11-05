@@ -43,6 +43,7 @@ public static class ProcessesApplicationRegistration
         services.AddScoped<ListProcessCasesQueryHandler>();
         services.AddScoped<GetProcessBoardQueryHandler>();
         services.AddScoped<GetProcessCaseQueryHandler>();
+        services.AddScoped<GetProcessCaseChainQueryHandler>();
         services.AddScoped<GetProcessLateQueryHandler>();
         services.AddScoped<ListProcessTemplatesQueryHandler>();
         services.AddScoped<GetProcessStatusQueryHandler>();
