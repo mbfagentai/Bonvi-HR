@@ -1396,7 +1396,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
 
     /// <summary>
     /// The case has been open since <paramref name="since"/>, then a pass. A case never starts already late (§3.1
-    /// floor), so a test of lateness needs one that started earlier: the clock cannot be moved.
+    /// floor), so a test of lateness needs one that started earlier: this class runs on the real clock.
     /// </summary>
     private async Task<ProcessCase> RunningSinceAsync(ProcessCase processCase, DateOnly since)
     {
