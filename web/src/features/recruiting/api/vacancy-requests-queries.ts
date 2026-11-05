@@ -22,10 +22,11 @@ export const vacancyRequestKeys = {
   list: (filters: VacancyRequestFilters) => ['recruiting', 'vacancy-requests', filters] as const,
 }
 
-export function useVacancyRequests(filters: VacancyRequestFilters) {
+export function useVacancyRequests(filters: VacancyRequestFilters, enabled = true) {
   return useQuery({
     queryKey: vacancyRequestKeys.list(filters),
     queryFn: ({ signal }) => fetchVacancyRequests(filters, signal),
+    enabled,
     // Sahifa yoki filtr almashganda jadval bo'shab qolmaydi (`useVacancies` bilan bir xil)
     placeholderData: (previous) => previous,
   })

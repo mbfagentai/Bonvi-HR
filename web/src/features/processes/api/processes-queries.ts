@@ -1,6 +1,7 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 
 import {
+  completeProcessStep,
   fetchMyWork,
   fetchMyWorkCount,
   fetchProcessBoard,
@@ -9,7 +10,14 @@ import {
   fetchProcessEngineStatus,
   fetchProcessLate,
   fetchProcessTemplates,
+  skipProcessStep,
+  startProcessCase,
+  undoProcessStep,
   type ProcessCaseFilters,
+  type ProcessCaseStartInput,
+  type ProcessStepCompleteInput,
+  type ProcessStepSkipInput,
+  type ProcessStepUndoInput,
 } from './processes-api'
 
 /**
@@ -101,4 +109,39 @@ export function useProcessEngineStatus(enabled = true) {
     queryFn: ({ signal }) => fetchProcessEngineStatus(signal),
     enabled,
   })
+}
+
+/*
+ * Writes. `providers.tsx` refreshes the query cache after every successful mutation, so these name no keys: one finished
+ * step moves the badge, the board and the late list by itself.
+ */
+
+interface ProcessStepTarget {
+  caseId: string
+  stepCode: string
+}
+
+export function useCompleteProcessStep() {
+  return useMutation({
+    mutationFn: ({ caseId, stepCode, body }: ProcessStepTarget & { body: ProcessStepCompleteInput }) =>
+      completeProcessStep(caseId, stepCode, body),
+  })
+}
+
+export function useSkipProcessStep() {
+  return useMutation({
+    mutationFn: ({ caseId, stepCode, body }: ProcessStepTarget & { body: ProcessStepSkipInput }) =>
+      skipProcessStep(caseId, stepCode, body),
+  })
+}
+
+export function useUndoProcessStep() {
+  return useMutation({
+    mutationFn: ({ caseId, stepCode, body }: ProcessStepTarget & { body: ProcessStepUndoInput }) =>
+      undoProcessStep(caseId, stepCode, body),
+  })
+}
+
+export function useStartProcessCase() {
+  return useMutation({ mutationFn: (body: ProcessCaseStartInput) => startProcessCase(body) })
 }

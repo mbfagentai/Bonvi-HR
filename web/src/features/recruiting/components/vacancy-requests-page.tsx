@@ -8,7 +8,7 @@ import { useListExport } from '@/features/reports/api/list-export'
 import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { isDateRangeInverted, useSearchDraft } from '@/shared/lib/list-search'
-import { useClampPage, usePageSize } from '@/shared/lib/use-page-size'
+import { PAGE_SIZE_ALL, useClampPage, usePageSize } from '@/shared/lib/use-page-size'
 import {
   Alert,
   Badge,
@@ -83,6 +83,22 @@ export function VacancyRequestsPage() {
 
   const query = useVacancyRequests({ ...listFilters, page, pageSize })
   const exportList = useListExport()
+
+  /*
+   * `?id=` — «Mening ishlarim» qadamidan kelgan havola (`SPEC-mening-ishlarim.md` §11.6).
+   * So'rov joriy tab yoki sahifada bo'lmasligi mumkin (masalan, tasdiqlangan), serverda esa
+   * bitta so'rovni o'qish yo'q — shuning uchun faqat shunda holatsiz to'liq ro'yxatdan
+   * izlanadi. So'rovlar soni oz, bu havola esa kamdan-kam ochiladi.
+   */
+  const linkedId = search.id
+  const linkedOnPage = linkedId !== undefined && query.data?.items.some((item) => item.id === linkedId) === true
+  const linkedLookup = useVacancyRequests(
+    { page: 1, pageSize: PAGE_SIZE_ALL },
+    linkedId !== undefined && !linkedOnPage && query.isSuccess,
+  )
+  const linkedItem =
+    linkedId === undefined ? null : (linkedLookup.data?.items.find((item) => item.id === linkedId) ?? null)
+  const linkedMissing = linkedId !== undefined && !linkedOnPage && linkedLookup.isSuccess && linkedItem === null
 
   const setSearch = useCallback(
     (next: (previous: VacancyRequestsSearch) => VacancyRequestsSearch, history: 'push' | 'replace' = 'replace') => {
@@ -196,7 +212,13 @@ export function VacancyRequestsPage() {
   const total = query.data?.total ?? 0
   const firstLoad = query.isPending
   const listEmpty = items.length === 0 && !firstLoad
-  const opened = items.find((item) => item.id === openedId) ?? null
+  const opened =
+    items.find((item) => item.id === (openedId ?? linkedId)) ?? (openedId === null ? linkedItem : null)
+
+  const closeOpened = () => {
+    setOpenedId(null)
+    if (linkedId !== undefined) setSearch((previous) => ({ ...previous, id: undefined }))
+  }
 
   return (
     <div data-list-frame className="space-y-6 frame:flex frame:h-full frame:flex-col">
@@ -230,6 +252,8 @@ export function VacancyRequestsPage() {
       />
 
       {query.isError && <Alert tone="danger">{errorMessage(recruitingErrorCode(query.error))}</Alert>}
+      {linkedLookup.isError && <Alert tone="danger">{errorMessage(recruitingErrorCode(linkedLookup.error))}</Alert>}
+      {linkedMissing && <Alert tone="warning">{t('vacancyRequests.linkedMissing')}</Alert>}
 
       <Card className="overflow-hidden frame:flex frame:flex-1 frame:flex-col">
         <div className="flex flex-wrap items-end gap-2.5 border-b border-[var(--border)] px-4 py-3.5 sm:gap-3 sm:px-5">
@@ -317,7 +341,7 @@ export function VacancyRequestsPage() {
       </Card>
 
       <VacancyRequestCreateDialog open={creating} onClose={() => setCreating(false)} />
-      <VacancyRequestDialog item={opened} onClose={() => setOpenedId(null)} />
+      <VacancyRequestDialog item={opened} onClose={closeOpened} />
     </div>
   )
 }

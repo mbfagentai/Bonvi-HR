@@ -2510,7 +2510,8 @@
       "Approved": "Vacancy opened",
       "Rejected": "Rejected",
       "Cancelled": "Cancelled"
-    }
+    },
+    "linkedMissing": "The linked request was not found: it may have been deleted."
   },
   "attendance": {
     "statsTitle": "Employee attendance statistics",
@@ -4104,7 +4105,57 @@
       "subjectEmployee": "The employee"
     },
     "case": {
-      "stepsTitle": "Steps"
+      "stepsTitle": "Steps",
+      "noSteps": "This case has no steps",
+      "startedOn": "Started: {{date}}",
+      "anchorDate": "Anchor date: {{date}}",
+      "completedAt": "Completed: {{date}}",
+      "cancelledAt": "Cancelled: {{date}}",
+      "cancelReason": "Reason for cancelling",
+      "parentCase": "Open the parent case",
+      "blanks": "Documents",
+      "blanksEmpty": "This case has no documents yet.",
+      "holder": "Holder",
+      "optional": "Optional",
+      "resolver": "Who resolves it",
+      "notHolder": "This step belongs to: {{role}}",
+      "prereqs": "To be done first: {{titles}}",
+      "recorded": "What was entered",
+      "guide": "What do I do?",
+      "source": "Source (regulation)",
+      "start": "Start",
+      "open": "Open",
+      "complete": "Done",
+      "skip": "Not needed",
+      "undo": "Take back",
+      "writeSoon": "These buttons are coming soon.",
+      "skipTitle": "Is this step not needed?",
+      "skipText": "The step is skipped and the case moves on.",
+      "skipReason": "Reason",
+      "undoTitle": "Take this back?",
+      "undoText": "The step goes back to not done.",
+      "marks": {
+        "done": "Done",
+        "notNeeded": "No / not needed"
+      },
+      "resolution": {
+        "Fact": "The system saw it in the records",
+        "Manual": "Marked by hand",
+        "Auto": "Done by the system",
+        "Condition": "Passed by a condition",
+        "Legacy": "Closed as an old record"
+      },
+      "form": {
+        "choose": "Choose",
+        "errors": {
+          "required": "Fill in this field.",
+          "checklistIncomplete": "Mark every item: done, or no / not needed.",
+          "notWholeNumber": "Enter a whole number.",
+          "belowMin": "The smallest value is {{min}}.",
+          "aboveMax": "The largest value is {{max}}.",
+          "invalidChoice": "Choose from the list."
+        }
+      }
     },
     "settings": {
       "title": "Settings",
@@ -4226,6 +4277,41 @@
         "forUser": "For whom",
         "forUserHint": "Only this user can make one hire without a candidate.",
         "choose": "Choose a user"
+      }
+    },
+    "board": {
+      "process": "Process",
+      "allProcesses": "All processes",
+      "view": "View",
+      "viewBoard": "Board",
+      "viewList": "List",
+      "startDismissal": "Start dismissal",
+      "startSoon": "This button is coming soon.",
+      "noTemplatesTitle": "No processes are set up yet",
+      "noTemplatesText": "Contact your system administrator.",
+      "emptyTitle": "Nothing is running in this process",
+      "emptyText": "New work appears here as soon as it starts.",
+      "columnEmpty": "Empty",
+      "moreSteps": "{{n}} more steps",
+      "noSubject": "Untitled",
+      "searchPlaceholder": "Search by name…",
+      "allStatuses": "All statuses",
+      "allDepartments": "All departments",
+      "allHolders": "All holders",
+      "startedOn": "Start date",
+      "lateOnly": "Late only",
+      "listEmptyTitle": "No cases yet",
+      "listEmptyText": "A case appears here as soon as it starts.",
+      "notFoundTitle": "Nothing found",
+      "notFoundText": "Try changing the filters.",
+      "columns": {
+        "subject": "Who",
+        "process": "Process",
+        "department": "Department",
+        "step": "Current step",
+        "holder": "Holder",
+        "due": "Due",
+        "status": "Status"
       }
     }
   }
