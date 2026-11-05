@@ -67,10 +67,10 @@ public sealed class TerminateEmploymentCommandHandler
         IEmployeeFlagRepository flags,
         IDepartmentRepository departments,
         EmployeeFlagGuard flagGuard,
-        IProcessGate processGate,
         EmployeeMapper mapper,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IProcessGate? processGate = null)
     {
         _employments = employments;
         _probations = probations;
@@ -78,7 +78,7 @@ public sealed class TerminateEmploymentCommandHandler
         _flags = flags;
         _departments = departments;
         _flagGuard = flagGuard;
-        _processGate = processGate;
+        _processGate = processGate ?? AllowingProcessGate.Instance;
         _mapper = mapper;
         _clock = clock;
         _unitOfWork = unitOfWork;

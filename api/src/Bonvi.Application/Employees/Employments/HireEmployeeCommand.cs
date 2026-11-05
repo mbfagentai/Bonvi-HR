@@ -91,10 +91,10 @@ public sealed class HireEmployeeCommandHandler
         IReferenceRepository<LegalEntity> legalEntities,
         IEmployeeFlagRepository flags,
         EmployeeFlagGuard flagGuard,
-        IProcessGate processGate,
         EmployeeMapper mapper,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IProcessGate? processGate = null)
     {
         _employees = employees;
         _employments = employments;
@@ -103,7 +103,7 @@ public sealed class HireEmployeeCommandHandler
         _legalEntities = legalEntities;
         _flags = flags;
         _flagGuard = flagGuard;
-        _processGate = processGate;
+        _processGate = processGate ?? AllowingProcessGate.Instance;
         _mapper = mapper;
         _clock = clock;
         _unitOfWork = unitOfWork;

@@ -16,6 +16,20 @@ public interface IProcessGate
     Task<GateResult> CheckAsync(GateContext context, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// For the unit tests that build the Hire and Terminate handlers by hand (§8.2 assumed none did): those stay as they
+/// are. Production always resolves <see cref="ProcessGate"/>, pinned by an integration test.
+/// </summary>
+public sealed class AllowingProcessGate : IProcessGate
+{
+    public static AllowingProcessGate Instance { get; } = new();
+
+    private AllowingProcessGate() { }
+
+    public Task<GateResult> CheckAsync(GateContext context, CancellationToken cancellationToken = default)
+        => Task.FromResult(GateResult.Allow);
+}
+
 /// <summary>The guarded command.</summary>
 public enum GateOperation
 {
