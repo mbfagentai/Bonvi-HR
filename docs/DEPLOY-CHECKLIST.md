@@ -3,6 +3,39 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## ⏳ «Mening ishlarim» — prod'ga birinchi chiqish (hali chiqmagan)
+
+Oddiy xavfsiz deploy tartibi (rollback tag + zaxira + nusxada sinov) shu yerda ham amal qiladi; quyidagilar — unga qo'shimcha.
+
+**Deploydan oldin**
+- [ ] **Vaqt: tunda, Toshkent 00:00 dan keyin va ish boshlanishidan oldin.** Seeder birinchi ishga tushishda
+  `processes.startedOn` ga Toshkentdagi bugungi sanani yozadi, va u shu kunning 00:00 idan hisoblanadi. Kunduzi chiqilsa,
+  o'sha kuni ertalabdan beri kiritilgan nomzod va so'rovlar «yangi» bo'lib jarayonga tushadi.
+- [ ] **Darvozalar rejimi `warn`.** `processes.gates.mode` sukut bo'yicha `warn` (egasi qarori: 1–2 hafta `warn`, keyin
+  sozlamalarda `enforce`). Deploydan keyin shu qiymatni ko'zdan kechiring.
+- [ ] **hr1 kimda?** hr1 tayinlovi kimda ekanini aniqlang (`blank_role_assignments`), va o'sha odamda `processes.override`
+  bo'lsin. Sukut bo'yicha `processes.override` faqat Bosh rahbar rolida; boshqa odam hr1 bo'lsa, «Rollar»da bering. hr1
+  tayinlanmagan bo'lsa, istisnoni `processes.manage` egasi beradi.
+- [ ] **Importlar.** Deploydan keyingi har qanday import sanani orqaga qo'yishi va `is_imported` ni belgilashi shart. Faqat
+  ishga qabul hodisalari (`ListHireEventStartsAsync`) `is_imported` ni tekshiradi; nomzod `(reapplied_at ?? created_at) >=
+  startedOn`, sinov `start_date >= startedOn` bo'yicha tanlanadi. Sanasi orqaga qo'yilmagan import jarayonlarni ommaviy
+  ochadi.
+
+**Deploydan keyin**
+- [ ] **Bosqich bog'lanishlari.** «Sozlamalar»da `contacted`, `invited`, `council`, `practicalTest` to'rttasi ham
+  `pipeline_stages` bilan bog'langanini tekshiring. Bog'lanmagani bo'yicha `cand.stage:*` fakti hech qachon kelmaydi va o'sha
+  qadamlar faqat qo'lda yopiladi.
+- [ ] **Qayta kirish.** Yangi `processes.*` ruxsatlari token yangilangandan keyin ko'rinadi: HR foydalanuvchilari chiqib
+  qayta kirsin, aks holda menyu ko'rinmaydi.
+- [ ] **Tekshirish.** `processes:reconcile` Hangfire'da (har 5 daqiqada, `:04` dan) `Succeeded`; yangi nomzod qo'shilganda
+  «Mening ishlarim»da r02-5 paydo bo'ladi.
+
+**Orqaga qaytarish**
+- Faqat darvozalarni o'chirish: `processes.gates.mode` = `off` (deploy kerak emas).
+- Image'ni qaytarish: `rollback-<oldingi sha>` tegi. Yangi jadvallar eski image'ga xalaqit bermaydi, bazaga tegilmaydi.
+- `Processes` migratsiyasining `Down` i jadvallarni va `processes.*` sozlamalarini o'chiradi, ya'ni barcha jarayon
+  tarixi ketadi. Faqat egasining roziligi bilan. Keyingi chiqishda `startedOn` yangidan yoziladi.
+
 ## ✅ Reliz `b9aa1d4` — ma'lumotnomalarda «Faol / Faol emas», anketa F.I. + sana bilan ham topadi — 2026-10-31 16:34 (Toshkent)
 
 Prod `e94969b` → `b9aa1d4` (9c3cd8a, b9aa1d4). Migratsiya YO'Q (75 ta, o'zgarmadi). Rollback: image tegi
