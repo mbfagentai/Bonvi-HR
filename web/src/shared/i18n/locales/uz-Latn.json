@@ -3928,7 +3928,9 @@
         "payrollAccountant": "Hisobchi (ish haqi)",
         "chiefAccountant": "Bosh hisobchi",
         "director": "Direktor",
-        "lawyer": "Yurist"
+        "lawyer": "Yurist",
+        "safetyEngineer": "Mehnat muhofazasi muhandisi",
+        "council": "Kengash"
       }
     },
     "fill": {
@@ -4068,7 +4070,126 @@
       "stepsTitle": "Qadamlar"
     },
     "settings": {
-      "title": "Sozlamalar"
+      "title": "Sozlamalar",
+      "notYet": "Bu bo‘lim keyingi yangilanishda ishga tushadi.",
+      "rulesTitle": "Qoidalar",
+      "rulesNoAccess": "Kengash kuni va to‘siqlar rejimini tizim sozlamalari ruxsati bor foydalanuvchi o‘zgartiradi.",
+      "status": {
+        "title": "Dvigatel holati",
+        "engine": "Holati",
+        "active": "Ishlayapti",
+        "dormant": "Yoqilmagan",
+        "dormantText": "Dvigatel hali yoqilmagan: jarayonlar ochilmaydi, to‘siqlar ishlamaydi.",
+        "startedOn": "Boshlangan sana",
+        "lastPass": "Oxirgi tekshiruv",
+        "never": "Hali yo‘q",
+        "reconcile": "Hozir tekshirish",
+        "resultFinished": "Tekshiruv tugadi: {{started}} ta jarayon ochildi, {{changed}} ta yozuv o‘zgardi.",
+        "resultBusy": "Boshqa tekshiruv ketmoqda. Bir necha soniyadan so‘ng qayta urinib ko‘ring.",
+        "resultDormant": "Dvigatel yoqilmagan, tekshiruv o‘tkazilmadi."
+      },
+      "gatesMode": {
+        "label": "To‘siqlar rejimi",
+        "hint": "Hujjat yetishmasa, qabul, bo‘shatish yoki qadam to‘xtaydimi.",
+        "enforce": "Qat’iy: amalni to‘xtatadi",
+        "warn": "Faqat ogohlantiradi",
+        "off": "O‘chirilgan",
+        "warnText": "Majburiy hujjat bo‘lmasa ham qabul yoki bo‘shatish o‘tadi, foydalanuvchi faqat ogohlantirish ko‘radi.",
+        "offText": "Hech narsa tekshirilmaydi: qabul yoki bo‘shatish hujjatsiz va ogohlantirishsiz o‘tadi. Faqat favqulodda holatda yoqing."
+      },
+      "council": {
+        "label": "Kengash kuni",
+        "hint": "Kengash qadamlarining muddati shu kunga qarab hisoblanadi.",
+        "day1": "Dushanba",
+        "day2": "Seshanba",
+        "day3": "Chorshanba",
+        "day4": "Payshanba",
+        "day5": "Juma"
+      },
+      "bindings": {
+        "title": "Voronka bosqichlari",
+        "hint": "Voronkaning qaysi bosqichi qaysi qadamni yopadi. Bog‘lanmagan qadam faqat qo‘lda yopiladi.",
+        "none": "Bog‘lanmagan",
+        "contacted": "Bog‘lanildi",
+        "invited": "Taklif qilindi",
+        "council": "Kengash",
+        "practicalTest": "Amaliy sinov"
+      },
+      "holidays": {
+        "title": "Ish kunlari taqvimi",
+        "hint": "Bayramlar va ko‘chirilgan ish kunlari. Muddatlar shularni hisobga olib sanaladi.",
+        "addTitle": "Sana qo‘shish",
+        "addHint": "Sana ro‘yxatda bo‘lsa, yozuvi almashtiriladi.",
+        "date": "Sana",
+        "kind": "Turi",
+        "name": "Nomi",
+        "kinds": {
+          "Holiday": "Bayram",
+          "WorkingDay": "Ish kuni"
+        },
+        "deleteTitle": "Bu sanani o‘chirasizmi?",
+        "deleteText": "{{date}}: {{title}}",
+        "deleteHint": "Ochiq qadamlarning muddati o‘zgarishi mumkin.",
+        "emptyTitle": "Taqvim bo‘sh",
+        "emptyText": "Dushanbadan jumagacha hamma kun ish kuni hisoblanadi."
+      },
+      "roles": {
+        "title": "Rollar",
+        "hint": "Jarayonlar so‘raydigan rollar va ularni kim bajaradi.",
+        "edit": "Rollarni tayinlash"
+      },
+      "templates": {
+        "title": "Jarayonlar",
+        "hint": "Dvigatel ishlaydigan e’lon qilingan jarayonlar.",
+        "empty": "E’lon qilingan jarayon yo‘q",
+        "steps": "{{n}} ta qadam"
+      }
+    },
+    "late": {
+      "blocked": "To‘xtatilgan",
+      "late": "Kechikkan",
+      "warn": "Ogohlantirish",
+      "open": "Ochish",
+      "resolver": "Kim hal qiladi",
+      "blockedNoReason": "Sababi ko‘rsatilmagan",
+      "emptyTitle": "Hech kim kechikmagan",
+      "emptyText": "To‘xtagan, muddati o‘tgan yoki ogohlantirishli qadam yo‘q.",
+      "overrideOpen": "Istisno berilgan, {{date}} gacha",
+      "overridesTitle": "Istisnolar jurnali",
+      "overridesHint": "So‘nggi 30 kun",
+      "overridesEmpty": "So‘nggi 30 kunda istisno berilmagan.",
+      "overrideFor": "Kim uchun: {{name}}",
+      "overrideGranted": "Berdi: {{name}}, {{date}}",
+      "overrideExpires": "Amal qiladi: {{date}} gacha",
+      "overrideConsumed": "Ishlatildi: {{date}}",
+      "unknownUser": "Noma’lum foydalanuvchi",
+      "standing": {
+        "used": "Ishlatilgan",
+        "open": "Amal qilmoqda",
+        "expired": "Muddati o‘tgan"
+      },
+      "gates": {
+        "Q01": "Nomzodsiz qabul",
+        "Q03": "JSHSHIR yoki to‘lov ma’lumoti",
+        "Q04": "Mehnat muhofazasi yo‘riqnomasi",
+        "Q12": "Topshirish akti",
+        "Q13": "Chiqish suhbati"
+      },
+      "override": {
+        "action": "Istisno berish",
+        "title": "Istisno berish",
+        "submit": "Berish",
+        "terms": "Istisno 24 soat amal qiladi va bir marta ishlatiladi. Har bir istisno audit jurnaliga yoziladi.",
+        "reason": "Sabab",
+        "reasonHint": "Kamida {{n}} ta belgi"
+      },
+      "directHire": {
+        "action": "Nomzodsiz qabulga ruxsat",
+        "title": "Nomzodsiz qabulga ruxsat",
+        "forUser": "Kim uchun",
+        "forUserHint": "Faqat shu foydalanuvchi bir marta nomzodsiz qabul qila oladi.",
+        "choose": "Foydalanuvchini tanlang"
+      }
     }
   }
 }

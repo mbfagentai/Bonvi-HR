@@ -65,6 +65,7 @@ const STEP_STATES = ['Waiting', 'Open', 'Signed', 'Skipped', 'Rejected'] as cons
 export const BLANK_OFFICE_ROLES = [
   'hr1', 'hr2', 'hr3', 'hr4', 'hr5', 'hr8',
   'payrollAccountant', 'chiefAccountant', 'director', 'lawyer',
+  'safetyEngineer', 'council',
 ] as const
 
 const BASE = '/api/blanks'

@@ -8,9 +8,13 @@ import { Button, IconTile, PageHeader } from '@/shared/ui'
 
 import { MY_WORK_PATH } from '../lib/landing'
 import { PROCESSES_MANAGE } from '../lib/permissions'
-import { ProcessNoAccess, ProcessPlaceholder } from './process-states'
+import { ProcessStageBindingsCard } from './process-settings-bindings'
+import { ProcessCatalogueSection } from './process-settings-catalogue'
+import { ProcessEngineSection } from './process-settings-engine'
+import { ProcessHolidaysCard } from './process-settings-holidays'
+import { ProcessNoAccess } from './process-states'
 
-/** `/mening-ishlarim/sozlamalar` (SPEC §11.7, `processes.manage`). Placeholder until P12. */
+/** `/mening-ishlarim/sozlamalar` (SPEC §11.7, `processes.manage`). Each section owns its data and its failure. */
 export function ProcessSettingsPage() {
   const { t } = useLocale()
   const { hasPermission } = useAuth()
@@ -34,11 +38,12 @@ export function ProcessSettingsPage() {
       />
 
       {hasPermission(PROCESSES_MANAGE) ? (
-        <ProcessPlaceholder
-          icon={Settings2}
-          title={t('processes.settings.title')}
-          description={t('processes.placeholder')}
-        />
+        <div className="space-y-5">
+          <ProcessEngineSection />
+          <ProcessStageBindingsCard />
+          <ProcessHolidaysCard />
+          <ProcessCatalogueSection />
+        </div>
       ) : (
         <ProcessNoAccess />
       )}
