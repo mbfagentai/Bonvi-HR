@@ -202,6 +202,7 @@ public sealed class DeleteManualPassCommandHandler
     private readonly IAttendanceManualPassRepository _manual;
     private readonly AttendanceDayRecomputer _recomputer;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IClock _clock;
     private readonly IAttendanceScope _scope;
 
     public DeleteManualPassCommandHandler(
@@ -209,12 +210,14 @@ public sealed class DeleteManualPassCommandHandler
         IAttendanceManualPassRepository manual,
         AttendanceDayRecomputer recomputer,
         IUnitOfWork unitOfWork,
+        IClock clock,
         IAttendanceScope scope)
     {
         _passes = passes;
         _manual = manual;
         _recomputer = recomputer;
         _unitOfWork = unitOfWork;
+        _clock = clock;
         _scope = scope;
     }
 
@@ -247,6 +250,13 @@ public sealed class DeleteManualPassCommandHandler
         if (await _scope.IsOwnRecordAsync(employeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.OwnRecord;
+        }
+
+        // The same window as adding. HR keeps no limit here: a wrong pass must stay removable.
+        if (_scope.IsScoped
+            && pass.LocalDate < _clock.UtcNow.TashkentDate().AddDays(-AttendanceRules.MaxRecomputeDays))
+        {
+            return ManualPassErrors.TooOld;
         }
 
         if (await _manual.GetByIdAsync(pass.Id, cancellationToken).ConfigureAwait(false) is { } evidence)

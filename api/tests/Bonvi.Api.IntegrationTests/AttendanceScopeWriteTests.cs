@@ -357,6 +357,38 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         added.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(added));
     }
 
+    // ── age ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Scoped_user_deletes_within_the_window_of_adding_and_hr_has_no_limit()
+    {
+        var world = await SeedWorldAsync();
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+        using var hr = await ClientAsync(HrManagerPermissions);
+
+        var tooOld = await ManualPassAsync(world.InA1, Today().AddDays(-AttendanceRules.MaxRecomputeDays - 2));
+        var oldest = await ManualPassAsync(world.InA1, Today().AddDays(-AttendanceRules.MaxRecomputeDays + 1));
+
+        using (var refused = await scoped.DeleteAsync(Path($"/manual-passes/{tooOld}"), Ct))
+        {
+            await ExpectErrorAsync(refused, HttpStatusCode.BadRequest, "davomat.belgi_juda_eski");
+        }
+
+        (await CountRowsAsync(world.InA1)).ManualPasses.ShouldBe(2);
+
+        using (var allowed = await scoped.DeleteAsync(Path($"/manual-passes/{oldest}"), Ct))
+        {
+            allowed.StatusCode.ShouldBe(HttpStatusCode.NoContent, await TextAsync(allowed));
+        }
+
+        using (var byHr = await hr.DeleteAsync(Path($"/manual-passes/{tooOld}"), Ct))
+        {
+            byHr.StatusCode.ShouldBe(HttpStatusCode.NoContent, await TextAsync(byHr));
+        }
+
+        (await CountRowsAsync(world.InA1)).ManualPasses.ShouldBe(0);
+    }
+
     // ── helpers ───────────────────────────────────────────────────
 
     private async Task<HttpClient> ScopedClientAsync(Guid assignedDepartment)
@@ -430,6 +462,22 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>A pass from the mobile line, i.e. not HR manual. <c>null</c> leaves it unmatched.</summary>
+    /// <summary>Written directly: the add route refuses the dates the age test needs.</summary>
+    private async Task<Guid> ManualPassAsync(Guid employee, DateOnly date)
+    {
+        await using var serviceScope = _factory.Services.CreateAsyncScope();
+        var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var occurredAt = new DateTimeOffset(date.ToDateTime(new TimeOnly(9, 0)), Tashkent);
+        var pass = AttendancePass.RecordByHr(employee, occurredAt, DateTimeOffset.UtcNow, PassDirection.In).Value;
+        var evidence = AttendanceManualPass.Create(pass.Id, employee, pass.OccurredAt, pass.Direction, "Seeded").Value;
+
+        context.AddRange(pass, evidence);
+        await context.SaveChangesAsync(Ct);
+
+        return pass.Id;
+    }
+
     private async Task<Guid> TerminalPassAsync(Guid? employee)
     {
         await using var serviceScope = _factory.Services.CreateAsyncScope();

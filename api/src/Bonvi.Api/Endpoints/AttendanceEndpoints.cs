@@ -1369,7 +1369,8 @@ public static class AttendanceEndpoints
             .WithDescription(
                 "Faqat HR qo'lda qo'shgan belgi; terminal yoki telefon belgisi — «davomat.belgi_qolda_emas» (400). " +
                 "Yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «davomat.otish_topilmadi» (404). " +
-                "«Davomat mas'uli» o'z belgisini o'chira olmaydi — «auth.ruxsat_yoq» (403). Kunlar (±1) qayta hisoblanadi.")
+                "«Davomat mas'uli» o'z belgisini o'chira olmaydi — «auth.ruxsat_yoq» (403), 92 kundan eskisini ham — " +
+                "«davomat.belgi_juda_eski» (400). Kunlar (±1) qayta hisoblanadi.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
