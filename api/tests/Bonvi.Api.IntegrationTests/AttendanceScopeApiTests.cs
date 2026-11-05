@@ -388,6 +388,53 @@ public sealed class AttendanceScopeApiTests : IClassFixture<BonviApiFactory>
         created.StatusCode.ShouldBe(HttpStatusCode.OK, await created.Content.ReadAsStringAsync(ct));
     }
 
+    [Fact]
+    public async Task Role_change_away_from_the_marker_clears_the_assignment_and_audits_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var target = await TestAccounts.CreateAsync(_factory, ScopedPermissions);
+        var otherScoped = await TestAccounts.CreateAsync(_factory, ScopedPermissions);
+        var plain = await TestAccounts.CreateAsync(_factory, Permissions.AttendanceView);
+        using var manager = await ClientAsync(ManagerPermissions);
+        var scopeUri = new Uri($"/api/users/{target.UserId}/attendance-scope", UriKind.Relative);
+
+        var department = await DepartmentAsync(null);
+        await AssignAsync(target.UserId, department);
+
+        async Task SetRoleAsync(string roleCode)
+        {
+            using var response = await manager.PutAsJsonAsync(
+                new Uri($"/api/users/{target.UserId}", UriKind.Relative),
+                new { login = target.Login, lastName = "Синов", firstName = "Ҳисоб", roleCode },
+                ct);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
+        }
+
+        async Task<List<AuditLog>> ScopeLinesAsync()
+            => [.. (await ScopeAuditAsync(target.UserId, ct)).Where(row => row.OldValues?.Contains("AttendanceScopeDepartmentIds", StringComparison.Ordinal) == true)];
+
+        // A name edit under the same role, and a move to another scoped role, keep it.
+        await SetRoleAsync(target.RoleCode);
+        (await ReadScopeAsync(manager, scopeUri, ct)).ShouldBe([department]);
+
+        await SetRoleAsync(otherScoped.RoleCode);
+        (await ReadScopeAsync(manager, scopeUri, ct)).ShouldBe([department]);
+        (await ScopeLinesAsync()).ShouldBeEmpty();
+
+        await SetRoleAsync(plain.RoleCode);
+        (await ReadScopeAsync(manager, scopeUri, ct)).ShouldBeEmpty();
+
+        var line = (await ScopeLinesAsync()).ShouldHaveSingleItem();
+        line.OldValues.ShouldNotBeNull().ShouldContain(department.ToString());
+        line.NewValues.ShouldNotBeNull().ShouldNotContain(department.ToString());
+
+        // Being given the role again does not bring the old departments back.
+        await SetRoleAsync(target.RoleCode);
+        (await ReadScopeAsync(manager, scopeUri, ct)).ShouldBeEmpty();
+        (await ScopeLinesAsync()).Count.ShouldBe(1);
+    }
+
     // ── IAttendanceScope ──────────────────────────────────────────
 
     [Fact]

@@ -139,15 +139,19 @@ public sealed class SetUserAttendanceScopeCommandHandler
             AuditAction.Update,
             nameof(User),
             target.Id.ToString(),
-            oldValues: Snapshot(before),
-            newValues: Snapshot(wanted));
+            oldValues: UserAttendanceScopeAudit.Snapshot(before),
+            newValues: UserAttendanceScopeAudit.Snapshot(wanted));
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return new UserAttendanceScopeDto(wanted);
     }
+}
 
-    private static string Snapshot(IReadOnlyList<Guid> departmentIds)
+/// <summary>How a change of the assignment reads in the audit journal, wherever it is made.</summary>
+internal static class UserAttendanceScopeAudit
+{
+    public static string Snapshot(IReadOnlyList<Guid> departmentIds)
         => JsonSerializer.Serialize(new Dictionary<string, IReadOnlyList<Guid>>
         {
             ["AttendanceScopeDepartmentIds"] = departmentIds,

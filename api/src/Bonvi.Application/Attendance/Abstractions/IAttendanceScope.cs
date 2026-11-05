@@ -62,4 +62,14 @@ public static class AttendanceScopeRule
         return user.HasPermission(Permissions.AttendanceScoped)
             && !user.HasPermission(Permissions.AttendanceManage);
     }
+
+    /// <summary>The same rule for a role's permissions, for what a holder would become.</summary>
+    /// <param name="permissions">The role's permission codes.</param>
+    public static bool IsAttendanceScopedRole(IReadOnlyCollection<string> permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        return permissions.Contains(Permissions.AttendanceScoped)
+            && !permissions.Contains(Permissions.AttendanceManage);
+    }
 }
