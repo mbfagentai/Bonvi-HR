@@ -18,6 +18,9 @@ public sealed class DavomatQamroviMigrationTests
 {
     private const string Previous = "20261103111355_Blankalar";
 
+    /// <summary>Named, not «latest»: a later migration adding a table mustn't move this count.</summary>
+    private const string ThisMigration = "20261105045537_DavomatQamrovi";
+
     [Fact]
     public async Task Migration_adds_the_table_with_its_keys_and_rolls_back_without_touching_anything_else()
     {
@@ -32,7 +35,7 @@ public sealed class DavomatQamroviMigrationTests
         (await ScalarAsync(connection, "SELECT to_regclass('user_attendance_scopes') IS NULL;", ct)).ShouldBe(true);
         var tablesBefore = await ScalarAsync(connection, TableCount, ct);
 
-        await MigrateAsync(database.ConnectionString, target: null, ct);
+        await MigrateAsync(database.ConnectionString, ThisMigration, ct);
 
         (await ScalarAsync(connection, "SELECT to_regclass('user_attendance_scopes') IS NULL;", ct)).ShouldBe(false);
         (await ScalarAsync(connection, "SELECT count(*) FROM user_attendance_scopes;", ct)).ShouldBe(0L);
