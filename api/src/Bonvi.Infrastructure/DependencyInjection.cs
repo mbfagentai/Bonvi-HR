@@ -585,6 +585,8 @@ public static class DependencyInjection
         services.AddSingleton<IEmployeeTokenService, EmployeeJwtTokenService>();
 
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserAttendanceScopeRepository, UserAttendanceScopeRepository>();
+        services.AddScoped<IAttendanceScope, AttendanceScope>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 

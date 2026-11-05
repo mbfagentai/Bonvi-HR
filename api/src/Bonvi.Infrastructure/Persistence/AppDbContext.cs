@@ -420,6 +420,9 @@ public class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Kim nimani o'qigan/o'chirgan (<c>notification_states</c>).</summary>
     public DbSet<NotificationState> NotificationStates => Set<NotificationState>();
 
+    /// <summary>Departments assigned to a scoped attendance user (<c>user_attendance_scopes</c>).</summary>
+    public DbSet<UserAttendanceScope> UserAttendanceScopes => Set<UserAttendanceScope>();
+
     // ────────────────────────────────────────────────────────────
     //  TIZIM SOZLAMALARI
     //  Kalit-qiymat jadvali: bot matni va bildirishnoma chegaralari.

@@ -117,17 +117,7 @@ public static partial class AuthenticationExtensions
 
                     OnForbidden = async context =>
                     {
-                        await RecordPermissionDeniedAsync(context.HttpContext).ConfigureAwait(false);
-
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        context.Response.ContentType = "application/problem+json";
-
-                        await context.Response.WriteAsJsonAsync(new
-                        {
-                            status = 403,
-                            title = "auth.ruxsat_yoq",
-                            detail = "Bu amalni bajarish uchun ruxsatingiz yo'q.",
-                        }).ConfigureAwait(false);
+                        await DenyAsync(context.HttpContext).ConfigureAwait(false);
                     },
                 };
             });
@@ -342,6 +332,26 @@ public static partial class AuthenticationExtensions
                 services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(AuthenticationExtensions)),
                 error);
         }
+    }
+
+    /// <summary>
+    /// The one 403 of the permission model: recorded in the audit journal, then answered
+    /// with <c>auth.ruxsat_yoq</c>. Used by the authorization policies and by
+    /// <see cref="UseBonviAttendanceScopeGuard"/>, so a client cannot tell them apart.
+    /// </summary>
+    private static async Task DenyAsync(HttpContext http)
+    {
+        await RecordPermissionDeniedAsync(http).ConfigureAwait(false);
+
+        http.Response.StatusCode = StatusCodes.Status403Forbidden;
+        http.Response.ContentType = "application/problem+json";
+
+        await http.Response.WriteAsJsonAsync(new
+        {
+            status = 403,
+            title = "auth.ruxsat_yoq",
+            detail = "Bu amalni bajarish uchun ruxsatingiz yo'q.",
+        }).ConfigureAwait(false);
     }
 
     /// <summary>

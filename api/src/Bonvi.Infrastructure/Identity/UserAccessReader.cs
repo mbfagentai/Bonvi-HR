@@ -1,4 +1,5 @@
 using Bonvi.Application.Identity.Abstractions;
+using Bonvi.Domain.Identity;
 using Bonvi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -92,6 +93,8 @@ public sealed class UserAccessReader : IUserAccessReader
         {
             permissions.UnionWith(role.Permissions);
         }
+
+        Permissions.DropAttendanceMarkerIfManaging(permissions);
 
         return new UserAccess([.. roles.Select(role => role.Code)], permissions);
     }

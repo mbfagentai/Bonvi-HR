@@ -140,7 +140,7 @@ public sealed class PermissionCatalogTests
         ]);
 
         PermissionCatalog.Extras.ShouldBe(
-            [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect, Permissions.EmployeesPersonalView]);
+            [Permissions.SalaryView, Permissions.SalaryExtraView, Permissions.McpConnect, Permissions.EmployeesPersonalView, Permissions.AttendanceScoped]);
     }
 
     private static PermissionModule Bolim(string key)

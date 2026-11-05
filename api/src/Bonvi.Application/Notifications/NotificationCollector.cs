@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Employees.Abstractions;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.Notifications.Dtos;
@@ -276,7 +277,7 @@ public sealed class NotificationCollector
 
     /// <summary>Foydalanuvchi shu turdagi bildirishnomani ko'ra oladimi.</summary>
     private bool Allowed(NotificationType type)
-        => _user.HasPermission(NotificationAccess.RequiredPermission(type));
+        => !_user.IsAttendanceScoped() && _user.HasPermission(NotificationAccess.RequiredPermission(type));
 
     // ════════════════════════════════════════════════════════════
     //  Sinov muddati: tugayapti / bugun tugaydi / o'tib ketgan

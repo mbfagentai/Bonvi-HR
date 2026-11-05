@@ -463,6 +463,7 @@ public static class AuditCatalog
         [typeof(AuditLog)] = "jurnalning o'zi — o'zgarmas, faqat qo'shiladi",
         [typeof(RefreshToken)] = "sessiya tokeni — har kirish va yangilashda yoziladi; kirish/chiqish xavfsizlik hodisasi bo'lib yoziladi",
         [typeof(EmployeeRefreshToken)] = "xodim ilovasining sessiya tokeni — har kirish va yangilashda",
+        [typeof(UserAttendanceScope)] = "the handler writes one Update row on the User with the old and new department lists; the rows themselves are only their two keys",
         [typeof(NotificationState)] = "foydalanuvchining «o'qildi/yopildi» belgisi — interfeys holati, ma'lumot emas",
         [typeof(AttendancePass)] = "terminal o'tishi — mashina yasaydi, kuniga minglab, o'zi o'zgarmas hodisa jurnali",
         [typeof(AttendanceDay)] = "kun yozuvi — o'tishlardan har 15 daqiqada va har kecha QAYTA HISOBLANADI",

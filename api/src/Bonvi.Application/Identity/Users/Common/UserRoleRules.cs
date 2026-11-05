@@ -257,11 +257,15 @@ internal static class UserRoleRules
         // muharriri ham shunday solishtiradi (`RoleEditorRules.EnsureTargetWithinOwn`);
         // aks holda bitta qolib ketgan eski kod bosh rahbarni HR hisoblaridan
         // jimgina uzib qo'yardi.
+        //
+        // `attendance.scoped` is not counted either: it narrows a role, so holding it makes
+        // a role no broader. Counting it would stop a production bosh rahbar, whose role
+        // predates the marker, from assigning «Davomat mas'uli».
         var actingPermissions = acting.Permissions
-            .Where(Permissions.Exists)
+            .Where(ComparesBreadth)
             .ToHashSet(StringComparer.Ordinal);
         var targetPermissions = target.Permissions
-            .Where(Permissions.Exists)
+            .Where(ComparesBreadth)
             .ToHashSet(StringComparer.Ordinal);
 
         if (!targetPermissions.IsSubsetOf(actingPermissions))
@@ -280,4 +284,8 @@ internal static class UserRoleRules
 
         return Result.Success();
     }
+
+    private static bool ComparesBreadth(string permission)
+        => Permissions.Exists(permission)
+            && !string.Equals(permission, Permissions.AttendanceScoped, StringComparison.Ordinal);
 }
