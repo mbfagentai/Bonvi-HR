@@ -5,7 +5,8 @@ namespace Bonvi.Application.Processes.Engine;
 /// </summary>
 /// <remarks>
 /// A pass that finds the lock taken or the engine dormant simply ends; the next run comes. A failed pass is journalled
-/// by the reconciler and reaches Hangfire on purpose, so the failure stays recorded against the job.
+/// by the reconciler and reaches Hangfire on purpose, so the failure stays recorded against the job. Hangfire runs it
+/// through <c>Bonvi.Api.Startup.ProcessReconcileHangfireJob</c>, which turns its retries off.
 /// </remarks>
 public sealed class ProcessReconcileJob
 {

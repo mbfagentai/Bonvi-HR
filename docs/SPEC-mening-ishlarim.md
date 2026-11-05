@@ -382,7 +382,7 @@ sets them in the settings page (§11.7). Unbound → the stage fact is false (st
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `processes.startedOn` | Date, Hidden | written once by the seeder (Tashkent today), never in the Testing environment | absent → engine dormant: no cases, gates off (§7.6) |
-| `processes.gates.mode` | Text `^(enforce\|warn\|off)$` | `enforce` | kill switch; `warn` turns every block into an `HrWarning` |
+| `processes.gates.mode` | Text `^(enforce\|warn\|off)$` | `warn` | kill switch; `warn` turns every block into an `HrWarning`. Owner decision: 1–2 weeks in `warn`, then `enforce` in the settings |
 | `processes.councilWeekday` | Number 1–5 | 4 | `nextCouncilDay` |
 | `processes.reconcile.watermark` | Text, Hidden | — | last pass time (diagnostics only; passes are full, §7.4) |
 
@@ -463,7 +463,7 @@ read time, never stored (state 3 is reserved for «waiting for another case», e
 mm is open). 5. Recompute `due_date`, holder, `department_id`. 6. Save **only if something changed** (no SSE loop;
 `IDataChangeSignal` fires only then).
 Runs: Hangfire `processes:reconcile` cron `1-59/5` (UTC; collides with no existing job), and inline before process
-reads (15 s in-memory throttle). One global `pg_try_advisory_xact_lock`; busy → the read serves current state.
+reads (60 s in-memory throttle; the reader waits 2 s at most, the pass has its own 60 s). One global `pg_try_advisory_xact_lock`; busy → the read serves current state.
 Opening a case detail reconciles that one case under the same lock.
 
 ### 7.5 When a case ends

@@ -17,8 +17,8 @@ public sealed class ProcessEngineSettingsTests
 
         settings.StartedOn.ShouldBeNull();
         settings.IsDormant.ShouldBeTrue();
-        settings.GatesMode.ShouldBe(SystemSettingKeys.ProcessesGatesEnforce);
-        settings.GatesEnforced.ShouldBeTrue();
+        settings.GatesMode.ShouldBe(SystemSettingKeys.ProcessesGatesWarn, "the first weeks only warn; the owner switches in the settings");
+        settings.GatesEnforced.ShouldBeFalse();
         settings.CouncilDay.ShouldBe(DayOfWeek.Thursday);
     }
 

@@ -466,6 +466,10 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
             // The function back to its Blankalar body first — then the tables.
             migrationBuilder.Sql(PreviousReadOnlyGrantsSql);
 
+            // Up writes no setting: the seeder and the settings screen do. Left behind, `processes.startedOn` would keep
+            // the old go-live date for the next deploy, and every subject since then would count as new, not legacy.
+            migrationBuilder.Sql("DELETE FROM system_settings WHERE key LIKE 'processes.%';");
+
             migrationBuilder.DropTable(
                 name: "process_case_steps");
 

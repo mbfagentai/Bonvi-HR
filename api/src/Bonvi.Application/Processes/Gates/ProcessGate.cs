@@ -24,6 +24,12 @@ namespace Bonvi.Application.Processes.Gates;
 /// <b>All or none.</b> Overrides are consumed only when nothing is left blocking, so a Terminate stopped by Q13
 /// does not spend the override it already has for Q12.
 /// </para>
+/// <para>
+/// <b>A gate that cannot answer.</b> A warning is not worth a refused Hire or Terminate: while the mode only warns, a
+/// failure of the inspection is journalled and the operation goes on (Allow). Under <c>enforce</c> it reaches the
+/// caller, because an unanswered gate must not read as a passed one. Reading the mode itself stays outside: without
+/// the settings there is no telling which of the two applies, and the command needs that database anyway.
+/// </para>
 /// </remarks>
 public sealed class ProcessGate : IProcessGate
 {
@@ -40,6 +46,7 @@ public sealed class ProcessGate : IProcessGate
     private readonly IEmploymentRepository _employments;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
+    private readonly IProcessEngineJournal _journal;
 
     public ProcessGate(
         SystemSettingsReader settings,
@@ -50,7 +57,8 @@ public sealed class ProcessGate : IProcessGate
         ICandidateRepository candidates,
         IEmploymentRepository employments,
         ICurrentUser currentUser,
-        IClock clock)
+        IClock clock,
+        IProcessEngineJournal journal)
     {
         _settings = settings;
         _passLoader = passLoader;
@@ -61,6 +69,7 @@ public sealed class ProcessGate : IProcessGate
         _employments = employments;
         _currentUser = currentUser;
         _clock = clock;
+        _journal = journal;
     }
 
     /// <inheritdoc />
@@ -74,17 +83,33 @@ public sealed class ProcessGate : IProcessGate
             return GateResult.Allow;
         }
 
-        var findings = context.Operation == GateOperation.Hire
-            ? await InspectHireAsync(context, startedOn, settings, cancellationToken).ConfigureAwait(false)
-            : await InspectTerminateAsync(context, cancellationToken).ConfigureAwait(false);
-
-        if (!settings.GatesEnforced || findings.Legacy)
+        if (settings.GatesEnforced)
         {
-            return GateResult.Warn([.. findings.Warnings, .. findings.Failures.Select(failure => HrWarning.From(failure.Error))]);
+            var findings = await InspectAsync(context, startedOn, settings, cancellationToken).ConfigureAwait(false);
+
+            return findings.Legacy
+                ? WarnOf(findings)
+                : await ApplyOverridesAsync(context, findings, cancellationToken).ConfigureAwait(false);
         }
 
-        return await ApplyOverridesAsync(context, findings, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return WarnOf(await InspectAsync(context, startedOn, settings, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _journal.GateFailedOpen(context.Operation.ToString(), context.EmployeeId, exception);
+            return GateResult.Allow;
+        }
     }
+
+    private Task<GateFindings> InspectAsync(GateContext context, DateOnly startedOn, ProcessEngineSettings settings, CancellationToken cancellationToken)
+        => context.Operation == GateOperation.Hire
+            ? InspectHireAsync(context, startedOn, settings, cancellationToken)
+            : InspectTerminateAsync(context, cancellationToken);
+
+    private static GateResult WarnOf(GateFindings findings)
+        => GateResult.Warn([.. findings.Warnings, .. findings.Failures.Select(failure => HrWarning.From(failure.Error))]);
 
     private async Task<GateResult> ApplyOverridesAsync(GateContext context, GateFindings findings, CancellationToken cancellationToken)
     {
