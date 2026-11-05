@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import {
   completeProcessStep,
@@ -6,6 +12,7 @@ import {
   fetchMyWorkCount,
   fetchProcessBoard,
   fetchProcessCase,
+  fetchProcessCaseChain,
   fetchProcessCases,
   fetchProcessEngineStatus,
   fetchProcessLate,
@@ -31,6 +38,7 @@ export const processKeys = {
   cases: (filters: ProcessCaseFilters) => [...processKeys.all, 'cases', filters] as const,
   board: (processCode: string) => [...processKeys.all, 'board', processCode] as const,
   case: (caseId: string) => [...processKeys.all, 'case', caseId] as const,
+  caseChain: (caseId: string) => [...processKeys.case(caseId), 'chain'] as const,
   late: () => [...processKeys.all, 'late'] as const,
   templates: () => [...processKeys.all, 'templates'] as const,
   status: () => [...processKeys.all, 'status'] as const,
@@ -83,6 +91,26 @@ export function useProcessCase(caseId: string, enabled = true) {
     queryKey: processKeys.case(caseId),
     queryFn: ({ signal }) => fetchProcessCase(caseId, signal),
     enabled,
+  })
+}
+
+/** Which cases this one reads together with. A failure only costs the merged view, so the caller falls back to the case. */
+export function useProcessCaseChain(caseId: string, enabled = true) {
+  return useQuery({
+    queryKey: processKeys.caseChain(caseId),
+    queryFn: ({ signal }) => fetchProcessCaseChain(caseId, signal),
+    enabled,
+  })
+}
+
+/** The details of several cases, under the same keys as `useProcessCase`, in the order of `caseIds`. */
+export function useProcessCaseDetails(caseIds: readonly string[], enabled = true) {
+  return useQueries({
+    queries: caseIds.map((caseId) => ({
+      queryKey: processKeys.case(caseId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => fetchProcessCase(caseId, signal),
+      enabled,
+    })),
   })
 }
 

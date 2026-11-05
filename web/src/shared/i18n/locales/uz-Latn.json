@@ -4222,6 +4222,8 @@
         "dismissal": "so‘nggi ish kuni"
       },
       "anchorOther": "hisob sanasi",
+      "hireChainTitle": "Ishga qabul",
+      "chainPartial": "Jarayonning qolgan qismi yuklanmadi — hozircha faqat shu bosqich ko‘rsatilmoqda.",
       "notHolderText": "Siz bu qadamni faqat ko‘rasiz — uni {{role}} o‘z login va paroli bilan kirib bajaradi. Uning o‘rniga bajarib bo‘lmaydi.",
       "systemTitle": "Bu qadamni tizim o‘zi bajaradi",
       "systemText": "Bu yerda qo‘lda hech narsa qilinmaydi: shart bajarilganda qadam o‘zi yopiladi.",
