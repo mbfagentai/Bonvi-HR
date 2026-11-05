@@ -280,7 +280,8 @@ export function UserFormDialog({
       }
     }
 
-    // The role is saved first: the server reads the department list against the account's role
+    // Account first: a new account's id comes from that save, and the server checks the right to
+    // edit this list against the account's saved role
     if (scopedRole && userId !== null) {
       try {
         await saveScope.mutateAsync({ userId, departmentIds: scopeIds })
