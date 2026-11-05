@@ -4131,6 +4131,7 @@
       "emptyTitle": "Hozir sizda ochiq ish yo‘q",
       "emptyText": "Sizga yangi ish tushishi bilan shu yerda ko‘rinadi.",
       "urgentEmpty": "Bugunga va kechikkan ish yo‘q",
+      "sectionCut": "Eng yaqin {{n}} tasi ko‘rsatilgan, jami {{total}} ta",
       "open": "Ochish",
       "holder": "Bajaradi",
       "resolver": "Hal qiladi",

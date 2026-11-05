@@ -4131,6 +4131,7 @@
       "emptyTitle": "You have no open tasks right now",
       "emptyText": "A new task appears here as soon as it reaches you.",
       "urgentEmpty": "Nothing due today and nothing late",
+      "sectionCut": "Showing the nearest {{n}} of {{total}}",
       "open": "Open",
       "holder": "Done by",
       "resolver": "Resolved by",

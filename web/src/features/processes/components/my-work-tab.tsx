@@ -3,22 +3,34 @@ import { Hourglass, Inbox, ListChecks, Lock, Sparkles, Sun } from 'lucide-react'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { Card, EmptyState, Skeleton } from '@/shared/ui'
 
-import type { ProcessMyWork, ProcessTask } from '../api/processes-api'
+import type { ProcessMyWork } from '../api/processes-api'
 import { useMyWork } from '../api/processes-queries'
-import { hasNoTasks, isMyWorkEmpty } from '../lib/my-work'
+import { hasNoTasks, isMyWorkEmpty, type MyWorkSection, sectionTotal } from '../lib/my-work'
 import { ProcessLoadError } from './process-states'
 import { ProcessTartibCards } from './process-tartib-cards'
 import { ProcessTaskCard, ProcessTaskSection } from './process-task-card'
 
-function TaskList({ tasks, today }: { tasks: readonly ProcessTask[]; today: string }) {
+function TaskList({ work, section }: { work: ProcessMyWork; section: MyWorkSection }) {
+  const { t, num } = useLocale()
+  const tasks = work[section]
+  const total = sectionTotal(work, section)
+
   return (
-    <ul className="space-y-3">
-      {tasks.map((task) => (
-        <li key={`${task.caseId}:${task.stepCode}`}>
-          <ProcessTaskCard task={task} today={today} />
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="space-y-3">
+        {tasks.map((task) => (
+          <li key={`${task.caseId}:${task.stepCode}`}>
+            <ProcessTaskCard task={task} today={work.today} />
+          </li>
+        ))}
+      </ul>
+      {/* The API sends the soonest 200; the rest exist, so the list must not read as complete. */}
+      {total > tasks.length && (
+        <p className="px-1 text-footnote text-[var(--fg-secondary)]">
+          {t('processes.my.sectionCut', { n: num(tasks.length), total: num(total) })}
+        </p>
+      )}
+    </>
   )
 }
 
@@ -89,10 +101,10 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
           <ProcessTaskSection
             icon={Sun}
             title={t('processes.my.sections.urgent')}
-            count={work.urgent.length}
+            count={sectionTotal(work, 'urgent')}
           >
             {work.urgent.length > 0 ? (
-              <TaskList tasks={work.urgent} today={work.today} />
+              <TaskList work={work} section="urgent" />
             ) : (
               <Card className="flex items-center gap-2.5 rounded-lg px-5 py-4 text-subhead text-[var(--fg-secondary)]">
                 <Sparkles aria-hidden className="size-4 shrink-0 text-ios-green" strokeWidth={2} />
@@ -105,9 +117,9 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
             <ProcessTaskSection
               icon={ListChecks}
               title={t('processes.my.sections.later')}
-              count={work.later.length}
+              count={sectionTotal(work, 'later')}
             >
-              <TaskList tasks={work.later} today={work.today} />
+              <TaskList work={work} section="later" />
             </ProcessTaskSection>
           )}
 
@@ -115,9 +127,9 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
             <ProcessTaskSection
               icon={Lock}
               title={t('processes.my.sections.held')}
-              count={work.held.length}
+              count={sectionTotal(work, 'held')}
             >
-              <TaskList tasks={work.held} today={work.today} />
+              <TaskList work={work} section="held" />
             </ProcessTaskSection>
           )}
 
@@ -125,9 +137,9 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
             <ProcessTaskSection
               icon={Hourglass}
               title={t('processes.my.sections.waiting')}
-              count={work.waiting.length}
+              count={sectionTotal(work, 'waiting')}
             >
-              <TaskList tasks={work.waiting} today={work.today} />
+              <TaskList work={work} section="waiting" />
             </ProcessTaskSection>
           )}
         </>

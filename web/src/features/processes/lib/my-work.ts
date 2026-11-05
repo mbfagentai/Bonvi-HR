@@ -10,6 +10,11 @@ export function hasNoTasks(work: ProcessMyWork): boolean {
   return MY_WORK_SECTIONS.every((section) => work[section].length === 0)
 }
 
+/** A section's size before the API's cut, never less than the cards actually delivered. */
+export function sectionTotal(work: ProcessMyWork, section: MyWorkSection): number {
+  return Math.max(work[`${section}Total`], work[section].length)
+}
+
 /** True when the whole tab would be blank: no tasks and no «Tartib» card. */
 export function isMyWorkEmpty(work: ProcessMyWork): boolean {
   return (

@@ -112,6 +112,11 @@ export interface ProcessMyWork {
   held: ProcessTask[]
   waiting: ProcessTask[]
   tartib: ProcessTartib
+  /** Section sizes before the API's cut of 200 cards; `count` and `lateCount` are over everything too. */
+  urgentTotal: number
+  laterTotal: number
+  heldTotal: number
+  waitingTotal: number
 }
 
 export interface ProcessMyCount {

@@ -6,7 +6,14 @@ import type {
   ProcessSubject,
   ProcessTask,
 } from '../api/processes-api'
-import { hasNoTasks, isMyWorkEmpty, tartibCountHref, taskLinkAction, taskResolver } from './my-work'
+import {
+  hasNoTasks,
+  isMyWorkEmpty,
+  sectionTotal,
+  tartibCountHref,
+  taskLinkAction,
+  taskResolver,
+} from './my-work'
 
 const holder = (role: string | null, employeeId: string | null = null): ProcessHolder => ({
   role,
@@ -36,9 +43,23 @@ const emptyWork: ProcessMyWork = {
   held: [],
   waiting: [],
   tartib: { notifications: [], counts: [] },
+  urgentTotal: 0,
+  laterTotal: 0,
+  heldTotal: 0,
+  waitingTotal: 0,
 }
 
 const someTask = {} as ProcessTask
+
+describe('sectionTotal', () => {
+  it('reads the size before the cut, not the cards delivered', () => {
+    expect(sectionTotal({ ...emptyWork, later: [someTask], laterTotal: 340 }, 'later')).toBe(340)
+  })
+
+  it('never reads less than what was delivered', () => {
+    expect(sectionTotal({ ...emptyWork, held: [someTask, someTask], heldTotal: 1 }, 'held')).toBe(2)
+  })
+})
 
 describe('isMyWorkEmpty', () => {
   it('is empty only with no tasks and no tartib card', () => {
