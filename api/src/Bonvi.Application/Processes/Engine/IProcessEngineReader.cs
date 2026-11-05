@@ -26,7 +26,7 @@ public interface IProcessEngineReader
     /// <summary>
     /// §3.2 dismissal (b) and (c): employments with a live F08 / dismissal F09 created on or after
     /// <paramref name="startedOn"/>, and terminations dated on or after it. May return an employment
-    /// that already has a case — the starter decides (a withdrawn case reopens).
+    /// whose only case ended <c>withdrawn</c> — the starter decides (it reopens on a newer start fact).
     /// </summary>
     Task<IReadOnlyList<DismissalStart>> ListDismissalStartsAsync(DateOnly startedOn, CancellationToken cancellationToken = default);
 }
@@ -113,13 +113,15 @@ public sealed record ProbationStart(Guid Id, Guid EmploymentId, Guid EmployeeId,
 /// <param name="StartedAt">The earliest start fact on or after the engine's start.</param>
 /// <param name="StartedOn">Tashkent date of the start fact (for a termination: its date).</param>
 /// <param name="InFlight">A live F08 / dismissal F09 older than the engine's start exists: the dismissal was already under way (§7.3).</param>
+/// <param name="LatestFactAt">The newest start fact; later than a <c>withdrawn</c> case's end → that case reopens.</param>
 public sealed record DismissalStart(
     Guid EmploymentId,
     Guid EmployeeId,
     Guid? DepartmentId,
     DateTimeOffset StartedAt,
     DateOnly StartedOn,
-    bool InFlight);
+    bool InFlight,
+    DateTimeOffset LatestFactAt);
 
 /// <summary>
 /// The one global lock of a pass (§7.4): <c>pg_try_advisory_xact_lock</c>, released with the
