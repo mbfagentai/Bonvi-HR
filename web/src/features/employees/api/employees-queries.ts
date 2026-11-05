@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
+import { useAuth } from '@/features/auth'
+
 /*
  * Ma'lumotnomalar S2 modulida qurilgan va uning `index.ts` si so'rov
  * hook'larini tashqariga chiqarmaydi — u faqat sahifalarni beradi.
@@ -21,6 +23,7 @@ import type {
   PositionItem,
 } from '@/features/catalog/api/catalog-api'
 import { flattenTree } from '@/features/catalog/lib/tree'
+import { fetchAttendanceEmployeePhoto } from '@/features/verification/api/attendance-api'
 import { saveBlobAs } from '@/shared/lib/download'
 import type { SelectOption } from '@/shared/ui'
 
@@ -206,9 +209,22 @@ export function useEmployeeFlags(id: string) {
  * murojaat qilmaydi. Ya'ni keshni qo'lda tozalash kerak emas.
  */
 export function useEmployeePhoto(employeeId: string, photoKey: string | null, enabled = true) {
+  /*
+    A «Davomat mas'uli» cannot read `/api/employees/{id}/photo`: the attendance route returns the
+    same image, limited to their departments. Decided here, not at the call sites, because every
+    avatar in the attendance pages goes through this hook. Own cache entry: the two routes answer
+    differently for an employee outside those departments.
+  */
+  const { isAttendanceScoped } = useAuth()
+
   return useQuery({
-    queryKey: employeeKeys.photo(employeeId, photoKey),
-    queryFn: ({ signal }) => fetchEmployeePhoto(employeeId, signal),
+    queryKey: isAttendanceScoped
+      ? ['attendance-employee-photo', employeeId, photoKey]
+      : employeeKeys.photo(employeeId, photoKey),
+    queryFn: ({ signal }) =>
+      isAttendanceScoped
+        ? fetchAttendanceEmployeePhoto(employeeId, signal)
+        : fetchEmployeePhoto(employeeId, signal),
     /**
      * Kaliti yo'q — rasmi ham yo'q, so'rov umuman yuborilmaydi.
      * Busiz 25 qatorli sahifa har ochilganda 25 ta keraksiz 404 ketardi.
@@ -892,11 +908,11 @@ export function useEmployeeDirections(employee: EmployeeDetails): NamedRef[] {
  * lavozim uchrasa — kartada nomi baribir ko'rinadi (u xodim yozuvidan
  * keladi, ma'lumotnomadan emas).
  */
-export function useFilterOptions(): FilterOptions {
-  const departments = useDepartmentTree(true)
-  const positions = useCatalogList<PositionItem>('positions', true)
-  const directions = useCatalogList('directions', true)
-  const legalEntities = useCatalogList('legal-entities', true)
+export function useFilterOptions(enabled = true): FilterOptions {
+  const departments = useDepartmentTree(true, enabled)
+  const positions = useCatalogList<PositionItem>('positions', true, enabled)
+  const directions = useCatalogList('directions', true, enabled)
+  const legalEntities = useCatalogList('legal-entities', true, enabled)
 
   return useMemo(() => {
     const positionItems = positions.data ?? (EMPTY_LIST as PositionItem[])

@@ -507,3 +507,48 @@ export const NAV: NavSection[] = [
     ],
   },
 ]
+
+/**
+ * Top-level items a «Davomat mas'uli» may see — an allowlist.
+ *
+ * NOT `permission` fields on the other items: most of them (dashboard, employees, catalogs) have
+ * none, and adding some would change the menu for everyone else. What is inside the group is still
+ * decided per child by `visibleItem`, so `attendance.manage` items stay hidden.
+ */
+const ATTENDANCE_SCOPED_ITEMS: readonly string[] = ['verification']
+
+/** The menu for this kind of account. Everyone else gets `nav` untouched. */
+export function navFor(nav: readonly NavSection[], attendanceScoped: boolean): readonly NavSection[] {
+  if (!attendanceScoped) return nav
+
+  return nav.flatMap((section) => {
+    const items = section.items.filter((item) => ATTENDANCE_SCOPED_ITEMS.includes(item.key))
+    return items.length === 0 ? [] : [{ ...section, items }]
+  })
+}
+
+/**
+ * Foydalanuvchiga ko'rinadigan band (`[]` — ko'rinmaydi), ruxsat bo'yicha.
+ *
+ * Oddiy band va guruhning o'zi — o'z `permission` i bilan (`nav-items.ts`
+ * dagi izoh), avvalgidek.
+ *
+ * Guruh BOLALARI esa faqat `filterChildrenByPermission` yoqilgan guruhda
+ * filtrlanadi — «Verifikatsiya» va «Ma'lumotnomalar» (faqat «Yo'qlik turlari»
+ * bandi ruxsatli; qolganlari ruxsatsiz, ya'ni o'zgarmaydi). Filtr ixtiyoriy qilindi,
+ * chunki uni hammaga yoqish «Rekruting» va «Ma'lumotnomalar» menyusini
+ * jimgina o'zgartirardi (egasi davomat moduli boshqa bo'limlarga
+ * tegmasligini talab qilgan). Yoqilgan guruhda birorta bola qolmasa,
+ * guruhning O'ZI ham yo'qoladi: hech narsa ochmaydigan sarlavha tugmasi
+ * bo'lim uchun yuqorida qo'llangan qoidaning aynan o'zi.
+ */
+export function visibleItem(item: NavItem, hasPermission: (code: string) => boolean): NavItem[] {
+  if (item.permission !== undefined && !hasPermission(item.permission)) return []
+  if (item.children === undefined || item.filterChildrenByPermission !== true) return [item]
+
+  const children = item.children.filter(
+    (child) => child.permission === undefined || hasPermission(child.permission),
+  )
+
+  return children.length === 0 ? [] : [{ ...item, children }]
+}

@@ -16,6 +16,7 @@ import {
   logout as logoutRequest,
   type AuthUser,
 } from './api/auth-api'
+import { isAttendanceScoped } from './lib/attendance-scope'
 import { parseAuthUser } from './schemas/auth-user-schema'
 
 export interface LoginInput {
@@ -50,6 +51,8 @@ export interface AuthContextValue {
   /** Ruxsat kodi bo'yicha tekshiruv: `hasPermission('employees.edit')`. */
   hasPermission: (code: string) => boolean
   hasRole: (code: string) => boolean
+  /** «Davomat mas'uli»: this account works only inside attendance (`lib/attendance-scope.ts`). */
+  isAttendanceScoped: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -256,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       hasPermission,
       hasRole,
+      isAttendanceScoped: isAttendanceScoped(user),
     }),
     [user, isRestoring, login, logout, refreshUser, hasPermission, hasRole],
   )

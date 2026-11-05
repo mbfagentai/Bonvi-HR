@@ -98,9 +98,10 @@ export function AbsenceRequestsList({
   onRangeChange?: (next: DateRange) => void
 }) {
   const { t, date } = useLocale()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
-  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
+  // A «Davomat mas'uli» holds this permission for manual passes only: the server refuses requests
+  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE) && !isAttendanceScoped
   /*
     Excelga yuklash — faqat umumiy navbatda (filtr paneli bor joyda), ro'yxatni
     ko'rish VA `reports.export` bilan (SPEC-excel-eksport §1). Xodim kartasida
@@ -514,15 +515,19 @@ export function AbsenceRequestsList({
         onClose={() => setDecision(null)}
       />
 
-      <AbsenceRequestDialog
-        open={adding || editing !== null}
-        employeeId={employeeId}
-        request={editing}
-        onClose={() => {
-          setAdding(false)
-          setEditing(null)
-        }}
-      />
+      {!isAttendanceScoped && (
+        <>
+          <AbsenceRequestDialog
+            open={adding || editing !== null}
+            employeeId={employeeId}
+            request={editing}
+            onClose={() => {
+              setAdding(false)
+              setEditing(null)
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }
@@ -566,7 +571,9 @@ function RequestFilterBar({
   exportError: unknown
 }) {
   const { t } = useLocale()
-  const types = useCatalogList('absence-types', false)
+  const { isAttendanceScoped } = useAuth()
+  // Catalogs are closed to a «Davomat mas'uli»: no type filter for them
+  const types = useCatalogList('absence-types', false, !isAttendanceScoped)
 
   const typeOptions = useMemo(
     () => (types.data ?? []).map((item) => ({ value: item.id, label: item.name })),
@@ -595,6 +602,7 @@ function RequestFilterBar({
       >
         <Select
           size="sm"
+          className={isAttendanceScoped ? 'hidden' : undefined}
           label={t('attendance.requestKind')}
           placeholder={t('common.all')}
           options={typeOptions}

@@ -117,12 +117,12 @@ function defaultFilters(): ReportFilterState {
 export function AttendanceReportsPage() {
   const { t, date } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canExport = hasPermission(REPORTS_EXPORT)
   // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -133,7 +133,8 @@ export function AttendanceReportsPage() {
 
   const [filters, setFilters] = useState<ReportFilterState>(defaultFilters)
 
-  const options = useFilterOptions()
+  // Catalogs are closed to a «Davomat mas'uli»; their org filters are hidden below
+  const options = useFilterOptions(!isAttendanceScoped)
 
   const setSearch = useCallback(
     (
@@ -377,27 +378,31 @@ export function AttendanceReportsPage() {
                 onChange={(event) => set('minMinutes', event.target.value)}
               />
             )}
-            <Select
-              label={t('employee.legalEntity')}
-              placeholder={t('employees.anyLegalEntity')}
-              options={options.legalEntities}
-              value={filters.legalEntityId}
-              onChange={(event) => set('legalEntityId', event.target.value)}
-            />
-            <Select
-              label={t('employee.department')}
-              placeholder={t('employees.anyDepartment')}
-              options={options.departments}
-              value={filters.departmentId}
-              onChange={(event) => set('departmentId', event.target.value)}
-            />
-            <Select
-              label={t('employee.position')}
-              placeholder={t('employees.anyPosition')}
-              options={options.positions}
-              value={filters.positionId}
-              onChange={(event) => set('positionId', event.target.value)}
-            />
+            {!isAttendanceScoped && (
+              <>
+                <Select
+                  label={t('employee.legalEntity')}
+                  placeholder={t('employees.anyLegalEntity')}
+                  options={options.legalEntities}
+                  value={filters.legalEntityId}
+                  onChange={(event) => set('legalEntityId', event.target.value)}
+                />
+                <Select
+                  label={t('employee.department')}
+                  placeholder={t('employees.anyDepartment')}
+                  options={options.departments}
+                  value={filters.departmentId}
+                  onChange={(event) => set('departmentId', event.target.value)}
+                />
+                <Select
+                  label={t('employee.position')}
+                  placeholder={t('employees.anyPosition')}
+                  options={options.positions}
+                  value={filters.positionId}
+                  onChange={(event) => set('positionId', event.target.value)}
+                />
+              </>
+            )}
           </div>
 
           {rangeProblem !== null && (

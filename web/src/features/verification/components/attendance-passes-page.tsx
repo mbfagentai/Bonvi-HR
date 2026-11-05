@@ -114,13 +114,13 @@ function defaultFilters(): PassFilterState {
 export function AttendancePassesPage() {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
   // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz tugma chizilmaydi
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
 
   const searchParams = route.useSearch()
   const navigate = route.useNavigate()
@@ -148,7 +148,8 @@ export function AttendancePassesPage() {
     })
   })
 
-  const options = useFilterOptions()
+  // Catalogs are closed to a «Davomat mas'uli»; their org filters are hidden below
+  const options = useFilterOptions(!isAttendanceScoped)
 
   /*
     Qurilmalar ro'yxati `attendance.manage` ostida (SPEC §7.3: unda token
@@ -509,22 +510,26 @@ export function AttendancePassesPage() {
                     onChange={(event) => set('deviceId', event.target.value)}
                   />
                 )}
-                <Select
-                  size="sm"
-                  label={t('employee.legalEntity')}
-                  placeholder={t('employees.anyLegalEntity')}
-                  options={options.legalEntities}
-                  value={filters.legalEntityId}
-                  onChange={(event) => set('legalEntityId', event.target.value)}
-                />
-                <Select
-                  size="sm"
-                  label={t('employee.department')}
-                  placeholder={t('employees.anyDepartment')}
-                  options={options.departments}
-                  value={filters.departmentId}
-                  onChange={(event) => set('departmentId', event.target.value)}
-                />
+                {!isAttendanceScoped && (
+                  <>
+                    <Select
+                      size="sm"
+                      label={t('employee.legalEntity')}
+                      placeholder={t('employees.anyLegalEntity')}
+                      options={options.legalEntities}
+                      value={filters.legalEntityId}
+                      onChange={(event) => set('legalEntityId', event.target.value)}
+                    />
+                    <Select
+                      size="sm"
+                      label={t('employee.department')}
+                      placeholder={t('employees.anyDepartment')}
+                      options={options.departments}
+                      value={filters.departmentId}
+                      onChange={(event) => set('departmentId', event.target.value)}
+                    />
+                  </>
+                )}
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { Search, UserRound } from 'lucide-react'
 import { useState } from 'react'
 
+import { useAuth } from '@/features/auth'
 import { useEmployees } from '@/features/employees/api/employees-queries'
 import type { EmployeeListItem } from '@/features/employees/api/employees-api'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -10,6 +11,8 @@ import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { useSearchDraft } from '@/shared/lib/list-search'
 import { Alert, Badge, Button, Input, Skeleton } from '@/shared/ui'
+
+import { useAttendanceEmployeeLookup } from '../api/attendance-queries'
 
 /**
  * Tanlangan xodim — ro'yxat qatoridan KERAKLI qismi.
@@ -26,6 +29,11 @@ export interface PickedEmployee {
   department: string | null
 }
 
+/** One result row, whichever route it came from. */
+interface PickerRow extends PickedEmployee {
+  terminated: boolean
+}
+
 export function toPickedEmployee(item: EmployeeListItem): PickedEmployee {
   return {
     id: item.id,
@@ -35,6 +43,12 @@ export function toPickedEmployee(item: EmployeeListItem): PickedEmployee {
     department: item.departmentName,
   }
 }
+
+/**
+ * The lookup has no photo key, only `hasPhoto`. The hook still needs a non-null key to send the
+ * request, and an image never changes under it within one search session.
+ */
+const LOOKUP_PHOTO_KEY = 'attendance-lookup'
 
 /** Bir so'rovda ko'rsatiladigan qatorlar — qolgani qidiruv bilan toraytiriladi. */
 const PICKER_PAGE_SIZE = 20
@@ -77,6 +91,7 @@ export function AttendanceEmployeePicker({
 }) {
   const { t, num } = useLocale()
   const errorMessage = useErrorMessage()
+  const { isAttendanceScoped } = useAuth()
 
   const [search, setSearch] = useState('')
   // Har harfda so'rov ketmaydi — boshqa ro'yxatlar bilan bir xil 350 ms
@@ -91,7 +106,13 @@ export function AttendanceEmployeePicker({
       ...(employedOnly ? { status: 'employed' as const } : {}),
     },
     // Tanlov qilingach ro'yxat yashiriladi — so'rov ham to'xtaydi
-    value === null && !disabled,
+    value === null && !disabled && !isAttendanceScoped,
+  )
+  // A «Davomat mas'uli» searches through attendance: `GET /api/employees` is closed to them
+  const lookup = useAttendanceEmployeeLookup(
+    search.trim(),
+    PICKER_PAGE_SIZE,
+    value === null && !disabled && isAttendanceScoped,
   )
 
   const heading = label ?? t('attendance.employee')
@@ -128,8 +149,22 @@ export function AttendanceEmployeePicker({
     )
   }
 
-  const items = list.data?.items ?? []
-  const total = list.data?.total ?? 0
+  const source = isAttendanceScoped ? lookup : list
+  const items: PickerRow[] = isAttendanceScoped
+    ? (lookup.data ?? []).map((item) => ({
+        id: item.id,
+        fullName: item.fullName,
+        photoKey: item.hasPhoto ? LOOKUP_PHOTO_KEY : null,
+        position: item.positionName,
+        department: item.departmentName,
+        terminated: false,
+      }))
+    : (list.data?.items ?? []).map((item) => ({
+        ...toPickedEmployee(item),
+        terminated: item.status === 'terminated',
+      }))
+  // The lookup returns a bare list, so it cannot say how many more there are
+  const total = isAttendanceScoped ? items.length : (list.data?.total ?? 0)
   const hidden = Math.max(0, total - items.length)
 
   return (
@@ -153,7 +188,7 @@ export function AttendanceEmployeePicker({
           error !== undefined ? 'border-ios-red' : 'border-[var(--border)]',
         )}
       >
-        {list.isPending ? (
+        {source.isPending ? (
           <div className="space-y-1 p-2" aria-busy>
             {Array.from({ length: 4 }, (_, index) => (
               <div key={`skeleton-${index}`} className="flex items-center gap-3 px-2 py-2">
@@ -165,9 +200,9 @@ export function AttendanceEmployeePicker({
               </div>
             ))}
           </div>
-        ) : list.isError ? (
+        ) : source.isError ? (
           <div className="p-3">
-            <Alert tone="danger">{errorMessage(problemCode(list.error))}</Alert>
+            <Alert tone="danger">{errorMessage(problemCode(source.error))}</Alert>
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
@@ -183,7 +218,15 @@ export function AttendanceEmployeePicker({
                   role="option"
                   aria-selected={false}
                   disabled={disabled}
-                  onClick={() => onChange(toPickedEmployee(item))}
+                  onClick={() =>
+                    onChange({
+                      id: item.id,
+                      fullName: item.fullName,
+                      photoKey: item.photoKey,
+                      position: item.position,
+                      department: item.department,
+                    })
+                  }
                   className={cn(
                     'press flex w-full items-center gap-3 px-3 py-2.5 text-left',
                     'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)]',
@@ -201,14 +244,13 @@ export function AttendanceEmployeePicker({
                       {item.fullName}
                     </span>
                     <span className="truncate-1 block text-caption1 text-[var(--fg-secondary)]">
-                      {[item.positionName, item.departmentName].filter(Boolean).join(' · ') ||
-                        '—'}
+                      {[item.position, item.department].filter(Boolean).join(' · ') || '—'}
                     </span>
                   </span>
                   {/* Faqat «ishlamaydi» belgilanadi — faol xodim shovqinsiz */}
-                  {item.status === 'terminated' && (
-                    <Badge tone={STATUS_TONE[item.status]} size="sm">
-                      {t(STATUS_KEY[item.status])}
+                  {item.terminated && (
+                    <Badge tone={STATUS_TONE.terminated} size="sm">
+                      {t(STATUS_KEY.terminated)}
                     </Badge>
                   )}
                 </button>

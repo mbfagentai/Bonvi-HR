@@ -1,7 +1,9 @@
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
+import { appBeforeLoad } from '@/app/layout/app-guard'
 import { AppShell } from '@/app/layout/app-shell'
-import { authStorage } from '@/shared/lib/auth-storage'
+import { attendanceScopeRedirect, useAuth } from '@/features/auth'
 
 /**
  * Manzilsiz (pathless) qatlam: bu marshrutning URL'da izi yo'q,
@@ -9,27 +11,36 @@ import { authStorage } from '@/shared/lib/auth-storage'
  * Kirish sahifasi shu qobiqdan tashqarida.
  */
 export const Route = createFileRoute('/_app')({
-  /**
-   * Himoya.
-   *
-   * Bu yerda faqat token BORLIGI tekshiriladi — tekshiruv sinxron va
-   * darhol bajariladi, sahifa «bir ko'rinib keyin yo'qolmaydi».
-   * Tokenning haqiqiyligini server hal qiladi: yaroqsiz bo'lsa http-client
-   * 401 javobini ushlab, uni yangilashga urinadi va uddasidan chiqmasa
-   * /kirish ga qaytaradi.
-   *
-   * `redirect` — foydalanuvchi qayerga bormoqchi bo'lgani. Kirgandan keyin
-   * u bosh sahifaga emas, o'sha sahifaga tushadi.
-   */
-  beforeLoad: ({ location }) => {
-    if (!authStorage.isAuthenticated) {
-      throw redirect({ to: '/kirish', search: { redirect: location.href } })
-    }
-  },
+  beforeLoad: appBeforeLoad,
 
-  component: () => (
+  component: AppLayout,
+})
+
+function AppLayout() {
+  useAttendanceScopeRedirect()
+
+  return (
     <AppShell>
       <Outlet />
     </AppShell>
-  ),
-})
+  )
+}
+
+/**
+ * The guard's rule again, for what the guard cannot see: it only runs on navigation and reads the
+ * stored copy, so a role changed while the app is open (the provider re-reads the user every
+ * minute) or a stale copy after a reload would leave the user on a page that only returns 403.
+ */
+function useAttendanceScopeRedirect() {
+  const { user } = useAuth()
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const target = attendanceScopeRedirect(user, pathname)
+
+    if (target !== null) {
+      void navigate({ href: target, replace: true })
+    }
+  }, [user, pathname, navigate])
+}

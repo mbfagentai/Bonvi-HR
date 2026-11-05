@@ -87,13 +87,13 @@ const NO_ORG_FILTERS: OrgFilters = { legalEntityId: '', departmentId: '', positi
 export function AttendanceTimesheetPage() {
   const { t, num, locale, date, dateTime } = useLocale()
   const errorMessage = useErrorMessage()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
   // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW)
+  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -126,7 +126,8 @@ export function AttendanceTimesheetPage() {
     setSearch((previous) => ({ ...previous, q: toSearchParam(value), page: undefined }))
   })
 
-  const options = useFilterOptions()
+  // Catalogs are closed to a «Davomat mas'uli»; their org filters are hidden below
+  const options = useFilterOptions(!isAttendanceScoped)
 
   /**
    * So'rov filtri — ekrandagi grid ham, Excel ham AYNAN shundan

@@ -4,3 +4,9 @@ export { AccountPhoto } from './components/account-photo'
 export { AccountPhotoEditor } from './components/account-photo-editor'
 export { LoginForm } from './components/login-form'
 export { formatFullPhone } from './lib/phone'
+export {
+  ATTENDANCE_SCOPED,
+  ATTENDANCE_SCOPED_HOME,
+  attendanceScopeRedirect,
+  isAttendanceScoped,
+} from './lib/attendance-scope'
