@@ -14,10 +14,6 @@ namespace Bonvi.Application.Processes.Engine;
 /// <c>dis.*</c> fact and subject row of the case hangs on that link: loaded the other way round, a hire would show
 /// on the next pass only and (b) of the same pass would start a second formalise case (§3.2).
 /// </para>
-/// <para>
-/// <b>hire-candidate goes last.</b> Q04 reads step <c>mm</c> of the child: passing the child first keeps a closure
-/// of this pass from waiting for the next one.
-/// </para>
 /// </remarks>
 public sealed class ProcessCaseBatch
 {
@@ -111,7 +107,7 @@ public sealed class ProcessCaseBatch
 
         var offerAccepted = new List<ProcessCase>();
 
-        foreach (var processCase in cases.OrderBy(processCase => processCase.ProcessCode == ProcessCodes.HireCandidate))
+        foreach (var processCase in cases)
         {
             if (pass.Definitions.ForVersion(processCase.TemplateVersionId) is not { } definition)
             {
