@@ -45,12 +45,12 @@ public sealed class ProcessInlineReconcile
     /// <summary>In front of a list or a dashboard read: a full pass, unless one ran within the window.</summary>
     public Task BeforeReadAsync(CancellationToken cancellationToken = default)
         => TryTakeSlot()
-            ? RunSheltered(reconciler => reconciler.RunAsync(cancellationToken), cancellationToken)
+            ? RunShelteredAsync(reconciler => reconciler.RunAsync(cancellationToken), cancellationToken)
             : Task.CompletedTask;
 
     /// <summary>In front of a case detail: that one case, every time. It is cheap and has no window (§7.4).</summary>
     public Task BeforeCaseReadAsync(Guid caseId, CancellationToken cancellationToken = default)
-        => RunSheltered(reconciler => reconciler.RunCaseAsync(caseId, cancellationToken), cancellationToken);
+        => RunShelteredAsync(reconciler => reconciler.RunCaseAsync(caseId, cancellationToken), cancellationToken);
 
     private bool TryTakeSlot()
     {
@@ -61,7 +61,7 @@ public sealed class ProcessInlineReconcile
             && Interlocked.CompareExchange(ref _nextPassAtTicks, now + ThrottleWindow.Ticks, next) == next;
     }
 
-    private async Task RunSheltered(Func<ProcessReconciler, Task> pass, CancellationToken cancellationToken)
+    private async Task RunShelteredAsync(Func<ProcessReconciler, Task> pass, CancellationToken cancellationToken)
     {
         Task running;
         using (ExecutionContext.SuppressFlow())

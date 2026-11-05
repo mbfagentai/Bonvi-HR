@@ -1,7 +1,5 @@
 using System.Globalization;
 using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json.Nodes;
 using Bonvi.Application.Processes.Facts;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
