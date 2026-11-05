@@ -312,6 +312,40 @@ internal static class EmployeeSearchQuery
 
         return employees.Where(employee => matching.Contains(employee.Id));
     }
+
+    /// <summary>
+    /// Search for a scoped attendance user: full name only.
+    /// </summary>
+    /// <remarks>
+    /// Narrower than <see cref="MatchingTeam"/> on purpose. A scoped user sees neither PINFL,
+    /// passport nor phone, and a match on any of them would answer «whose number is this»
+    /// even though the value never appears in the response. The name condition is the same
+    /// as in <see cref="MatchingIds"/>; the two change together.
+    /// </remarks>
+    public static IQueryable<Employee> MatchingName(AppDbContext context, string? search)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var employees = context.Employees.AsNoTracking();
+
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return employees;
+        }
+
+        var namePattern = SearchPattern.For(search);
+
+        var matching = context.Employees
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM employees AS x
+                 WHERE x.search_key LIKE search_key({namePattern})
+                 """)
+            .Select(employee => employee.Id);
+
+        return employees.Where(employee => matching.Contains(employee.Id));
+    }
 }
 
 /// <summary>

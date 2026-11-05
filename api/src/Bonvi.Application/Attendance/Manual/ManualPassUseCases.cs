@@ -247,11 +247,16 @@ public sealed class GetDayPassesQueryHandler
 {
     private readonly IEmployeeRepository _employees;
     private readonly IAttendanceReadModel _readModel;
+    private readonly IAttendanceScope _scope;
 
-    public GetDayPassesQueryHandler(IEmployeeRepository employees, IAttendanceReadModel readModel)
+    public GetDayPassesQueryHandler(
+        IEmployeeRepository employees,
+        IAttendanceReadModel readModel,
+        IAttendanceScope scope)
     {
         _employees = employees;
         _readModel = readModel;
+        _scope = scope;
     }
 
     public async Task<Result<AttendanceDayPassesDto>> HandleAsync(
@@ -260,7 +265,8 @@ public sealed class GetDayPassesQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (!await _employees.ExistsAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false))
+        if (!await _employees.ExistsAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false) ||
+            !await _scope.CanAccessEmployeeAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.EmployeeNotFound;
         }
