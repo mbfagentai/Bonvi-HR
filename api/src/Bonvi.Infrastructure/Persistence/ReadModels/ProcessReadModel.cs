@@ -435,7 +435,7 @@ public sealed class ProcessReadModel : IProcessReadModel
         => _context.Employees
             .AsNoTracking()
             .Where(employee => employee.PhotoKey == null
-                && _context.Employments.Any(row => row.EmployeeId == employee.Id && row.Status == EmploymentStatus.Active))
+                && _context.Employments.Any(row => row.EmployeeId == employee.Id && row.Status != EmploymentStatus.Terminated))
             .CountAsync(cancellationToken);
 
     public async Task<int> CountActiveEmployeesWithoutScheduleAsync(DateOnly today, CancellationToken cancellationToken = default)
@@ -452,7 +452,7 @@ public sealed class ProcessReadModel : IProcessReadModel
 
         return await _context.Employments
             .AsNoTracking()
-            .Where(row => row.Status == EmploymentStatus.Active && row.IsPrimary)
+            .Where(row => row.Status != EmploymentStatus.Terminated && row.IsPrimary)
             .Where(row => !effective.Any(assignment =>
                 (assignment.Scope == ScheduleScope.Employee && assignment.EmployeeId == row.EmployeeId)
                 || (assignment.Scope == ScheduleScope.Position && assignment.PositionId == row.PositionId)

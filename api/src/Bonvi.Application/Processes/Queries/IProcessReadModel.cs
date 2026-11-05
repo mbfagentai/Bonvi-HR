@@ -149,9 +149,9 @@ public interface IProcessReadModel
     /// <summary>Of the given employments, those whose live dismissal HR-F09 has sections 1–4 all empty (gate AKT).</summary>
     Task<IReadOnlySet<Guid>> ListEmptyHandoverActsAsync(IReadOnlyCollection<Guid> employmentIds, CancellationToken cancellationToken = default);
 
-    /// <summary>§11.8: employees with an active employment and no photo.</summary>
+    /// <summary>§11.8: employees still working (on probation or permanent, as every list means it) and no photo.</summary>
     Task<int> CountActiveEmployeesWithoutPhotoAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>§11.8: employees whose active primary employment no schedule assignment reaches today.</summary>
+    /// <summary>§11.8: employees still working whose primary employment no schedule assignment reaches today.</summary>
     Task<int> CountActiveEmployeesWithoutScheduleAsync(DateOnly today, CancellationToken cancellationToken = default);
 }
