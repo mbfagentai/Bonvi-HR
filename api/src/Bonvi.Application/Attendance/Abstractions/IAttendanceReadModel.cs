@@ -338,6 +338,19 @@ public interface IAttendanceReadModel
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Active employees for a picker in the attendance section, by name and in scope.</summary>
+    /// <remarks>
+    /// Matches the name alone for every caller, including unrestricted ones, so the same request
+    /// gives the same answer whoever asks and nothing but the name can be probed.
+    /// </remarks>
+    /// <param name="search">Part of the name; empty gives the first names alphabetically.</param>
+    /// <param name="limit">The most rows to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<AttendanceEmployeeLookupItemDto>> LookupEmployeesAsync(
+        string? search,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     // ── 7. Jadval biriktirmalari ────────────────────────────────────
 
     /// <summary>Biriktirmalar — nomlari bilan, pog'ona va boshlanish sanasi bo'yicha.</summary>

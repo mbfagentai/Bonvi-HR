@@ -128,6 +128,8 @@ public sealed class UserRepository : Repository<User>, IUserRepository
             }
         }
 
+        Permissions.DropAttendanceMarkerIfManaging(result);
+
         return result;
     }
 

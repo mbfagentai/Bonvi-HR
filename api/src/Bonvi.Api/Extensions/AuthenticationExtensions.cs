@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bonvi.Api.Common;
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Identity.Abstractions;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Auditing;
@@ -117,17 +118,7 @@ public static partial class AuthenticationExtensions
 
                     OnForbidden = async context =>
                     {
-                        await RecordPermissionDeniedAsync(context.HttpContext).ConfigureAwait(false);
-
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        context.Response.ContentType = "application/problem+json";
-
-                        await context.Response.WriteAsJsonAsync(new
-                        {
-                            status = 403,
-                            title = "auth.ruxsat_yoq",
-                            detail = "Bu amalni bajarish uchun ruxsatingiz yo'q.",
-                        }).ConfigureAwait(false);
+                        await DenyAsync(context.HttpContext).ConfigureAwait(false);
                     },
                 };
             });
@@ -345,6 +336,26 @@ public static partial class AuthenticationExtensions
     }
 
     /// <summary>
+    /// The one 403 of the permission model: recorded in the audit journal, then answered
+    /// with <c>auth.ruxsat_yoq</c>. Used by the authorization policies and by
+    /// <see cref="UseBonviAttendanceScopeGuard"/>, so a client cannot tell them apart.
+    /// </summary>
+    private static async Task DenyAsync(HttpContext http)
+    {
+        await RecordPermissionDeniedAsync(http).ConfigureAwait(false);
+
+        http.Response.StatusCode = StatusCodes.Status403Forbidden;
+        http.Response.ContentType = "application/problem+json";
+
+        await http.Response.WriteAsJsonAsync(new
+        {
+            status = 403,
+            title = "auth.ruxsat_yoq",
+            detail = "Bu amalni bajarish uchun ruxsatingiz yo'q.",
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Bir xil rad etilish (bitta hisob, usul va marshrut) <see cref="PermissionDeniedWindow"/>
     /// ichida faqat BIR MARTA yoziladi.
     /// </summary>
@@ -474,6 +485,17 @@ public static partial class AuthenticationExtensions
     /// </remarks>
     public const string GlobalSearchPolicy = "global-search";
 
+    /// <summary>
+    /// The staff list and photos behind <c>attendance.view</c>: a scoped user, whose handlers
+    /// narrow them to the assigned departments, or anyone who may read staff anyway.
+    /// </summary>
+    /// <remarks>
+    /// <c>attendance.view</c> alone must not be enough: a custom role without
+    /// <c>employees.view</c> would gain the staff list and photos it is denied elsewhere.
+    /// Added next to the permission policy, not in place of it.
+    /// </remarks>
+    public const string AttendanceStaffLookupPolicy = "attendance-staff-lookup";
+
     public static IServiceCollection AddBonviAuthorization(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
@@ -535,6 +557,14 @@ public static partial class AuthenticationExtensions
             .AddPolicy(GlobalSearchPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(CurrentUser.PermissionClaimType, Permissions.EmployeesView, Permissions.RecruitingView));
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AttendanceStaffLookupPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context =>
+                    context.User.HasClaim(CurrentUser.PermissionClaimType, Permissions.EmployeesView)
+                    || (context.Resource is HttpContext http
+                        && http.RequestServices.GetRequiredService<ICurrentUser>().IsAttendanceScoped())));
 
         /*
           ⭐ XODIM SIYOSATI — ruxsat kodi YO'Q, AUDITORIYA bor.

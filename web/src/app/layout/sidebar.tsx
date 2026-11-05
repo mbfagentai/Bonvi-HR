@@ -19,7 +19,7 @@ import {
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Badge, BonviMark } from '@/shared/ui'
-import { NAV, visibleItem, type NavItem } from './nav-items'
+import { NAV, navFor, visibleItem, type NavItem } from './nav-items'
 
 /**
  * Yon menyu.
@@ -36,7 +36,7 @@ export function Sidebar({
   onToggle: () => void
 }) {
   const { t } = useLocale()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const search = useRouterState({ select: (s) => s.location.search })
 
@@ -54,8 +54,10 @@ export function Sidebar({
    * sahifaga o'tishda qayta chizilmaydi, ya'ni bu hook ham faqat bir
    * marta ishga tushadi; keyingi navigatsiyalarda `useDashboardStats`
    * ning `staleTime`i (1 daqiqa) so'rovni takrorlashning oldini oladi.
+   *
+   * A «Davomat mas'uli» has no probation item and no access to this endpoint.
    */
-  const stats = useDashboardStats('month')
+  const stats = useDashboardStats('month', !isAttendanceScoped)
 
   /*
    * Band nomi → sanoq. `0` yoki hali yuklanmagan holat ATAYLAB xarita
@@ -101,12 +103,12 @@ export function Sidebar({
     counts['attendanceRequests'] = pendingRequests
   }
   // «Blankalar»: steps waiting for the caller (`waitingForMe` total, SPEC-blankalar §12)
-  const blanksWaiting = useBlankWaitingCount(hasPermission('blanks.view')).data ?? 0
+  const blanksWaiting = useBlankWaitingCount(hasPermission('blanks.view') && !isAttendanceScoped).data ?? 0
   if (blanksWaiting > 0) {
     counts['blanks'] = blanksWaiting
   }
   // «Mening ishlarim»: the viewer's open tasks (docs/SPEC-mening-ishlarim.md §10 #2)
-  const myWork = useMyWorkCount(hasPermission(PROCESSES_VIEW)).data ?? 0
+  const myWork = useMyWorkCount(hasPermission(PROCESSES_VIEW) && !isAttendanceScoped).data ?? 0
   if (myWork > 0) {
     counts['myWork'] = myWork
   }
@@ -183,7 +185,7 @@ export function Sidebar({
 
       {/* ---------- Menyu ---------- */}
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
-        {NAV.map((section, index) => {
+        {navFor(NAV, isAttendanceScoped).map((section, index) => {
           /*
            * Ruxsatga bog'liq bandlar shu yerda filtrlanadi
            * (`nav-items.ts` dagi `permission` izohiga qarang). Filtrdan

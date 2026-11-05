@@ -1445,3 +1445,69 @@ export async function postDeviceResync(deviceId: string): Promise<EnrollmentResy
 export async function postApproveRemovals(deviceId: string): Promise<void> {
   await approveDeviceRemovals(deviceId)
 }
+
+/* ═══════════════════════════════════ «Davomat mas'uli» — xodimlar routes */
+
+/**
+ * One row of the employee lookup. Handwritten against the backend contract, not generated yet.
+ * The server limits the rows to the caller's departments and gives no photo key, only `hasPhoto`.
+ */
+export interface AttendanceEmployeeLookupItem {
+  id: string
+  fullName: string
+  departmentName: string | null
+  positionName: string | null
+  hasPhoto: boolean
+}
+
+/** `GET /api/employees` is closed to a scoped user; this is their employee search. */
+export async function fetchAttendanceEmployeeLookup(
+  search: string,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<AttendanceEmployeeLookupItem[]> {
+  const { data } = await api.get<AttendanceEmployeeLookupItem[]>(`${BASE}/employees/lookup`, {
+    params: { search: search === '' ? undefined : search, limit },
+    signal,
+  })
+  return data
+}
+
+/** Same reasoning and same `404 → null` as `fetchPassPhoto`. */
+export async function fetchAttendanceEmployeePhoto(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Blob | null> {
+  try {
+    const { data } = await api.get<Blob>(`${BASE}/employees/${id}/photo`, {
+      responseType: 'blob',
+      signal,
+    })
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
+}
+
+/** The departments a scoped user works with. Read and written with `users.manage`. */
+export interface UserAttendanceScope {
+  departmentIds: string[]
+}
+
+export async function fetchUserAttendanceScope(
+  userId: string,
+  signal?: AbortSignal,
+): Promise<UserAttendanceScope> {
+  const { data } = await api.get<UserAttendanceScope>(`/api/users/${userId}/attendance-scope`, {
+    signal,
+  })
+  return data
+}
+
+export async function putUserAttendanceScope(
+  userId: string,
+  body: UserAttendanceScope,
+): Promise<void> {
+  await api.put(`/api/users/${userId}/attendance-scope`, body)
+}

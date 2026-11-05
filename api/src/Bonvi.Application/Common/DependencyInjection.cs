@@ -16,6 +16,7 @@ using Bonvi.Application.Identity.Commands.RefreshSession;
 using Bonvi.Application.Identity.Photos;
 using Bonvi.Application.Identity.Queries.GetCurrentUser;
 using Bonvi.Application.Identity.Roles;
+using Bonvi.Application.Identity.Users.AttendanceScope;
 using Bonvi.Application.Identity.Users.Commands.ActivateUser;
 using Bonvi.Application.Identity.Users.Commands.CreateUser;
 using Bonvi.Application.Identity.Users.Commands.DeactivateUser;
@@ -127,6 +128,8 @@ public static class DependencyInjection
         services.AddScoped<DeactivateUserCommandHandler>();
         services.AddScoped<ActivateUserCommandHandler>();
         services.AddScoped<ResetUserPasswordCommandHandler>();
+        services.AddScoped<GetUserAttendanceScopeQueryHandler>();
+        services.AddScoped<SetUserAttendanceScopeCommandHandler>();
 
         // Rollar muharriri — «roles.manage». Ro'yxatning o'zi esa
         // «users.manage» bilan ham ochiladi: foydalanuvchi formasidagi

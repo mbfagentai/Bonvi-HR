@@ -84,10 +84,14 @@ export const ROLE_ACTION_CODES = [
  * qo'ygan (`PermissionCatalog.Extras`) — «Ko'rish» darajali rolga alohida
  * beriladi, «O'zgartirish» da esa o'z-o'zidan bor. Ro'yxatda bo'lmasa,
  * muharrir uni xom kod bilan ko'rsatardi.
+ *
+ * `attendance.scoped` — the «Davomat mas'uli» marker: the holder works only in the attendance
+ * section, for the departments assigned to them. The server lists it in `PermissionCatalog.Extras`.
  */
 export const ROLE_EXTRA_CODES = [
   'salary.view',
   'salary.extra.view',
   'mcp.connect',
   'employees.personal.view',
+  'attendance.scoped',
 ] as const

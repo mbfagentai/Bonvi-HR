@@ -1,6 +1,7 @@
 using Bonvi.Api.Common;
 using Bonvi.Api.Extensions;
 using Bonvi.Application.Common.Photos;
+using Bonvi.Application.Identity.Users.AttendanceScope;
 using Bonvi.Application.Identity.Users.Commands.ActivateUser;
 using Bonvi.Application.Identity.Users.Commands.CreateUser;
 using Bonvi.Application.Identity.Users.Commands.DeactivateUser;
@@ -41,6 +42,10 @@ public sealed record UpdateUserRequest(
     string? FirstName,
     string? MiddleName,
     string? RoleCode);
+
+/// <summary>Body of «PUT /api/users/{id}/attendance-scope».</summary>
+/// <param name="DepartmentIds">The complete new list; each one also covers its descendants.</param>
+public sealed record SetUserAttendanceScopeRequest(IReadOnlyList<Guid>? DepartmentIds);
 
 /// <summary>Parolni tiklash so'rovi tanasi.</summary>
 /// <param name="NewPassword">Yangi parol — administrator kiritadi, kamida 8 belgi.</param>
@@ -190,6 +195,50 @@ public static class UserEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/{id:guid}/attendance-scope", async (
+                Guid id,
+                GetUserAttendanceScopeQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetUserAttendanceScopeQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("GetUserAttendanceScope")
+            .WithSummary("Foydalanuvchilar — davomat qamrovi")
+            .WithDescription(
+                "Departments assigned to an «attendance.scoped» user. Only the assigned ones: " +
+                "descendants are covered implicitly and are not listed. An empty list means the " +
+                "user sees nothing.")
+            .Produces<UserAttendanceScopeDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPut("/{id:guid}/attendance-scope", async (
+                Guid id,
+                SetUserAttendanceScopeRequest request,
+                SetUserAttendanceScopeCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new SetUserAttendanceScopeCommand(id, request.DepartmentIds), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .WithName("SetUserAttendanceScope")
+            .WithSummary("Foydalanuvchilar — davomat qamrovini belgilash")
+            .WithDescription(
+                "Replaces the whole list and takes effect on the user's next request. The same " +
+                "rule as any other change to an account decides who may touch whom: " +
+                "«foydalanuvchi.rolga_haqqi_yoq» (403). Unknown account: «foydalanuvchi.topilmadi» " +
+                "(404). Unknown department: «bolim.topilmadi» (404).")
+            .Produces<UserAttendanceScopeDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/deactivate", async (
                 Guid id,

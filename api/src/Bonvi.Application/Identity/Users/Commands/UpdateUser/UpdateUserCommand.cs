@@ -1,8 +1,11 @@
 using Bonvi.Application.Abstractions;
+using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Identity.Common;
+using Bonvi.Application.Identity.Users.AttendanceScope;
 using Bonvi.Application.Identity.Users.Common;
 using Bonvi.Application.Identity.Users.Dtos;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Identity;
 using Bonvi.Domain.ValueObjects;
@@ -61,17 +64,23 @@ public sealed class UpdateUserCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
+    private readonly IUserAttendanceScopeRepository _attendanceScopes;
+    private readonly IAuditLogger _audit;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateUserCommandHandler(
         ICurrentUser currentUser,
         IUserRepository users,
         IRoleRepository roles,
+        IUserAttendanceScopeRepository attendanceScopes,
+        IAuditLogger audit,
         IUnitOfWork unitOfWork)
     {
         _currentUser = currentUser;
         _users = users;
         _roles = roles;
+        _attendanceScopes = attendanceScopes;
+        _audit = audit;
         _unitOfWork = unitOfWork;
     }
 
@@ -175,6 +184,11 @@ public sealed class UpdateUserCommandHandler
             return changed.Error;
         }
 
+        if (rolOzgardi && !AttendanceScopeRule.IsAttendanceScopedRole(newRole.Permissions))
+        {
+            await ClearAttendanceScopeAsync(target, cancellationToken).ConfigureAwait(false);
+        }
+
         // Jurnal yozuvini `AuditTrailInterceptor` qo'yadi — faqat haqiqatan
         // o'zgargan maydonlar (rol, ism, telefon), eski → yangi.
         target.Rename(nameResult.Value);
@@ -183,5 +197,32 @@ public sealed class UpdateUserCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return UserSummaryDtoFactory.Create(target, roles);
+    }
+
+    /// <summary>
+    /// The assignment means nothing under a role without the marker, and it must not silently
+    /// come back into force if the account is later given such a role again. Saved with the
+    /// role change; the journal gets the same line as an edit of the assignment itself.
+    /// </summary>
+    private async Task ClearAttendanceScopeAsync(User target, CancellationToken cancellationToken)
+    {
+        var rows = await _attendanceScopes.ListForUserAsync(target.Id, cancellationToken).ConfigureAwait(false);
+
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var row in rows)
+        {
+            _attendanceScopes.Remove(row);
+        }
+
+        _audit.Record(
+            AuditAction.Update,
+            nameof(User),
+            target.Id.ToString(),
+            oldValues: UserAttendanceScopeAudit.Snapshot([.. rows.Select(row => row.DepartmentId).Order()]),
+            newValues: UserAttendanceScopeAudit.Snapshot([]));
     }
 }

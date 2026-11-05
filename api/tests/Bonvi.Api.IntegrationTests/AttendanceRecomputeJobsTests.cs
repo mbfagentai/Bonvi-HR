@@ -430,7 +430,11 @@ public sealed class AttendanceRecomputeJobsTests : IClassFixture<BonviApiFactory
 
         (await KunAsync(db, xodim, Dushanba.AddDays(6), ct)).ShouldBeNull();
 
-        var tabel = await new AttendanceReadModel(db, qamrov.ServiceProvider.GetRequiredService<IDepartmentRepository>(), soat)
+        var tabel = await new AttendanceReadModel(
+                db,
+                qamrov.ServiceProvider.GetRequiredService<IDepartmentRepository>(),
+                soat,
+                qamrov.ServiceProvider.GetRequiredService<IAttendanceScope>())
             .GetTimesheetAsync(new TimesheetFilter(2026, 6, EmployeeId: xodim, PageSize: 10), ct);
         var kataklar = tabel.Items.ShouldHaveSingleItem().Cells.ToDictionary(katak => katak.Date);
 

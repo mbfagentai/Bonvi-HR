@@ -521,6 +521,40 @@ export const NAV: NavSection[] = [
 ]
 
 /**
+ * Top-level items a «Davomat mas'uli» may see — an allowlist.
+ *
+ * NOT `permission` fields on the other items: most of them (dashboard, employees, catalogs) have
+ * none, and adding some would change the menu for everyone else. What is inside the group is still
+ * decided per child by `visibleItem`, so `attendance.manage` items stay hidden.
+ */
+const ATTENDANCE_SCOPED_ITEMS: readonly string[] = ['verification']
+
+/**
+ * Pages inside the group that `attendance.view` would open but the server refuses a «Davomat
+ * mas'uli»: work sites are the whole company's. `attendanceScopeRedirect` closes the same URL.
+ */
+const ATTENDANCE_SCOPED_HIDDEN_CHILDREN: readonly string[] = ['attendanceSites']
+
+/** The menu for this kind of account. Everyone else gets `nav` untouched. */
+export function navFor(nav: readonly NavSection[], attendanceScoped: boolean): readonly NavSection[] {
+  if (!attendanceScoped) return nav
+
+  return nav.flatMap((section) => {
+    const items = section.items
+      .filter((item) => ATTENDANCE_SCOPED_ITEMS.includes(item.key))
+      .map((item) =>
+        item.children === undefined
+          ? item
+          : {
+              ...item,
+              children: item.children.filter((child) => !ATTENDANCE_SCOPED_HIDDEN_CHILDREN.includes(child.key)),
+            },
+      )
+    return items.length === 0 ? [] : [{ ...section, items }]
+  })
+}
+
+/**
  * Foydalanuvchiga ko'rinadigan band (`[]` — ko'rinmaydi), ruxsat bo'yicha.
  *
  * Oddiy band va guruhning o'zi — o'z `permission` i bilan (`nav-items.ts`

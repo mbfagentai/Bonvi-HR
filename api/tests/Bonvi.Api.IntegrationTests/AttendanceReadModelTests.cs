@@ -1291,7 +1291,8 @@ public sealed class AttendanceReadModelTests : IClassFixture<BonviApiFactory>
         => new(
             services.GetRequiredService<AppDbContext>(),
             services.GetRequiredService<IDepartmentRepository>(),
-            clock);
+            clock,
+            services.GetRequiredService<IAttendanceScope>());
 
     private static FixedClock Clock(int year, int month, int day, int hour, int minute)
         => new(new DateTimeOffset(year, month, day, hour, minute, 0, Tashkent).ToUniversalTime());

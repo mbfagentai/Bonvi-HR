@@ -37,6 +37,11 @@ namespace Bonvi.Infrastructure.Persistence.Seed;
 ///     o'zgartirilmaydi. Egasi ularni o'chirsa — qayta yaratilmaydi
 ///     (sababi <see cref="SeedAsync"/> ichida).
 ///   </item>
+///   <item>
+///     <b><see cref="SystemRoles.CreatedWhenMissing"/></b> — created on any start if
+///     missing, so a role added after the first run reaches an existing database; its
+///     permissions are the owner's from then on.
+///   </item>
 /// </list>
 /// <para>
 /// <b>Ikki bir martalik ko'chirish ham shu yerda</b>, chunki seeder har
@@ -116,7 +121,7 @@ public sealed class IdentitySeeder
 
             if (mavjud is null)
             {
-                if (sinxronlanadi || birinchiIshga)
+                if (sinxronlanadi || birinchiIshga || SystemRoles.CreatedWhenMissing.Contains(kod))
                 {
                     yangiRollar.Add(Yarat(kod, tavsif.Name, tavsif.Permissions));
                 }

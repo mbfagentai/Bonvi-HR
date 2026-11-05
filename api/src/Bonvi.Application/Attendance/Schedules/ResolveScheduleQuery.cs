@@ -34,15 +34,18 @@ public sealed class ResolveScheduleQueryHandler
     private readonly IEmployeeRepository _employees;
     private readonly IAttendanceComputationSource _source;
     private readonly CatalogNameResolver _names;
+    private readonly IAttendanceScope _scope;
 
     public ResolveScheduleQueryHandler(
         IEmployeeRepository employees,
         IAttendanceComputationSource source,
-        CatalogNameResolver names)
+        CatalogNameResolver names,
+        IAttendanceScope scope)
     {
         _employees = employees;
         _source = source;
         _names = names;
+        _scope = scope;
     }
 
     public async Task<Result<ScheduleResolutionDto>> HandleAsync(
@@ -52,7 +55,8 @@ public sealed class ResolveScheduleQueryHandler
         ArgumentNullException.ThrowIfNull(query);
 
         var employee = await _employees.GetByIdAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false);
-        if (employee is null)
+        if (employee is null ||
+            !await _scope.CanAccessEmployeeAsync(employee.Id, cancellationToken).ConfigureAwait(false))
         {
             return AttendanceErrors.EmployeeNotFound;
         }

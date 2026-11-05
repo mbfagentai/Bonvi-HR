@@ -166,6 +166,47 @@ public sealed class IdentitySeederPersistenceTests : IClassFixture<BonviApiFacto
     }
 
     /// <summary>
+    /// A role added after the first run still reaches an existing database, unlike the bosh
+    /// rahbar and HR menejeri, and its permissions are the owner's once it exists.
+    /// </summary>
+    [Fact]
+    public async Task Attendance_responsible_is_created_on_an_existing_database_and_then_left_alone()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        kontekst.Roles.Remove(await kontekst.Roles.SingleAsync(r => r.Code == SystemRoles.AttendanceResponsible, bekorQilish));
+        await kontekst.SaveChangesAsync(bekorQilish);
+
+        // An existing database: the super administrator is already there.
+        (await kontekst.Roles.AnyAsync(r => r.Code == SystemRoles.SuperAdmin, bekorQilish)).ShouldBeTrue();
+
+        await new IdentitySeeder(kontekst).SeedAsync(bekorQilish);
+
+        var (nom, ruxsatlar) = SystemRoles.Defaults[SystemRoles.AttendanceResponsible];
+        var rol = await kontekst.Roles.SingleAsync(r => r.Code == SystemRoles.AttendanceResponsible, bekorQilish);
+        rol.Name.ShouldBe(nom);
+        rol.Permissions.ShouldBe(ruxsatlar, ignoreOrder: true);
+
+        rol.ReplacePermissions([Permissions.AttendanceView, Permissions.AttendanceScoped]).IsSuccess.ShouldBeTrue();
+        await kontekst.SaveChangesAsync(bekorQilish);
+
+        await new IdentitySeeder(kontekst).SeedAsync(bekorQilish);
+
+        kontekst.ChangeTracker.Clear();
+        var keyin = await kontekst.Roles.AsNoTracking()
+            .SingleAsync(r => r.Code == SystemRoles.AttendanceResponsible, bekorQilish);
+        keyin.Permissions.ShouldBe([Permissions.AttendanceView, Permissions.AttendanceScoped], ignoreOrder: true);
+
+        // Back to the defaults for the other tests in this class.
+        var asli = await kontekst.Roles.SingleAsync(r => r.Code == SystemRoles.AttendanceResponsible, bekorQilish);
+        asli.ReplacePermissions(ruxsatlar).IsSuccess.ShouldBeTrue();
+        await kontekst.SaveChangesAsync(bekorQilish);
+    }
+
+    /// <summary>
     /// Super administrator esa HAR DOIM <see cref="Permissions.All"/> ga
     /// tenglanadi — kodga qo'shilgan yangi ruxsat tizim egasiga o'zi yetadi.
     /// </summary>

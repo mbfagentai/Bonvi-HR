@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Bonvi.Domain.Attendance;
 
 namespace Bonvi.Application.Attendance.Dtos;
@@ -468,7 +469,8 @@ public sealed record AttendanceDashboardItemDto(
 /// <param name="DeviceHealth">
 /// Qurilmalar sog'lig'i — soat ogohlantirishi, «hech bir qurilma ulanmagan»
 /// holati va agent/terminal uzilishlari (SPEC §8.4, §8.7, SPEC-agent §L).
-/// Filtrlarga BO'YSUNMAYDI: qurilma butun korxonaniki.
+/// Filtrlarga BO'YSUNMAYDI: qurilma butun korxonaniki. Left out of the response for a scoped
+/// user: an empty summary would read as «no device connected» on their dashboard.
 /// </param>
 public sealed record AttendanceDashboardDto(
     DateOnly Date,
@@ -481,7 +483,8 @@ public sealed record AttendanceDashboardDto(
     int PageSize,
     int TotalItems,
     int PageCount,
-    AttendanceDeviceHealthDto DeviceHealth);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    AttendanceDeviceHealthDto? DeviceHealth);
 
 /// <summary>
 /// Qurilmalar sog'lig'i — Statistika sahifasining yuqorisidagi ogohlantirishlar uchun.
@@ -1705,3 +1708,16 @@ public sealed record DeviceClockDto(int OffsetSeconds, bool Warning);
 /// <summary>Qayta yozish so'raldi.</summary>
 /// <param name="Affected">Nechta qatorda majburiyat belgisi ko'tarildi.</param>
 public sealed record EnrollmentResyncDto(int Affected);
+
+/// <summary>One row of the attendance employee lookup: enough to pick a person, nothing personal.</summary>
+/// <param name="Id">Employee.</param>
+/// <param name="FullName">Full name.</param>
+/// <param name="DepartmentName">Department of today's primary employment.</param>
+/// <param name="PositionName">Position of today's primary employment.</param>
+/// <param name="HasPhoto">Whether <c>/api/attendance/employees/{id}/photo</c> has anything to give.</param>
+public sealed record AttendanceEmployeeLookupItemDto(
+    Guid Id,
+    string FullName,
+    string? DepartmentName,
+    string? PositionName,
+    bool HasPhoto);

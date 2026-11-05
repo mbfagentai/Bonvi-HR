@@ -43,10 +43,11 @@ export const dashboardKeys = {
 /**
  * Bosh sahifa ko'rsatkichlari.
  */
-export function useDashboardStats(period: DashboardPeriod) {
+export function useDashboardStats(period: DashboardPeriod, enabled = true) {
   return useQuery({
     queryKey: dashboardKeys.stats(period),
     queryFn: ({ signal }) => fetchDashboardStats(period, signal),
+    enabled,
 
     /**
      * Davr almashtirilganda kartalar bo'shab, keyin qayta to'lmaydi —

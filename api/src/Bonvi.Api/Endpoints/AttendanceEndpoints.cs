@@ -1344,7 +1344,8 @@ public static class AttendanceEndpoints
                 "(daqiqagacha), «direction» — In yoki Out, «note» majburiy (≤ 500). Kunlar (±1) shu yerda qayta " +
                 "hisoblanadi. Xatolar: «davomat.belgi_kelajakda», «davomat.belgi_juda_eski» (92 kun), " +
                 "«davomat.belgi_ishlamagan», «davomat.belgi_izoh_bosh», «davomat.belgi_izoh_uzun», " +
-                "«davomat.yonalish_notogri» (400); «davomat.xodim_topilmadi» (404); «davomat.belgi_takror» (409).")
+                "«davomat.yonalish_notogri» (400); «davomat.xodim_topilmadi» (404, «Davomat mas'uli» bo'limlaridan tashqarida ham); " +
+                "«auth.ruxsat_yoq» (403, «Davomat mas'uli» o'ziga belgi qo'ya olmaydi); «davomat.belgi_takror» (409).")
             .Produces<AttendancePassDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -1367,15 +1368,73 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — HR qo'shgan belgini o'chirish")
             .WithDescription(
                 "Faqat HR qo'lda qo'shgan belgi; terminal yoki telefon belgisi — «davomat.belgi_qolda_emas» (400). " +
-                "Yo'q — «davomat.otish_topilmadi» (404). Kunlar (±1) qayta hisoblanadi.")
+                "Yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «davomat.otish_topilmadi» (404). " +
+                "«Davomat mas'uli» o'z belgisini o'chira olmaydi — «auth.ruxsat_yoq» (403), 92 kundan eskisini ham — " +
+                "«davomat.belgi_juda_eski» (400). Kunlar (±1) qayta hisoblanadi.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // ── Employee picker of a user who cannot open `/api/employees` ──
+        group.MapGet("/employees/lookup", async (
+                string? search,
+                int? limit,
+                LookupAttendanceEmployeesQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new LookupAttendanceEmployeesQuery(search, limit), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView, AuthenticationExtensions.AttendanceStaffLookupPolicy)
+            .WithName("LookupAttendanceEmployees")
+            .WithSummary("Davomat — xodim tanlash")
+            .WithDescription(
+                "Bugun ishlayotgan xodimlar, ism bo'yicha alifbo tartibida. «search» faqat ismga qaraydi: JSHSHIR, " +
+                "pasport va telefon bo'yicha qidirilmaydi. «Davomat mas'uli» faqat o'z bo'limlarini ko'radi. " +
+                "«limit» sukut 20, eng ko'pi 50 — chegaradan tashqaridagi qiymat rad etilmaydi, QISILADI. " +
+                "«attendance.view» bilan birga «Davomat mas'uli» yoki «employees.view» kerak.")
+            .Produces<IReadOnlyList<AttendanceEmployeeLookupItemDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        group.MapGet("/employees/{id:guid}/photo", async (
+                Guid id,
+                HttpContext context,
+                GetAttendanceEmployeePhotoQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(
+                        new GetAttendanceEmployeePhotoQuery(id, PhotoHttp.ReadKnownVersion(context.Request)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                // JSON emas, BAYT — `ToHttpResult()` faqat xato yo'lida. Revalidated, not the
+                // HR route's one-day cache: a 404 only works on a request, and the scope of a
+                // «Davomat mas'uli» can shrink (the reason team photos do the same).
+                return natija.IsFailure
+                    ? natija.ToHttpResult()
+                    : PhotoHttp.WriteRevalidated(context, natija.Value);
+            })
+            .RequireAuthorization(Permissions.AttendanceView, AuthenticationExtensions.AttendanceStaffLookupPolicy)
+            .WithName("GetAttendanceEmployeePhoto")
+            .WithSummary("Davomat — xodim rasmi")
+            .WithDescription(
+                "Rasm baytlari (image/jpeg), «ETag» + «If-None-Match» → 304, kesh shaxsiy va har safar tekshiriladi " +
+                "(private, no-cache). Xodim yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «xodim.topilmadi», rasm yo'q — " +
+                "«xodim.rasm_yoq» (ikkalasi 404). «attendance.view» bilan birga «Davomat mas'uli» yoki «employees.view» kerak.")
+            .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
+            .Produces(StatusCodes.Status304NotModified)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/passes/{id:guid}/photo", async (
                 Guid id,
                 HttpContext context,
+                IAttendanceScope scope,
                 GetPassPhotoQueryHandler handler,
                 CancellationToken cancellationToken) =>
             {
@@ -1387,8 +1446,15 @@ public static class AttendanceEndpoints
 
                 // JSON emas, BAYT — `ToHttpResult()` faqat xato yo'lida
                 // (xodim rasmi endpointidagi bilan bir xil sabab).
-                return natija.IsFailure
-                    ? natija.ToHttpResult()
+                if (natija.IsFailure)
+                {
+                    return natija.ToHttpResult();
+                }
+
+                // A «Davomat mas'uli» scope can shrink and a 404 only works on a request, so
+                // their browser must ask every time. HR keeps the one-day cache.
+                return scope.IsScoped
+                    ? PhotoHttp.WriteRevalidated(context, natija.Value)
                     : PhotoHttp.Write(context, natija.Value);
             })
             .RequireAuthorization(Permissions.AttendanceView)
@@ -1396,7 +1462,7 @@ public static class AttendanceEndpoints
             .WithSummary("Davomat — o'tishning turniket surati")
             .WithDescription(
                 "Rasm baytlari (image/jpeg yoki image/png), «ETag» + «If-None-Match» → 304, kesh shaxsiy " +
-                "(private, 1 kun). O'tish yo'q — «davomat.otish_topilmadi», surat yo'q yoki tozalangan — " +
+                "(private, 1 kun; «Davomat mas'uli» uchun private, no-cache). O'tish yo'q — «davomat.otish_topilmadi», surat yo'q yoki tozalangan — " +
                 "«davomat.surat_yoq» (ikkalasi 404).")
             .Produces(StatusCodes.Status200OK, contentType: "image/jpeg")
             .Produces(StatusCodes.Status304NotModified)

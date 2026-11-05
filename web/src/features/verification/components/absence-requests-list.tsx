@@ -8,6 +8,7 @@ import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
 import { useListExport } from '@/features/reports/api/list-export'
 import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { useLocale } from '@/shared/i18n/use-locale'
+import { cn } from '@/shared/lib/cn'
 import { NO_DATE_RANGE, hasDateRange, type DateRange } from '@/shared/lib/list-search'
 import {
   Badge,
@@ -98,9 +99,10 @@ export function AbsenceRequestsList({
   onRangeChange?: (next: DateRange) => void
 }) {
   const { t, date } = useLocale()
-  const { hasPermission } = useAuth()
+  const { hasPermission, isAttendanceScoped } = useAuth()
 
-  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE)
+  // A «Davomat mas'uli» holds this permission for manual passes only: the server refuses requests
+  const canManage = hasPermission(ATTENDANCE_REQUESTS_MANAGE) && !isAttendanceScoped
   /*
     Excelga yuklash — faqat umumiy navbatda (filtr paneli bor joyda), ro'yxatni
     ko'rish VA `reports.export` bilan (SPEC-excel-eksport §1). Xodim kartasida
@@ -514,15 +516,19 @@ export function AbsenceRequestsList({
         onClose={() => setDecision(null)}
       />
 
-      <AbsenceRequestDialog
-        open={adding || editing !== null}
-        employeeId={employeeId}
-        request={editing}
-        onClose={() => {
-          setAdding(false)
-          setEditing(null)
-        }}
-      />
+      {!isAttendanceScoped && (
+        <>
+          <AbsenceRequestDialog
+            open={adding || editing !== null}
+            employeeId={employeeId}
+            request={editing}
+            onClose={() => {
+              setAdding(false)
+              setEditing(null)
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }
@@ -566,7 +572,9 @@ function RequestFilterBar({
   exportError: unknown
 }) {
   const { t } = useLocale()
-  const types = useCatalogList('absence-types', false)
+  const { isAttendanceScoped } = useAuth()
+  // Catalogs are closed to a «Davomat mas'uli»: no type filter for them
+  const types = useCatalogList('absence-types', false, !isAttendanceScoped)
 
   const typeOptions = useMemo(
     () => (types.data ?? []).map((item) => ({ value: item.id, label: item.name })),
@@ -587,23 +595,30 @@ function RequestFilterBar({
         ikkitadan, keng ekranda bitta qatorda (tur, shakl, davr, tozalash).
       */}
       <div
-        className={
-          onRangeChange === undefined
-            ? 'grid items-end gap-3 sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
-            : 'grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,340px)_auto]'
-        }
+        className={cn(
+          'grid items-end gap-3',
+          isAttendanceScoped
+            ? onRangeChange === undefined
+              ? 'sm:grid-cols-[minmax(0,220px)_auto]'
+              : 'sm:grid-cols-2 xl:grid-cols-[minmax(0,220px)_minmax(0,340px)_auto]'
+            : onRangeChange === undefined
+              ? 'sm:grid-cols-[minmax(0,260px)_minmax(0,220px)_auto]'
+              : 'sm:grid-cols-2 xl:grid-cols-[minmax(0,260px)_minmax(0,220px)_minmax(0,340px)_auto]',
+        )}
       >
-        <Select
-          size="sm"
-          label={t('attendance.requestKind')}
-          placeholder={t('common.all')}
-          options={typeOptions}
-          value={value.absenceTypeId}
-          disabled={types.isPending}
-          onChange={(event) => onChange({ ...value, absenceTypeId: event.target.value })}
-          // Ma'lumotnomani o'qib bo'lmasa — jimgina bo'sh ro'yxat emas
-          error={types.isError ? t('catalog.loadFailed') : undefined}
-        />
+        {!isAttendanceScoped && (
+          <Select
+            size="sm"
+            label={t('attendance.requestKind')}
+            placeholder={t('common.all')}
+            options={typeOptions}
+            value={value.absenceTypeId}
+            disabled={types.isPending}
+            onChange={(event) => onChange({ ...value, absenceTypeId: event.target.value })}
+            // Ma'lumotnomani o'qib bo'lmasa — jimgina bo'sh ro'yxat emas
+            error={types.isError ? t('catalog.loadFailed') : undefined}
+          />
+        )}
         <Select
           size="sm"
           label={t('attendance.requestMode')}
