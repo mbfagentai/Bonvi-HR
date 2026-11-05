@@ -3,8 +3,8 @@ import { Check, Cog, Hourglass, Lock, Minus } from 'lucide-react'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 
-import type { ProcessCaseStep, ProcessColumn } from '../api/processes-api'
-import { groupStepsByColumn, isStepFinished, stepProgress } from '../lib/process-step'
+import type { ProcessCaseStep } from '../api/processes-api'
+import { isStepFinished, stepProgress, type ProcessColumnSteps } from '../lib/process-step'
 import {
   isHolderUnassigned,
   ProcessCountChip,
@@ -185,17 +185,15 @@ function StepRow({
 }
 
 /**
- * A case's steps by board column (SPEC §11.5), as the prototype's stepper. The rows choose what the panel and the guide
- * beside them show.
+ * Steps by board column (SPEC §11.5), as the prototype's stepper, numbered on through however many cases the columns come
+ * from. The rows choose what the panel and the guide beside them show.
  */
 export function ProcessStepTimeline({
   columns,
-  steps,
   selectedStepCode,
   onSelect,
 }: {
-  columns: readonly ProcessColumn[]
-  steps: readonly ProcessCaseStep[]
+  columns: readonly ProcessColumnSteps[]
   selectedStepCode: string | undefined
   onSelect: (stepCode: string) => void
 }) {
@@ -203,7 +201,7 @@ export function ProcessStepTimeline({
 
   return (
     <nav aria-label={t('processes.case.stepsTitle')} className="space-y-5">
-      {groupStepsByColumn(columns, steps).map((column, index) => {
+      {columns.map((column, index) => {
         const { done, total } = stepProgress(column.steps)
 
         return (

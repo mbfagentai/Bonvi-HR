@@ -4222,6 +4222,8 @@
         "dismissal": "last working day"
       },
       "anchorOther": "reference date",
+      "hireChainTitle": "Hiring",
+      "chainPartial": "The rest of the process did not load, so only this stage is shown for now.",
       "notHolderText": "You can only view this step: {{role}} completes it under their own login. It cannot be done on their behalf.",
       "systemTitle": "The system completes this step itself",
       "systemText": "Nothing to do by hand here: the step closes on its own once its condition is met.",

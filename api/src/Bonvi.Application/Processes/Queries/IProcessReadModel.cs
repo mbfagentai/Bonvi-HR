@@ -140,6 +140,12 @@ public interface IProcessReadModel
     /// <summary>Every step of the given cases, by case and <c>order_no</c>.</summary>
     Task<IReadOnlyList<ProcessStepRow>> ListStepsOfCasesAsync(IReadOnlyCollection<Guid> caseIds, CancellationToken cancellationToken = default);
 
+    /// <summary>The children of a case that run <paramref name="processCode"/>, in no particular order.</summary>
+    Task<IReadOnlyList<ProcessCaseRow>> ListChildCasesAsync(
+        Guid parentCaseId,
+        string processCode,
+        CancellationToken cancellationToken = default);
+
     /// <summary>The step <paramref name="stepCode"/> of the children of the given cases.</summary>
     Task<IReadOnlyList<ProcessChildStepRow>> ListChildStepsAsync(
         IReadOnlyCollection<Guid> parentCaseIds,

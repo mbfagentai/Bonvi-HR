@@ -9,6 +9,7 @@ namespace Bonvi.Application.Tests.Processes;
 public sealed class ProcessTemplatesTests
 {
     private static readonly string[] Codes = ["hire-request", "hire-candidate", "hire-formalise", "probation", "dismissal"];
+    private static readonly string[] HiringChain = ["hire-request", "hire-candidate", "hire-formalise"];
 
     private static string TemplatesDirectory => Path.Combine(AppContext.BaseDirectory, "Processes", "Templates");
 
@@ -47,7 +48,7 @@ public sealed class ProcessTemplatesTests
     [InlineData("hire-candidate", "candidate",
         new[] { "r02-5", "r02-6", "r02-7", "r02-9", "r02-10", "r02-8", "r02-11", "r02-12", "r02-13" })]
     [InlineData("hire-formalise", "employment",
-        new[] { "r01-2", "r01-3", "r01-4", "r01-5", "mm", "r01-8a", "r01-6", "r01-7", "r01-9" })]
+        new[] { "r01-2", "r01-3", "r01-4", "r01-5", "r01-6", "r01-7", "mm", "r01-8a", "r01-9" })]
     [InlineData("probation", "employment",
         new[] { "p03-0", "p03-1", "p03-7", "p03-14", "p03-30", "p03-60", "p03-85", "p03-88", "p03-90" })]
     [InlineData("dismissal", "employment",
@@ -60,10 +61,32 @@ public sealed class ProcessTemplatesTests
         definition.Steps.Select(step => step.Id).ShouldBe(ids);
     }
 
+    /// <summary>The page of one person's hiring finds a step across the three templates by its id alone.</summary>
+    [Fact]
+    public void Step_ids_are_unique_across_the_hiring_chain()
+    {
+        var ids = HiringChain.SelectMany(code => Load(code).Steps).Select(step => step.Id).ToList();
+
+        ids.ShouldBeUnique();
+        ids.Count.ShouldBe(23);
+    }
+
+    /// <summary>In array order the columns must not jump back: a case's <c>order_no</c> is what its timeline sorts by.</summary>
+    [Fact]
+    public void Formalise_steps_read_in_board_order_with_the_new_version()
+    {
+        var definition = Load("hire-formalise");
+        var columns = definition.Board.Select(column => column.Key).ToList();
+        var positions = definition.Steps.Select(step => columns.IndexOf(step.Column)).ToList();
+
+        definition.Version.ShouldBe("1.1");
+        positions.ShouldBe(positions.Order().ToList());
+    }
+
     [Theory]
     [InlineData("hire-request", new[] { "request", "approve", "search", "closed" })]
     [InlineData("hire-candidate", new[] { "contact", "form", "council", "check", "offer", "firstDay" })]
-    [InlineData("hire-formalise", new[] { "docs", "order", "firstDay", "after" })]
+    [InlineData("hire-formalise", new[] { "docs", "order", "after", "firstDay" })]
     [InlineData("probation", new[] { "start", "d7", "d30", "final", "decision" })]
     [InlineData("dismissal", new[] { "start", "handover", "order", "settle" })]
     public void Board_columns_follow_the_spec(string code, string[] columns)

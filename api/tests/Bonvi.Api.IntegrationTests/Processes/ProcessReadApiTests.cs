@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Application.Processes.Facts;
@@ -17,6 +18,7 @@ using Bonvi.Domain.Recruiting;
 using Bonvi.Domain.Settings;
 using Bonvi.Domain.ValueObjects;
 using Bonvi.Infrastructure.Persistence;
+using Bonvi.Infrastructure.Processes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -57,6 +59,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         Root + "/cases",
         Root + "/board?process=hire-request",
         Root + "/cases/019a0000-0000-7000-8000-000000000001",
+        Root + "/cases/019a0000-0000-7000-8000-000000000001/chain",
         Root + "/late",
         Root + "/templates",
         Root + "/status",
@@ -842,7 +845,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         board.GetProperty("processTitle").GetString().ShouldBe("Ishga qabulni rasmiylashtirish");
 
         var columns = board.GetProperty("columns").EnumerateArray().ToList();
-        columns.Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "firstDay", "after"], "the template's order");
+        columns.Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "after", "firstDay"], "the template's order");
         columns[0].GetProperty("title").GetString().ShouldBe("Hujjatlar");
 
         var inDocs = columns[0].GetProperty("cards").EnumerateArray().ToList();
@@ -915,7 +918,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         detail.GetProperty("anchorDate").GetString().ShouldBe(Iso(Today));
         detail.GetProperty("version").GetInt32().ShouldBeGreaterThanOrEqualTo(0);
         detail.GetProperty("subject").GetProperty("name").GetString().ShouldBe(hire.FullName);
-        detail.GetProperty("columns").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "firstDay", "after"]);
+        detail.GetProperty("columns").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "after", "firstDay"]);
         detail.GetProperty("blanks").GetArrayLength().ShouldBe(0);
 
         var steps = detail.GetProperty("steps").EnumerateArray().ToList();
@@ -1287,9 +1290,9 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
 
         var formalise = templates.Single(template => template.GetProperty("code").GetString() == ProcessCodes.HireFormalise);
         formalise.GetProperty("title").GetString().ShouldBe("Ishga qabulni rasmiylashtirish");
-        formalise.GetProperty("version").GetString().ShouldBe("1.0");
+        formalise.GetProperty("version").GetString().ShouldBe("1.1");
         formalise.GetProperty("subjectKind").GetString().ShouldBe("Employment");
-        formalise.GetProperty("board").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "firstDay", "after"]);
+        formalise.GetProperty("board").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "after", "firstDay"]);
 
         var payroll = formalise.GetProperty("steps").EnumerateArray().Single(step => step.GetProperty("id").GetString() == ProcessStepIds.PayrollHandover);
         payroll.GetProperty("role").GetString().ShouldBe(ProcessRoles.Hr2);
@@ -1363,6 +1366,179 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
     // ────────────────────────────────────────────────────────────
 
     /// <summary>Candidate past the offer: the first day is Blocked on Q04 and the formalise child exists.</summary>
+    // ────────────────────────────────────────────────────────────
+    //  Chain, the three hiring cases as one person's page
+    // ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Chain_is_request_candidate_formalise_from_the_candidate_and_from_the_formalise()
+    {
+        var (request, candidate, formalise) = await WholeChainAsync();
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, candidate)).ShouldBe([request, candidate, formalise]);
+        (await ChainAsync(client, formalise)).ShouldBe([request, candidate, formalise]);
+    }
+
+    [Fact]
+    public async Task Chain_of_a_request_with_several_candidates_is_the_request_and_a_candidate_stays_with_their_own()
+    {
+        var (request, candidate, formalise) = await WholeChainAsync();
+        var other = await CandidateCaseAsync();
+        await SqlAsync($"UPDATE process_cases SET parent_case_id = {request} WHERE id = {other}");
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, request)).ShouldBe([request]);
+        (await ChainAsync(client, other)).ShouldBe([request, other]);
+        (await ChainAsync(client, candidate)).ShouldBe([request, candidate, formalise]);
+    }
+
+    [Fact]
+    public async Task Chain_of_a_request_with_one_candidate_is_still_the_request()
+    {
+        var (request, _, _) = await WholeChainAsync();
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, request)).ShouldBe([request]);
+    }
+
+    [Fact]
+    public async Task Chain_holds_only_the_links_that_exist()
+    {
+        await StartEngineAsync();
+        var hire = await HireAsync(orderNo: null, hireDate: Today);
+        var alone = await CandidateCaseAsync();
+        await RunAsync();
+        var directHire = await FormaliseAsync(hire);
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, alone)).ShouldBe([alone], "a candidate with no request and no hire yet");
+        (await ChainAsync(client, directHire.Id)).ShouldBe([directHire.Id], "a direct hire has no candidate");
+    }
+
+    [Fact]
+    public async Task Chain_of_another_process_is_just_itself_even_with_a_parent()
+    {
+        var (_, _, formalise) = await WholeChainAsync();
+        var dismissal = await DismissalAsync(Today.AddDays(14), F09Dismissal);
+        await SqlAsync($"UPDATE process_cases SET parent_case_id = {formalise} WHERE id = {dismissal.Id}");
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, dismissal.Id)).ShouldBe([dismissal.Id]);
+        (await ChainAsync(client, formalise)).ShouldNotContain(dismissal.Id, "a child of another process is not this person's hiring");
+    }
+
+    [Fact]
+    public async Task Chain_does_not_follow_a_parent_of_the_wrong_process()
+    {
+        var (_, candidate, _) = await WholeChainAsync();
+        var dismissal = await DismissalAsync(Today.AddDays(14), F09Dismissal);
+        await SqlAsync($"UPDATE process_cases SET parent_case_id = {dismissal.Id} WHERE id = {candidate}");
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        (await ChainAsync(client, candidate)).ShouldNotContain(dismissal.Id);
+    }
+
+    [Fact]
+    public async Task Chain_of_an_unknown_case_is_404_with_the_code()
+    {
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        await ProblemAsync(client, $"{Root}/cases/{Guid.CreateVersion7()}/chain", HttpStatusCode.NotFound, ProcessErrors.NotFound.Code);
+    }
+
+    [Fact]
+    public async Task Case_on_the_earlier_formalise_keeps_its_order_while_a_new_case_takes_the_new_one()
+    {
+        string?[] earlierColumns = ["docs", "order", "firstDay", "after"];
+        string[] earlierSteps = ["r01-2", "r01-3", "r01-4", "r01-5", "mm", "r01-8a", "r01-6", "r01-7", "r01-9"];
+
+        await StartEngineAsync();
+        var pinnedHire = await HireAsync(orderNo: null, hireDate: Today);
+        await RunAsync();
+        var pinned = await FormaliseAsync(pinnedHire);
+        var earlier = await EarlierFormaliseVersionAsync(earlierColumns, earlierSteps);
+
+        await SqlAsync($"UPDATE process_cases SET template_version_id = {earlier} WHERE id = {pinned.Id}");
+        await SqlAsync($"UPDATE process_case_steps SET order_no = order_no + 100 WHERE case_id = {pinned.Id}");
+        foreach (var (stepCode, index) in earlierSteps.Select((stepCode, index) => (stepCode, index)))
+        {
+            await SqlAsync($"UPDATE process_case_steps SET order_no = {index + 1} WHERE case_id = {pinned.Id} AND step_code = {stepCode}");
+        }
+
+        var newHire = await HireAsync(orderNo: null, hireDate: Today);
+        await RunAsync();
+        var fresh = await FormaliseAsync(newHire);
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        // A pass ran over both: neither moved to the other's version.
+        var pinnedAfter = await CaseByIdAsync(pinned.Id);
+        pinnedAfter.TemplateVersionId.ShouldBe(earlier);
+        var pinnedDetail = await GetAsync(client, $"{Root}/cases/{pinned.Id}");
+        pinnedDetail.GetProperty("columns").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(earlierColumns);
+        pinnedDetail.GetProperty("steps").EnumerateArray().Select(step => step.GetProperty("stepCode").GetString()).ShouldBe(earlierSteps);
+
+        fresh.TemplateVersionId.ShouldNotBe(earlier);
+        var freshDetail = await GetAsync(client, $"{Root}/cases/{fresh.Id}");
+        freshDetail.GetProperty("columns").EnumerateArray().Select(column => column.GetProperty("key").GetString()).ShouldBe(["docs", "order", "after", "firstDay"]);
+        freshDetail.GetProperty("steps").EnumerateArray().Select(step => step.GetProperty("stepCode").GetString())
+            .ShouldBe(["r01-2", "r01-3", "r01-4", "r01-5", "r01-6", "r01-7", "mm", "r01-8a", "r01-9"]);
+    }
+
+    /// <summary>
+    /// What a database that ran the first release holds: the current definition in the earlier order, stored as a retired
+    /// version. The published one stays, so the rest of the class is unaffected.
+    /// </summary>
+    private Task<Guid> EarlierFormaliseVersionAsync(string?[] columns, string[] steps) => DbAsync(async db =>
+    {
+        var template = await db.ProcessTemplates.AsNoTracking().SingleAsync(row => row.Code == ProcessCodes.HireFormalise, Ct);
+        var published = await db.ProcessTemplateVersions.AsNoTracking()
+            .SingleAsync(row => row.TemplateId == template.Id && row.Status == ProcessTemplateVersionStatus.Published, Ct);
+
+        var definition = JsonNode.Parse(published.Definition)!.AsObject();
+        definition["version"] = "1.0";
+        var board = definition["board"]!.AsArray().Select(column => column!.DeepClone()).ToList();
+        definition["board"] = new JsonArray([.. columns.Select(key => board.Single(column => column!["key"]!.GetValue<string>() == key))]);
+        var ordered = definition["steps"]!.AsArray().Select(step => step!.DeepClone()).ToList();
+        definition["steps"] = new JsonArray([.. steps.Select(id => ordered.Single(step => step!["id"]!.GetValue<string>() == id))]);
+
+        var text = definition.ToJsonString();
+        var version = ProcessTemplateVersion.Create(template.Id, "1.0", text, ProcessTemplateSeeder.Sha256Hex(text)).Value;
+        version.Publish(DateTimeOffset.UtcNow).IsSuccess.ShouldBeTrue();
+        version.Retire().IsSuccess.ShouldBeTrue();
+        db.ProcessTemplateVersions.Add(version);
+        await db.SaveChangesAsync(Ct);
+        return version.Id;
+    });
+
+    /// <summary>A request, its candidate past the accepted offer, and the formalise case that starts from that offer.</summary>
+    private async Task<(Guid Request, Guid Candidate, Guid Formalise)> WholeChainAsync()
+    {
+        var candidate = await BlockedFirstDayAsync();
+        var request = await VacancyRequestAsync(title: "Lavozim " + Suffix());
+        await RunAsync();
+        var requestCase = await CaseAsync(ProcessCodes.HireRequest, ProcessSubjectRefs.VacancyRequest(request.Id));
+        await SqlAsync($"UPDATE process_cases SET parent_case_id = {requestCase.Id} WHERE id = {candidate.Id}");
+
+        var formalise = await DbAsync(db => db.ProcessCases.AsNoTracking()
+            .Where(row => row.ParentCaseId == candidate.Id && row.ProcessCode == ProcessCodes.HireFormalise)
+            .Select(row => row.Id)
+            .SingleAsync(Ct));
+
+        return (requestCase.Id, candidate.Id, formalise);
+    }
+
+    private async Task<Guid> CandidateCaseAsync()
+    {
+        await StartEngineAsync();
+        var candidate = await CandidateAsync(await VacancyAsync());
+        await RunAsync();
+        return (await CaseAsync(ProcessCodes.HireCandidate, ProcessSubjectRefs.Candidate(candidate, Today))).Id;
+    }
+
+    private static async Task<List<Guid>> ChainAsync(HttpClient client, Guid caseId)
+        => [.. (await GetAsync(client, $"{Root}/cases/{caseId}/chain")).GetProperty("caseIds").EnumerateArray().Select(id => id.GetGuid())];
+
     private async Task<ProcessCase> BlockedFirstDayAsync()
     {
         await StartEngineAsync();

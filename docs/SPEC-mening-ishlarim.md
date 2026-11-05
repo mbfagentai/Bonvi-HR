@@ -184,7 +184,7 @@ kartasida «Кенгаш» bosqichini ham belgilang.» (§18 Q2); r02-11 add lin
 holatini nomzod kartasida o'zgartiring — jarayon shundan keyin yopiladi.»; r02-13 line 3 → «Anketa, Kengash qarori,
 buyruq va mehnat muhofazasi yo'riqnomasi bo'lmasa xodim ishga chiqarilmaydi.»
 
-### 3.5 Flow 2 — `hire-formalise` (columns: `docs` «Hujjatlar», `order` «Shartnoma va buyruq», `firstDay` «Birinchi kun», `after` «Keyingi 5 kun»)
+### 3.5 Flow 2 — `hire-formalise` (columns: `docs` «Hujjatlar», `order` «Shartnoma va buyruq», `after` «Ro'yxatga olish», `firstDay` «Birinchi kun»; order changed in template v1.1, see docs/ASSUMPTIONS.md 2026-11-05)
 `case.anchorDate` = planned start date: F05 `startDate` for (a), `employment.hireDate` for (b).
 | Id | Title | Role | Blank / record | Sig | Kind | Prereqs | Due | Gate | Closes when (fact) | Link |
 |---|---|---|---|---|---|---|---|---|---|---|

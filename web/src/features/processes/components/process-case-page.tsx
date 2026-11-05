@@ -6,13 +6,25 @@ import { STATUS_KEY, STATUS_TONE } from '@/features/blanks/lib/blank-presentatio
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { useReturnTo } from '@/shared/lib/return-to'
-import { Alert, Badge, Card, EmptyState, Skeleton } from '@/shared/ui'
+import { Alert, Badge, Button, Card, EmptyState, Skeleton } from '@/shared/ui'
 
 import type { ProcessCaseDetail, ProcessLinkedBlank } from '../api/processes-api'
-import { useProcessCase } from '../api/processes-queries'
+import {
+  useProcessCase,
+  useProcessCaseChain,
+  useProcessCaseDetails,
+} from '../api/processes-queries'
 import { MY_WORK_PATH } from '../lib/landing'
 import { PROCESSES_VIEW } from '../lib/permissions'
 import { longDueDate } from '../lib/process-due'
+import {
+  chainBlanks,
+  chainColumns,
+  chainPersonCase,
+  chainSteps,
+  defaultChainStepCode,
+  latestInChain,
+} from '../lib/process-chain'
 import { defaultStepCode, stepProgress } from '../lib/process-step'
 import { PROCESS_PAGE_CLASS, ProcessLegacyBadge, ProcessStatusBadge } from './process-chips'
 import { ProcessLoadError, ProcessNoAccess } from './process-states'
@@ -96,6 +108,10 @@ function CaseSkeleton() {
  * `/mening-ishlarim/{caseId}` (SPEC §11.5), in the look of the chef's prototype: the case on top, then the stepper, the
  * chosen step and its guide. The chosen step lives in the address (`?step=`), so a task card can link straight to it and a
  * reload keeps it.
+ *
+ * Hiring is three cases and one page: a candidate or formalise case shows its whole chain, numbered on, and each step is
+ * shown and written from the case it belongs to. Anything the chain needs failing only costs the merge: the opened case
+ * still works, with a note saying the rest is missing.
  */
 export function ProcessCasePage() {
   const { t } = useLocale()
@@ -106,6 +122,9 @@ export function ProcessCasePage() {
   const routeNavigate = route.useNavigate()
   const canView = hasPermission(PROCESSES_VIEW)
   const query = useProcessCase(caseId, canView)
+  const chain = useProcessCaseChain(caseId, canView)
+  const chainIds = chain.data?.caseIds.includes(caseId) === true ? chain.data.caseIds : [caseId]
+  const chainQueries = useProcessCaseDetails(chainIds, canView)
   const back = useReturnTo(() => void navigate({ to: MY_WORK_PATH }))
   const panelRef = useRef<HTMLDivElement>(null)
   /** Where `main` stood when a step was pressed. `null` is every other change of the address. */
@@ -149,17 +168,30 @@ export function ProcessCasePage() {
   )
 
   if (!canView) return shell(<ProcessNoAccess />)
-  if (query.isPending) return shell(<CaseSkeleton />)
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return shell(<ProcessLoadError error={query.error} onRetry={() => void query.refetch()} />)
   }
+  // The whole chain or nothing: a page that grew and renumbered under the reader's hand would be worse than a skeleton.
+  if (query.data === undefined || chain.isPending || chainQueries.some((item) => item.isPending)) {
+    return shell(<CaseSkeleton />)
+  }
 
-  const detail = query.data
+  const loaded = chainQueries.flatMap((item) => (item.data === undefined ? [] : [item.data]))
+  const whole = !chain.isError && loaded.length === chainIds.length
+  const details = whole ? loaded : [query.data]
+  const retryChain = () => {
+    void chain.refetch()
+    chainQueries.filter((item) => item.isError).forEach((item) => void item.refetch())
+  }
+
+  const steps = chainSteps(details)
   const selectedCode =
-    stepInAddress !== undefined && detail.steps.some((step) => step.stepCode === stepInAddress)
+    stepInAddress !== undefined && steps.some(({ step }) => step.stepCode === stepInAddress)
       ? stepInAddress
-      : defaultStepCode(detail.steps)
-  const selected = detail.steps.find((step) => step.stepCode === selectedCode)
+      : details.length === 1
+        ? defaultStepCode(query.data.steps)
+        : defaultChainStepCode(details, caseId)
+  const selected = steps.find(({ step }) => step.stepCode === selectedCode)
 
   const selectStep = (stepCode: string) => {
     if (stepCode !== stepInAddress) {
@@ -170,9 +202,17 @@ export function ProcessCasePage() {
 
   return shell(
     <div className="space-y-5">
-      <CaseHeader detail={detail} />
+      <CaseHeader details={details} />
 
-      {detail.steps.length === 0 ? (
+      {!whole && (
+        <Alert tone="warning" title={t('processes.case.chainPartial')}>
+          <Button variant="secondary" size="sm" className="mt-2" onClick={retryChain}>
+            {t('common.retry')}
+          </Button>
+        </Alert>
+      )}
+
+      {steps.length === 0 ? (
         <Card>
           <EmptyState icon={ListChecks} title={t('processes.case.noSteps')} />
         </Card>
@@ -182,18 +222,21 @@ export function ProcessCasePage() {
           stepper={
             <Card className="px-[18px] py-5">
               <ProcessStepTimeline
-                columns={detail.columns}
-                steps={detail.steps}
+                columns={chainColumns(details)}
                 selectedStepCode={selectedCode}
                 onSelect={selectStep}
               />
             </Card>
           }
-          panel={selected !== undefined && <ProcessStepPanel detail={detail} step={selected} />}
+          panel={
+            selected !== undefined && (
+              <ProcessStepPanel detail={selected.detail} step={selected.step} />
+            )
+          }
           guide={
             <>
-              {selected !== undefined && <ProcessStepGuide step={selected} />}
-              <CaseBlanks blanks={detail.blanks} />
+              {selected !== undefined && <ProcessStepGuide step={selected.step} />}
+              <CaseBlanks blanks={chainBlanks(details)} />
             </>
           }
         />
@@ -202,41 +245,54 @@ export function ProcessCasePage() {
   )
 }
 
-/** «Payvandchi · Metan zavodi · ishga chiqish: 9-noyabr». A missing subject or field drops out with its separator. */
-function useCaseLine(detail: ProcessCaseDetail): string {
+/**
+ * «Payvandchi · Metan zavodi · ishga chiqish: 9-noyabr». A missing subject or field drops out with its separator. Across a
+ * chain, each field comes from the latest stage that knows it.
+ */
+function useCaseLine(details: readonly ProcessCaseDetail[]): string {
   const { t, locale } = useLocale()
 
+  const anchored = latestInChain(details, (detail) => (detail.anchorDate === null ? null : detail))
+  const startedOn = details[0]?.startedOn
   const when =
-    detail.anchorDate !== null
-      ? `${t(`processes.case.anchorBy.${detail.processCode}`, {
+    anchored?.anchorDate != null
+      ? `${t(`processes.case.anchorBy.${anchored.processCode}`, {
           defaultValue: t('processes.case.anchorOther'),
-        })}: ${longDueDate(detail.anchorDate, locale)}`
-      : t('processes.case.startedOn', { date: longDueDate(detail.startedOn, locale) })
+        })}: ${longDueDate(anchored.anchorDate, locale)}`
+      : startedOn !== undefined
+        ? t('processes.case.startedOn', { date: longDueDate(startedOn, locale) })
+        : null
 
-  return [detail.subject?.position, detail.departmentName, when].filter(Boolean).join(' · ')
+  return [
+    latestInChain(details, (detail) => detail.subject?.position),
+    latestInChain(details, (detail) => detail.departmentName),
+    when,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /**
  * The case at a glance: process, person, where they are, and how far along. Closing facts appear only once they are true,
  * and the status only once it is not the normal one.
  */
-function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
+function CaseHeader({ details }: { details: readonly ProcessCaseDetail[] }) {
   const { t, num, date } = useLocale()
-  const { done, total } = stepProgress(detail.steps)
-  const line = useCaseLine(detail)
-  const name = detail.subject?.name ?? null
+  const { done, total } = stepProgress(details.flatMap((item) => item.steps))
+  const line = useCaseLine(details)
+  const name = chainPersonCase(details)?.subject?.name ?? null
+  // The chain stands where its latest stage stands; a request finished long ago says nothing about the person.
+  const detail = details[details.length - 1]
+  const head = details[0]
+  const title = details.length > 1 ? t('processes.case.hireChainTitle') : (detail?.processTitle ?? '')
   const progressText = t('processes.case.progress', { done: num(done), total: num(total) })
 
   return (
     <Card className="p-5">
       <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-x-7">
         <div className="min-w-0">
-          {name !== null && (
-            <p className="text-subhead text-[var(--fg-secondary)]">{detail.processTitle}</p>
-          )}
-          <h1 className="mt-1 text-title1 leading-tight font-bold break-words">
-            {name ?? detail.processTitle}
-          </h1>
+          {name !== null && <p className="text-subhead text-[var(--fg-secondary)]">{title}</p>}
+          <h1 className="mt-1 text-title1 leading-tight font-bold break-words">{name ?? title}</h1>
           {line !== '' && (
             <p className="mt-1 text-subhead break-words text-[var(--fg-secondary)]">{line}</p>
           )}
@@ -253,23 +309,25 @@ function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 md:ml-auto md:self-start">
-          {detail.legacy && <ProcessLegacyBadge />}
-          {detail.status !== 'Active' && <ProcessStatusBadge status={detail.status} />}
+          {details.some((item) => item.legacy) && <ProcessLegacyBadge />}
+          {detail !== undefined && detail.status !== 'Active' && (
+            <ProcessStatusBadge status={detail.status} />
+          )}
         </div>
       </div>
 
-      {(detail.completedAt !== null || detail.cancelledAt !== null || detail.parentCaseId !== null) && (
+      {(detail?.completedAt != null || detail?.cancelledAt != null || head?.parentCaseId != null) && (
         <p className="tabular mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-footnote text-[var(--fg-secondary)]">
-          {detail.completedAt !== null && (
+          {detail?.completedAt != null && (
             <span>{t('processes.case.completedAt', { date: date(detail.completedAt) })}</span>
           )}
-          {detail.cancelledAt !== null && (
+          {detail?.cancelledAt != null && (
             <span>{t('processes.case.cancelledAt', { date: date(detail.cancelledAt) })}</span>
           )}
-          {detail.parentCaseId !== null && (
+          {head?.parentCaseId != null && (
             <Link
               to="/mening-ishlarim/$caseId"
-              params={{ caseId: detail.parentCaseId }}
+              params={{ caseId: head.parentCaseId }}
               className="text-[var(--accent-text)] hover:underline"
             >
               {t('processes.case.parentCase')}
@@ -278,7 +336,7 @@ function CaseHeader({ detail }: { detail: ProcessCaseDetail }) {
         </p>
       )}
 
-      {detail.cancelReason !== null && (
+      {detail?.cancelReason != null && (
         <Alert tone="info" title={t('processes.case.cancelReason')} className="mt-4">
           {detail.cancelReason}
         </Alert>
