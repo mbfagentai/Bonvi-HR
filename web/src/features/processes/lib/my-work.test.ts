@@ -67,6 +67,7 @@ describe('tartibCountHref', () => {
     expect(tartibCountHref('unmatchedTerminalPersons')).toBe('/verifikatsiya/moslashtirish')
     expect(tartibCountHref('employeesWithoutPhoto')).toBe('/xodimlar')
     expect(tartibCountHref('employeesWithoutSchedule')).toBe('/verifikatsiya/jadvallar')
+    expect(tartibCountHref('employeesWithIncompleteFiles')).toBe('/mening-ishlarim?tab=docs')
   })
 
   it('has no destination for a key this build does not know', () => {

@@ -26,6 +26,8 @@ export function tartibCountHref(key: string): string | null {
       return '/xodimlar'
     case 'employeesWithoutSchedule':
       return '/verifikatsiya/jadvallar'
+    case 'employeesWithIncompleteFiles':
+      return '/mening-ishlarim?tab=docs'
     default:
       return null
   }

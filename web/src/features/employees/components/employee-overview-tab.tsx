@@ -26,7 +26,7 @@ import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { formatPhone } from '@/shared/lib/phone'
-import { Badge, Button, Card, CardContent, CardHeader, EmptyState } from '@/shared/ui'
+import { Alert, Badge, Button, Card, CardContent, CardHeader, EmptyState } from '@/shared/ui'
 import type { EmployeeDetails, EmploymentSummary } from '../api/employees-api'
 import { useEmployeeDirections } from '../api/employees-queries'
 import {
@@ -367,6 +367,12 @@ function EmploymentCard({
           )}
         </div>
       </div>
+
+      {employment.needsReview && (
+        <Alert tone="warning" title={t('employees.employmentReviewClears')} className="mt-3.5">
+          {employment.reviewNote ?? undefined}
+        </Alert>
+      )}
 
       <dl className="mt-3.5 grid gap-x-6 gap-y-1.5 border-t border-[var(--border)] pt-3 sm:grid-cols-2">
         <MiniRow label={t('employee.hireDate')} value={date(employment.hireDate)} />

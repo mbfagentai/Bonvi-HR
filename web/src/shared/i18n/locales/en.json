@@ -827,6 +827,7 @@
     "ism.uzun": "Name is too long — 100 characters at most.",
     "sana.notogri": "The date is not valid.",
     "xodim.topilmadi": "Employee not found — the record may have been removed.",
+    "xodim.hujjat_turi_notogri": "There is no such check: reset the filter.",
     "xodim.jshshir_band": "An employee with this PINFL already exists.",
     "xodim.jshshir_sana_mos_emas": "The date of birth inside the PINFL does not match the one on the card. Decide which one is right and correct both fields together.",
     "xodim.tugilgan_sana": "The date of birth is not valid.",
@@ -1382,6 +1383,7 @@
     "editTitle": "Edit personal details",
     "saving": "Saving…",
     "reviewClears": "Saving clears the “needs review” mark",
+    "employmentReviewClears": "Saving the hire record in the labour history clears this mark",
     "birthDateHint": "If a PINFL is entered, the date must match the one encoded in it",
     "birthDateFromPinfl": "Date encoded in the PINFL: {{date}}",
     "gender": "Gender",
@@ -4076,7 +4078,8 @@
       "label": "Sections",
       "my": "My work",
       "board": "Processes",
-      "late": "Who is late"
+      "late": "Who is late",
+      "docs": "Incomplete files"
     },
     "due": {
       "today": "Today",
@@ -4141,6 +4144,10 @@
         "employeesWithoutSchedule": {
           "title": "Employees without a schedule",
           "text": "Active employees without a schedule: {{n}}"
+        },
+        "employeesWithIncompleteFiles": {
+          "title": "Incomplete employee files",
+          "text": "{{n}} employees still have something missing"
         }
       }
     },
@@ -4415,6 +4422,38 @@
         "due": "Due",
         "status": "Status"
       }
+    },
+    "docs": {
+      "heading": "{{n}} employees have something missing",
+      "subheading": "Out of {{n}} current employees",
+      "section": "To fill in",
+      "searchPlaceholder": "Name, PINFL, phone or passport…",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "kindsLabel": "What is missing",
+      "allKinds": "All",
+      "fill": "Fill in",
+      "progress": "{{done}} of {{total}} filled in",
+      "kinds": {
+        "pinfl": "PINFL",
+        "passport": "Passport",
+        "photo": "Photo",
+        "phone": "Phone",
+        "address": "Address",
+        "orderNo": "Order number",
+        "needsReview": "Needs review",
+        "salary": "Salary"
+      },
+      "places": {
+        "edit": "Opens the edit form",
+        "overview": "Opens the employee card",
+        "timeline": "Opens the labour history: the hire record takes it",
+        "documents": "Opens the documents"
+      },
+      "notFoundTitle": "No one found",
+      "notFoundText": "No employee matches these filters.",
+      "emptyTitle": "Every file is complete",
+      "emptyText": "No current employee is missing anything."
     }
   }
 }
