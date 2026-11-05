@@ -337,6 +337,34 @@ public sealed class ProcessManualInputsTests
         ShouldStore(Validate(Mixed(), """{"alpha":1,"docs":{"key":"na","pass":"done"},"zeta":"z"}"""), Canonical);
     }
 
+    /// <summary>
+    /// §6.3 says only «canonical payload JSON» and fixes no encoding. The form written so far, on which every stored
+    /// <c>evidence_sha256</c> depends, is the default encoder's: non-ASCII as upper-case <c>\uXXXX</c>. Changing the encoder
+    /// would orphan those hashes, so this fails first.
+    /// </summary>
+    [Fact]
+    public void Cyrillic_text_is_hashed_in_its_escaped_form()
+    {
+        const string Canonical = """{"zeta":"\u040E\u0437\u0431\u0435\u043A"}""";
+
+        ShouldStore(Validate(Mixed(), """{"zeta":"Ўзбек"}"""), Canonical);
+
+        // printf '%s' '{"zeta":"\u040E\u0437\u0431\u0435\u043A"}' | shasum -a 256
+        ProcessManualInputs.EvidenceOf(Canonical).ShouldBe("cba203ebcf91635f71122db25b158ccc28d66f69086ed2c92aa522c290f3d529");
+    }
+
+    [Fact]
+    public void The_hash_of_cyrillic_text_is_reproducible_from_what_jsonb_gives_back()
+    {
+        // jsonb unescapes \uXXXX and re-spaces, so this is how the payload above reads from the database.
+        const string FromJsonb = """{"zeta": "Ўзбек"}""";
+
+        var original = Validate(Mixed(), """{"zeta":"\u040E\u0437\u0431\u0435\u043A"}""").Value!;
+        var recomputed = Validate(Mixed(), FromJsonb).Value!;
+
+        ProcessManualInputs.EvidenceOf(recomputed).ShouldBe(ProcessManualInputs.EvidenceOf(original));
+    }
+
     [Fact]
     public void A_stored_payload_validates_to_itself_so_the_hash_can_be_recomputed()
     {

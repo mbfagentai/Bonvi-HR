@@ -24,7 +24,8 @@ namespace Bonvi.Application.Processes.Commands;
 /// </para>
 /// <para>
 /// <b>Canonical</b>: keys sorted, no spacing, text trimmed. <c>jsonb</c> re-spaces what it stores, so
-/// <c>evidence_sha256</c> is the hash of this form, reproducible from the stored payload (§6.3).
+/// <c>evidence_sha256</c> is the hash of this form, reproducible from the stored payload (§6.3). Non-ASCII stays in the
+/// default encoder's <c>\uXXXX</c> form, which stored hashes depend on: leave the encoder alone.
 /// </para>
 /// </remarks>
 public static class ProcessManualInputs
