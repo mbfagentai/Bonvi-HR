@@ -694,7 +694,7 @@ export function AttendanceDashboardPage() {
         almashtirilganda bular yo'qolib qolgan edi. Ikkala rejimda ham:
         davr rejimida ma'lumot `/dashboard/trend` javobidan keladi.
       */}
-      <DeviceHealthBanners health={range ? (trendData?.deviceHealth ?? undefined) : data?.deviceHealth} />
+      <DeviceHealthBanners health={range ? (trendData?.deviceHealth ?? undefined) : (data?.deviceHealth ?? undefined)} />
 
       {/* Keyingi yangilanish yiqildi — eski surat joyida qoladi, sabab tepada */}
       {active.isError && active.data !== undefined && (
