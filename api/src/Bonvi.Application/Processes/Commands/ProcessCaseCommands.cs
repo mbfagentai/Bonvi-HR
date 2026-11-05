@@ -109,7 +109,8 @@ public sealed class StartProcessCaseCommandHandler
         }
         catch (Exception exception) when (_fault.IsStaleProcessWrite(exception))
         {
-            return ProcessErrors.Stale;
+            // A start only inserts, so what it can lose is the new case's natural key: someone else opened it first.
+            return ProcessErrors.CaseAlreadyStarted;
         }
 
         if (started.IsFailure)

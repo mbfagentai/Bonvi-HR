@@ -149,6 +149,29 @@ public sealed partial class ProcessWriteApiTests
         stored.FindStep(ProcessStepIds.DismissalApplication)!.Payload.ShouldNotBeNull().ShouldContain("Birinchi");
     }
 
+    /// <summary>
+    /// The subject_ref check cannot see this case, so the insert reaches the index on (process_code, employment_id): the
+    /// shape of a start losing a race to a writer outside the engine lock.
+    /// </summary>
+    [Fact]
+    public async Task Start_that_hits_the_unique_index_answers_already_opened()
+    {
+        await StartEngineAsync();
+        var hire = await HireAsync("WR-" + Suffix(), Today.AddDays(-30));
+        using var client = await ManagerAsync();
+        var first = await PostAsync(client, $"{Root}/cases", StartBody(hire, Today.AddDays(5), "Birinchi"));
+        first.Status.ShouldBe(HttpStatusCode.Created, first.Raw);
+        var id = first.Json.GetProperty("id").GetGuid();
+        var hidden = "hidden:" + id;
+        await SqlAsync($"UPDATE process_cases SET subject_ref = {hidden} WHERE id = {id}");
+
+        var second = await PostAsync(client, $"{Root}/cases", StartBody(hire, Today.AddDays(9), "Ikkinchi"));
+
+        second.Status.ShouldBe(HttpStatusCode.Conflict, second.Raw);
+        second.Title.ShouldBe(Ochilgan);
+        (await CaseByIdAsync(id)).AnchorDate.ShouldBe(Today.AddDays(5));
+    }
+
     [Fact]
     public async Task Start_is_refused_when_the_starter_has_opened_a_case_or_a_withdrawn_one_stands()
     {
