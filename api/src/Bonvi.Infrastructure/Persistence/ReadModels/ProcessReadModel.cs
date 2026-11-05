@@ -74,17 +74,30 @@ public sealed class ProcessReadModel : IProcessReadModel
         Guid? employeeId,
         IReadOnlyCollection<ProcessStepState> states,
         CancellationToken cancellationToken = default)
+        => await HeldSteps(officeRoles, employeeId, states)
+            .Select(StepRow)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public Task<int> CountHeldStepsAsync(
+        IReadOnlyCollection<string> officeRoles,
+        Guid? employeeId,
+        IReadOnlyCollection<ProcessStepState> states,
+        CancellationToken cancellationToken = default)
+        => HeldSteps(officeRoles, employeeId, states).CountAsync(cancellationToken);
+
+    private IQueryable<ProcessCaseStep> HeldSteps(
+        IReadOnlyCollection<string> officeRoles,
+        Guid? employeeId,
+        IReadOnlyCollection<ProcessStepState> states)
     {
         var roles = officeRoles.ToList();
         var wanted = states.ToList();
 
-        return await RunningSteps
+        return RunningSteps
             .Where(step => wanted.Contains(step.State))
             .Where(step => (step.HolderEmployeeId != null && step.HolderEmployeeId == employeeId)
-                || (step.HolderEmployeeId == null && step.HolderRole != null && roles.Contains(step.HolderRole)))
-            .Select(StepRow)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+                || (step.HolderEmployeeId == null && step.HolderRole != null && roles.Contains(step.HolderRole)));
     }
 
     public async Task<IReadOnlyList<ProcessStepRow>> ListProblemStepsAsync(

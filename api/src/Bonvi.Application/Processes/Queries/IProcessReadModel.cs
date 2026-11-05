@@ -120,6 +120,13 @@ public interface IProcessReadModel
         IReadOnlyCollection<ProcessStepState> states,
         CancellationToken cancellationToken = default);
 
+    /// <summary>How many rows <see cref="ListHeldStepsAsync"/> would return.</summary>
+    Task<int> CountHeldStepsAsync(
+        IReadOnlyCollection<string> officeRoles,
+        Guid? employeeId,
+        IReadOnlyCollection<ProcessStepState> states,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Open steps of running cases that are Blocked, past <paramref name="today"/>, or one of <paramref name="alsoStepCodes"/>.</summary>
     Task<IReadOnlyList<ProcessStepRow>> ListProblemStepsAsync(
         DateOnly today,
