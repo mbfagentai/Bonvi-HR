@@ -13,6 +13,7 @@ using Bonvi.Infrastructure.Processes.Engine;
 using Bonvi.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Bonvi.Api.IntegrationTests.Processes;
 
@@ -492,6 +493,71 @@ public sealed class ProcessEngineReaderTests : IClassFixture<BonviApiFactory>
             versions.Single().Status.ShouldBe(ProcessTemplateVersionStatus.Retired);
             return 0;
         }));
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  Lock
+    // ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Lock_is_busy_for_a_second_pass_and_free_after_the_first_ends()
+    {
+        var (first, second) = await DbAsync(db => db.ExecuteInTransactionAsync(
+            async token =>
+            {
+                var acquired = await new ProcessEngineLock(db).TryAcquireAsync(token);
+                var other = await TryLockInOwnTransactionAsync();
+                return (acquired, other);
+            },
+            Ct));
+
+        first.ShouldBeTrue();
+        second.ShouldBeFalse("a busy lock is an answer, not an error");
+
+        (await TryLockInOwnTransactionAsync()).ShouldBeTrue("the lock ends with the transaction that took it");
+    }
+
+    [Fact]
+    public async Task Lock_outside_a_transaction_is_refused()
+    {
+        await DbAsync(async db =>
+        {
+            await Should.ThrowAsync<InvalidOperationException>(() => new ProcessEngineLock(db).TryAcquireAsync(Ct));
+            return 0;
+        });
+    }
+
+    private Task<bool> TryLockInOwnTransactionAsync()
+        => DbAsync(db => db.ExecuteInTransactionAsync(token => new ProcessEngineLock(db).TryAcquireAsync(token), Ct));
+
+    // ────────────────────────────────────────────────────────────
+    //  Journal
+    // ────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0, 0, LogLevel.Debug)]
+    [InlineData(1, 0, LogLevel.Information)]
+    [InlineData(0, 3, LogLevel.Information)]
+    public void Journal_keeps_an_idle_pass_out_of_the_information_log(int started, int changedRows, LogLevel expected)
+    {
+        var logger = new CapturingLogger();
+
+        new ProcessEngineJournal(logger).PassFinished(started, changedRows);
+
+        logger.Levels.ShouldBe([expected]);
+    }
+
+    private sealed class CapturingLogger : ILogger<ProcessEngineJournal>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            => Levels.Add(logLevel);
     }
 
     // ────────────────────────────────────────────────────────────
