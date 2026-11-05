@@ -36,6 +36,13 @@ public sealed record GlobalSearchQuery(string? Q);
 /// QAYERDA?» degan savolga javob beradi.
 /// </para>
 /// <para>
+/// <b>One exception: one person comes up in one place</b> (owner's request, 2026-11-05). A
+/// candidate of any status who already is an employee is left out of the candidate group,
+/// because the employee group shows that person. It applies only to a caller who can see
+/// employees: for anyone else the employee group is <c>null</c>, and hiding the candidate would
+/// leave them no row at all.
+/// </para>
+/// <para>
 /// <b>Ruxsat guruh bo'yicha.</b> Endpoint <c>employees.view</c> YOKI
 /// <c>recruiting.view</c> bilan ochiladi, javob esa torayadi: ruxsati yo'q
 /// guruh <c>null</c> bo'ladi va uning so'rovi bazaga UMUMAN yuborilmaydi.
@@ -110,7 +117,7 @@ public sealed class GlobalSearchQueryHandler
             : null;
 
         var candidates = canSeeRecruiting
-            ? await SearchCandidatesAsync(text, cancellationToken).ConfigureAwait(false)
+            ? await SearchCandidatesAsync(text, canSeeEmployees, cancellationToken).ConfigureAwait(false)
             : null;
 
         var vacancies = canSeeRecruiting
@@ -151,6 +158,7 @@ public sealed class GlobalSearchQueryHandler
 
     private async Task<GlobalSearchCandidatesDto> SearchCandidatesAsync(
         string text,
+        bool canSeeEmployees,
         CancellationToken cancellationToken)
     {
         var page = await _recruiting
@@ -159,7 +167,8 @@ public sealed class GlobalSearchQueryHandler
                     Search: text,
                     PageSize: CandidateLimit,
                     IncludeArchive: true,
-                    AllStatuses: true),
+                    AllStatuses: true,
+                    HideIfEmployee: canSeeEmployees),
                 cancellationToken)
             .ConfigureAwait(false);
 

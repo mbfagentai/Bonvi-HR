@@ -264,6 +264,13 @@ public enum VacancySortField
 /// Faqat mavjud kartasiga keyin onlayn anketa qo'shilganlar (<c>Candidate.ReappliedAt</c>) —
 /// «avval botdan, keyin ofisda anketa» (egasi, 2026-10-30).
 /// </param>
+/// <param name="HideIfEmployee">
+/// Global search only (<c>GlobalSearchQueryHandler</c>, owner's request 2026-11-05: «one person
+/// comes up in one place»). Leaves out a candidate of any status who already is an employee,
+/// because the employee group of the same response shows that person. The exact test is in
+/// <c>CandidateSearchQuery.WhoAreEmployees</c>. Off by default, so the Nomzodlar list, reports
+/// and MCP keep every record.
+/// </param>
 public sealed record CandidateSearchFilter(
     string? Search = null,
     Guid? VacancyId = null,
@@ -301,7 +308,8 @@ public sealed record CandidateSearchFilter(
     DateOnly? ClosedTo = null,
     Guid? ReferralChannelId = null,
     bool ReferralMissing = false,
-    bool Reapplied = false)
+    bool Reapplied = false,
+    bool HideIfEmployee = false)
 {
     /// <summary>Nechta yozuv o'tkazib yuboriladi.</summary>
     public int Skip => (Page - 1) * PageSize;

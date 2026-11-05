@@ -46,6 +46,17 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
 
     private const string Vakansiya = "Глобал синов вакансияси";
 
+    /// <summary>Surname of the «one person» seed, kept apart from <see cref="Familiya"/>.</summary>
+    private const string YakkaFamiliya = "Яккаев";
+
+    /// <summary>Digits of the phone shared by a hired candidate and an employee.</summary>
+    private const string YakkaTelefon = "901110022";
+
+    private const int YakkaXodimlarSoni = 15;
+
+    private static readonly string[] YakkaKorinadiganNomzodlar =
+        ["Ёлғиз", "Эгизак", "Санасиз", "Ўчирилган", "Ўчганбоғ", "Бўштелефон"];
+
     private readonly BonviApiFactory _factory;
 
     public GlobalSearchApiTests(BonviApiFactory factory) => _factory = factory;
@@ -152,6 +163,113 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
 
         natija.Vacancies.ShouldNotBeNull();
         natija.Vacancies.Items.Select(x => x.Id).ShouldBe([urug.VakansiyaId]);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //  One person comes up in one place (owner, 2026-11-05)
+    // ────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("Боғлиқ", "hired, linked by the hire event")]
+    [InlineData("Телефонномзод", "hired, same phone")]
+    [InlineData("Радтел", "rejected, same phone")]
+    [InlineData("Форматномзод", "rejected, same phone written differently")]
+    [InlineData("Радисм", "rejected, same name")]
+    [InlineData("Возисм", "withdrawn, same name")]
+    [InlineData("Резервисм", "reserve, same name")]
+    [InlineData("Қораисм", "blacklisted, same name")]
+    [InlineData("Жараёнтел", "in progress, same phone")]
+    [InlineData("Жараёнсана", "in progress, same name and birth date")]
+    [InlineData("Жараёнбоғ", "in progress, linked by the hire event")]
+    public async Task Xodim_bolgan_nomzod_qidiruvda_chiqmaydi(string ism, string sabab)
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, $"{YakkaFamiliya} {ism}");
+
+        natija.Candidates.ShouldNotBeNull();
+        natija.Candidates.Total.ShouldBe(0, sabab);
+        natija.Candidates.Items.ShouldBeEmpty(sabab);
+    }
+
+    [Fact]
+    public async Task Lotinda_yozilgan_ismdosh_ham_bitta_odam()
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        // The candidate is «Yakkayev Ismdosh», the employee «Яккаев Исмдош».
+        var natija = await QidirAsync(client, $"{YakkaFamiliya} Исмдош");
+
+        natija.Employees!.Items.Select(x => x.FullName).ShouldBe([$"{YakkaFamiliya} Исмдош"]);
+        natija.Candidates!.Total.ShouldBe(0);
+        natija.Candidates.Items.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Ёлғиз", "Hired", "hired, no such employee")]
+    [InlineData("Эгизак", "InProgress", "in progress, name twin with another birth date and phone")]
+    [InlineData("Санасиз", "InProgress", "in progress, name twin and no birth date on either side")]
+    [InlineData("Ўчирилган", "Hired", "the same name and phone belong to a deleted employee")]
+    [InlineData("Ўчганбоғ", "Hired", "the hire event points to a deleted employee")]
+    [InlineData("Бўштелефон", "InProgress", "an empty phone must not match an empty phone")]
+    public async Task Xodim_bolmagan_nomzod_qidiruvda_qoladi(string ism, string holat, string sabab)
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, $"{YakkaFamiliya} {ism}");
+
+        natija.Candidates.ShouldNotBeNull();
+        natija.Candidates.Total.ShouldBe(1, sabab);
+        natija.Candidates.Items.Single().Status.ShouldBe(holat, sabab);
+    }
+
+    [Fact]
+    public async Task Sanoq_qatorlarga_teng_va_xodimlar_ozgarmaydi()
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, YakkaFamiliya);
+
+        // The count is what proves the filter runs in SQL: hidden rows must not be counted.
+        natija.Candidates!.Total.ShouldBe(YakkaKorinadiganNomzodlar.Length);
+        natija.Candidates.Items.Count.ShouldBe(natija.Candidates.Total);
+        natija.Candidates.Items
+            .Select(x => x.FullName.Split(' ')[1])
+            .ShouldBe(YakkaKorinadiganNomzodlar, ignoreOrder: true);
+
+        // Employees are not filtered at all; only the soft-deleted ones are missing.
+        natija.Employees!.Total.ShouldBe(YakkaXodimlarSoni);
+    }
+
+    [Fact]
+    public async Task Telefon_bilan_qidirganda_ham_bitta_odam()
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await AdminMijozAsync();
+
+        var natija = await QidirAsync(client, YakkaTelefon);
+
+        natija.Employees!.Items.Select(x => x.FullName).ShouldBe([$"{YakkaFamiliya} Телефонходим"]);
+        natija.Candidates!.Total.ShouldBe(0);
+        natija.Candidates.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Xodimlarni_kormaydigan_foydalanuvchiga_nomzod_yashirilmaydi()
+    {
+        await BirOdamTayyorlaAsync();
+        using var client = await RuxsatliMijozAsync(Permissions.RecruitingView);
+
+        // No employee group here, so hiding the candidate would leave no row at all.
+        var natija = await QidirAsync(client, $"{YakkaFamiliya} Телефонномзод");
+
+        natija.Employees.ShouldBeNull();
+        natija.Candidates!.Total.ShouldBe(1);
+        natija.Candidates.Items.Single().Status.ShouldBe("Hired");
     }
 
     // ────────────────────────────────────────────────────────────
@@ -359,6 +477,158 @@ public sealed class GlobalSearchApiTests : IClassFixture<BonviApiFactory>
 
         return new Urug(ishlayotgan.Id, ketgan.Id, shovqin.Id, vakansiya.Id);
     }
+
+    /// <summary>
+    /// Pairs of one employee and one candidate, each pair matching for exactly one reason, so a
+    /// test failure names the rule that broke. First names differ inside a pair unless the name
+    /// is the reason.
+    /// </summary>
+    private async Task BirOdamTayyorlaAsync()
+    {
+        var bekorQilish = TestContext.Current.CancellationToken;
+
+        await using var qamrov = _factory.Services.CreateAsyncScope();
+        var kontekst = qamrov.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        if (await kontekst.Employees.AnyAsync(x => x.FullName.LastName == YakkaFamiliya, bekorQilish))
+        {
+            return;
+        }
+
+        var firma = LegalEntity.Create("Якка МЧЖ").Value;
+        var vakansiya = Vacancy.Open("Якка вакансияси", new DateOnly(2026, 9, 1), openings: 2).Value;
+        var sana = new DateOnly(2026, 10, 1);
+        var tugilgan = new DateOnly(1992, 2, 2);
+
+        var telefon = PhoneNumber.Create($"+998{YakkaTelefon}").Value;
+        var radTelefon = PhoneNumber.Create("+998901110023").Value;
+        var formatTelefon = PhoneNumber.Create("+998901110024").Value;
+        var jarayonTelefon = PhoneNumber.Create("+998901110025").Value;
+        var egizakXodimTelefon = PhoneNumber.Create("+998901110026").Value;
+        var egizakNomzodTelefon = PhoneNumber.Create("+998901110027").Value;
+        var ochirilganTelefon = PhoneNumber.Create("+998901110028").Value;
+
+        var boglangan = YakkaXodim("Боғланган");
+        var jarayonBoglangan = YakkaXodim("Боғланганжараён");
+        var ochirilganBoglangan = YakkaXodim("Ўчирилганбоғланган");
+        var ochirilgan = YakkaXodim("Ўчирилган", ochirilganTelefon);
+        ochirilgan.DeletedAt = DateTimeOffset.UtcNow;
+        ochirilganBoglangan.DeletedAt = DateTimeOffset.UtcNow;
+        var boshXodim = YakkaXodim("Бўшходим");
+        var formatXodim = YakkaXodim("Форматходим", formatTelefon);
+
+        var xodimlar = new[]
+        {
+            boglangan,
+            jarayonBoglangan,
+            boshXodim,
+            formatXodim,
+            YakkaXodim("Телефонходим", telefon),
+            YakkaXodim("Исмдош"),
+            YakkaXodim("Радходим", radTelefon),
+            YakkaXodim("Радисм"),
+            YakkaXodim("Возисм"),
+            YakkaXodim("Резервисм"),
+            YakkaXodim("Қораисм"),
+            YakkaXodim("Эгизак", egizakXodimTelefon, new DateOnly(1990, 1, 1)),
+            YakkaXodim("Санасиз"),
+            YakkaXodim("Жараёнходим", jarayonTelefon),
+            YakkaXodim("Жараёнсана", tugilgan: tugilgan),
+        };
+        xodimlar.Length.ShouldBe(YakkaXodimlarSoni);
+
+        var boglanganNomzod = YakkaNomzod("Боғлиқ", vakansiya.Id);
+        boglanganNomzod.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var telefonli = YakkaNomzod("Телефонномзод", vakansiya.Id, telefon);
+        telefonli.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var lotincha = Candidate.Register(FullName.Create("Yakkayev", "Ismdosh", null).Value, vakansiya.Id).Value;
+        lotincha.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var yolgiz = YakkaNomzod("Ёлғиз", vakansiya.Id);
+        yolgiz.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var radTel = YakkaNomzod("Радтел", vakansiya.Id, radTelefon);
+        radTel.Reject(sana).IsSuccess.ShouldBeTrue();
+
+        var formatNomzod = YakkaNomzod("Форматномзод", vakansiya.Id, formatTelefon);
+        formatNomzod.Reject(sana).IsSuccess.ShouldBeTrue();
+
+        var radIsm = YakkaNomzod("Радисм", vakansiya.Id);
+        radIsm.Reject(sana).IsSuccess.ShouldBeTrue();
+
+        var vozIsm = YakkaNomzod("Возисм", vakansiya.Id);
+        vozIsm.Withdraw(sana).IsSuccess.ShouldBeTrue();
+
+        var rezervIsm = YakkaNomzod("Резервисм", vakansiya.Id);
+        rezervIsm.MoveToReserve(sana).IsSuccess.ShouldBeTrue();
+
+        var qoraIsm = YakkaNomzod("Қораисм", vakansiya.Id);
+        qoraIsm.Blacklist(sana, "Тест").IsSuccess.ShouldBeTrue();
+
+        var egizak = YakkaNomzod("Эгизак", vakansiya.Id, egizakNomzodTelefon, new DateOnly(1995, 5, 5));
+        var sanasiz = YakkaNomzod("Санасиз", vakansiya.Id);
+        var jarayonTel = YakkaNomzod("Жараёнтел", vakansiya.Id, jarayonTelefon);
+        var jarayonSana = YakkaNomzod("Жараёнсана", vakansiya.Id, tugilgan: tugilgan);
+        var jarayonBog = YakkaNomzod("Жараёнбоғ", vakansiya.Id);
+
+        var ochirilganNomzod = YakkaNomzod("Ўчирилган", vakansiya.Id, ochirilganTelefon);
+        ochirilganNomzod.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var ochirilganBog = YakkaNomzod("Ўчганбоғ", vakansiya.Id);
+        ochirilganBog.MarkHired(sana).IsSuccess.ShouldBeTrue();
+
+        var boshNomzod = YakkaNomzod("Бўштелефон", vakansiya.Id);
+
+        Employment Qabul(Employee xodim, Candidate nomzod)
+            => Employment.Hire(xodim.Id, firma.Id, new DateOnly(2026, 10, 2), candidateId: nomzod.Id).Value;
+
+        kontekst.Add(firma);
+        kontekst.Add(vakansiya);
+        kontekst.AddRange(xodimlar);
+        kontekst.AddRange(ochirilgan, ochirilganBoglangan);
+        kontekst.AddRange(
+            boglanganNomzod, telefonli, lotincha, yolgiz, radTel, formatNomzod, radIsm, vozIsm, rezervIsm,
+            qoraIsm, egizak, sanasiz, jarayonTel, jarayonSana, jarayonBog, ochirilganNomzod,
+            ochirilganBog, boshNomzod);
+        kontekst.AddRange(
+            Qabul(boglangan, boglanganNomzod),
+            Qabul(jarayonBoglangan, jarayonBog),
+            Qabul(ochirilganBoglangan, ochirilganBog));
+
+        await kontekst.SaveChangesAsync(bekorQilish);
+
+        // The domain cannot produce these values; older rows and direct imports can.
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE employees SET phone = '' WHERE id = {boshXodim.Id}",
+            bekorQilish);
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE candidates SET phone = '' WHERE id = {boshNomzod.Id}",
+            bekorQilish);
+        await kontekst.Database.ExecuteSqlAsync(
+            $"UPDATE employees SET phone = '+998 90 111 00 24' WHERE id = {formatXodim.Id}",
+            bekorQilish);
+    }
+
+    private static Employee YakkaXodim(string ism, PhoneNumber? telefon = null, DateOnly? tugilgan = null)
+    {
+        var xodim = Employee.Create(FullName.Create(YakkaFamiliya, ism, null).Value, tugilgan).Value;
+        xodim.SetPhones(telefon);
+
+        return xodim;
+    }
+
+    private static Candidate YakkaNomzod(
+        string ism,
+        Guid vakansiyaId,
+        PhoneNumber? telefon = null,
+        DateOnly? tugilgan = null)
+        => Candidate.Register(
+            FullName.Create(YakkaFamiliya, ism, null).Value,
+            vakansiyaId,
+            birthDate: tugilgan,
+            phone: telefon).Value;
 
     private static Employee Xodim(string ism)
         => Employee.Create(FullName.Create(Familiya, ism, null).Value).Value;

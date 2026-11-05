@@ -1,5 +1,6 @@
 using Bonvi.Domain.Employees;
 using Bonvi.Domain.Identity;
+using Bonvi.Domain.Recruiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bonvi.Infrastructure.Persistence;
@@ -559,6 +560,85 @@ internal static class CandidateSearchQuery
                  WHERE x.birth_date = {birthDate}
                    AND search_key(x.last_name || ' ' || x.first_name)
                        IN (search_key({direct}), search_key({swapped}))
+                 """)
+            .Select(candidate => candidate.Id);
+    }
+
+    /// <summary>
+    /// Candidates who already are an employee: the same person, recorded twice.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Any one of these makes a candidate an employee, always against a non-deleted employee:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>a hire event links them (<c>employment_events.candidate_id</c>);</item>
+    /// <item>the same phone;</item>
+    /// <item>any status but InProgress: the same <c>search_key</c>;</item>
+    /// <item>InProgress: the same <c>search_key</c> AND the same birth date.</item>
+    /// </list>
+    /// <para>
+    /// The link alone is not enough: most candidates who became employees came from imports and
+    /// have no event. InProgress is stricter because a name twin must not hide a real applicant
+    /// HR is working on right now; a missing birth date therefore never matches. A candidate
+    /// whose only match is a soft-deleted employee is NOT returned, because hiding them would
+    /// leave nobody to find.
+    /// </para>
+    /// <para>
+    /// Phones are compared as digits, like <see cref="WithPhone"/>, and a candidate whose phone
+    /// has no digits never matches: an empty phone says nothing about who the person is. NULL
+    /// phones drop out of the comparison on their own. <c>second_phone</c> is left out on
+    /// purpose, since it is often a relative's number. <c>search_key</c> covers the full name
+    /// including the patronymic, so «Karimov Aziz» does not match «Каримов Азиз Анварович».
+    /// </para>
+    /// <para>
+    /// Raw SQL for the reasons in <see cref="MatchingIds"/>: <c>Phone</c> sits behind a value
+    /// converter and <c>search_key</c> is not in the EF model. The conditions stay separate
+    /// <c>EXISTS</c> blocks with a plain equality so that PostgreSQL hashes each employee set
+    /// once instead of scanning employees for every candidate.
+    /// </para>
+    /// </remarks>
+    public static IQueryable<Guid> WhoAreEmployees(AppDbContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        // The column is an integer: see `status` in the model snapshot.
+        var inProgress = (int)CandidateStatus.InProgress;
+
+        return context.Candidates
+            .FromSql(
+                $"""
+                 SELECT x.*
+                 FROM candidates AS x
+                 WHERE EXISTS (
+                           SELECT 1
+                           FROM employment_events AS ev
+                           JOIN employments AS em ON em.id = ev.employment_id
+                           JOIN employees AS e ON e.id = em.employee_id
+                           WHERE ev.candidate_id = x.id
+                             AND e.deleted_at IS NULL)
+                    OR (
+                           regexp_replace(x.phone, '\D', '', 'g') <> ''
+                           AND EXISTS (
+                               SELECT 1
+                               FROM employees AS e
+                               WHERE regexp_replace(e.phone, '\D', '', 'g') = regexp_replace(x.phone, '\D', '', 'g')
+                                 AND e.deleted_at IS NULL))
+                    OR (
+                           x.status <> {inProgress}
+                           AND EXISTS (
+                               SELECT 1
+                               FROM employees AS e
+                               WHERE e.search_key = x.search_key
+                                 AND e.deleted_at IS NULL))
+                    OR (
+                           x.status = {inProgress}
+                           AND EXISTS (
+                               SELECT 1
+                               FROM employees AS e
+                               WHERE e.search_key = x.search_key
+                                 AND e.birth_date = x.birth_date
+                                 AND e.deleted_at IS NULL))
                  """)
             .Select(candidate => candidate.Id);
     }
