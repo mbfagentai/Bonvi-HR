@@ -100,6 +100,16 @@ export type ReferralChannelOption = KioskReferralChannelDto
 export interface KioskSubmitResult {
   formNumber: number
   submittedAt: string
+  /**
+   * The link to the bot that lets it write to this person. `null`: they already
+   * have a chat, the bot hasn't started, or an older server.
+   */
+  telegramLink: string | null
+}
+
+/** Only a Telegram link is ever rendered as a link or a QR code. */
+function telegramLinkOf(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://t.me/') ? value : null
 }
 
 /** Languages the candidate may fill the form in — sent as `language`. */
@@ -415,6 +425,7 @@ export async function submitQuestionnaire(submission: KioskSubmission): Promise<
   return {
     formNumber: typeof data?.formNumber === 'number' ? data.formNumber : 0,
     submittedAt: typeof data?.submittedAt === 'string' ? data.submittedAt : '',
+    telegramLink: telegramLinkOf(data?.telegramLink),
   }
 }
 
@@ -452,6 +463,7 @@ export async function submitDynamicQuestionnaire(submission: DynamicSubmission):
   return {
     formNumber: typeof data?.formNumber === 'number' ? data.formNumber : 0,
     submittedAt: typeof data?.submittedAt === 'string' ? data.submittedAt : '',
+    telegramLink: telegramLinkOf(data?.telegramLink),
   }
 }
 

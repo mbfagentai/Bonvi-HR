@@ -8,6 +8,7 @@ import type { Candidate, CandidateNoteKind, PipelineStage } from '../api/recruit
 import { useStages } from '../api/recruiting-queries'
 import { lowerFirst, today } from '../lib/recruiting-presentation'
 import { CandidateInterviewDialog } from './candidate-interview-dialog'
+import { CandidateTelegramLinkButton } from './candidate-telegram-link-button'
 import { CandidateStageDialog } from './candidate-stage-dialog'
 
 /**
@@ -274,14 +275,20 @@ export function CandidateStagePicker({ candidate }: { candidate: Candidate }) {
                   : 'text-[var(--fg-tertiary)]',
               )}
             >
-              {candidate.source !== 'TelegramBot'
+              {!candidate.telegramLinked
                 ? t('recruiting.interviewNoTelegramShort')
                 : candidate.interviewNoticeSentAt === null
                   ? t('recruiting.interviewQueued')
                   : candidate.interviewNoticeDelivered === false
                     ? t('recruiting.interviewNotDelivered')
-                    : t('recruiting.interviewSent')}
+                    : candidate.interviewReminderSentAt === null
+                      ? t('recruiting.interviewSent')
+                      : candidate.interviewReminderDelivered === false
+                        ? t('recruiting.interviewReminderNotDelivered')
+                        : t('recruiting.interviewReminderSent')}
             </span>
+
+            {!candidate.telegramLinked && <CandidateTelegramLinkButton candidateId={candidate.id} />}
 
             <Button
               type="button"

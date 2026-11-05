@@ -142,6 +142,30 @@ public sealed class BotHarness : IDisposable
     /// <summary>Navbatdagi suhbat takliflari.</summary>
     public List<InterviewNotice> PendingInterviews { get; } = [];
 
+    /// <summary>Candidates awaiting the day-before reminder.</summary>
+    public List<InterviewNotice> PendingReminders { get; } = [];
+
+    /// <summary>The map point in the settings.</summary>
+    public string Location { get; set; } = string.Empty;
+
+    /// <summary>The token the server accepts in <c>/start token</c>.</summary>
+    public string? ValidLinkToken { get; set; }
+
+    /// <summary>The language the server answers a valid token with.</summary>
+    public string? LinkedLanguage { get; set; } = "uz-Latn";
+
+    /// <summary>Bodies of the token link requests.</summary>
+    public List<string> LinkRequests { get; } = [];
+
+    /// <summary>Bodies of the username or phone match requests.</summary>
+    public List<string> MatchRequests { get; } = [];
+
+    /// <summary>Whether the server accepts the username report.</summary>
+    public bool UsernameReportSucceeds { get; set; } = true;
+
+    /// <summary>Usernames reported to the server.</summary>
+    public List<string> ReportedUsernames { get; } = [];
+
     /// <summary>Bu suhbatlar botni BLOKLAGAN — Telegram 403 qaytaradi.</summary>
     public HashSet<long> BlockedChats { get; } = [];
 
@@ -236,6 +260,10 @@ public sealed class BotHarness : IDisposable
 
     /// <summary>Nomzod matn yozdi.</summary>
     public Task TextAsync(string text) => SendAsync(new TelegramMessage(1, new TelegramChat(ChatId), text, null));
+
+    /// <summary>The person opened the bot, with this text and Telegram username.</summary>
+    public Task StartAsync(string text, string? username)
+        => SendAsync(new TelegramMessage(1, new TelegramChat(ChatId), text, null, From: new TelegramUser(username)));
 
     /// <summary>Nomzod «Raqamni yuborish» tugmasini bosdi.</summary>
     public Task ContactAsync(string phone = "+998901234567")
@@ -453,6 +481,45 @@ public sealed class BotHarness : IDisposable
             return Json(JsonSerializer.Serialize(PendingInterviews.Take(NoticeBatch), WebJson));
         }
 
+        if (path.EndsWith("/interview-reminders", StringComparison.Ordinal))
+        {
+            return Json(JsonSerializer.Serialize(PendingReminders.Take(NoticeBatch), WebJson));
+        }
+
+        if (path.EndsWith("/interview-reminder-sent", StringComparison.Ordinal))
+        {
+            var candidateId = Guid.Parse(path.Split('/')[^2]);
+            var delivered = !(request.RequestUri?.Query ?? string.Empty).Contains("delivered=false", StringComparison.Ordinal);
+
+            Marked.Add(("reminder", candidateId, delivered));
+            PendingReminders.RemoveAll(notice => notice.CandidateId == candidateId);
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
+
+        if (path.EndsWith("/candidates/telegram-link", StringComparison.Ordinal))
+        {
+            LinkRequests.Add(body);
+
+            var linked = ValidLinkToken is not null && body.Contains(ValidLinkToken, StringComparison.Ordinal);
+
+            return Json(JsonSerializer.Serialize(new { linked, language = linked ? LinkedLanguage : null }, WebJson));
+        }
+
+        if (path.EndsWith("/candidates/telegram-match", StringComparison.Ordinal))
+        {
+            MatchRequests.Add(body);
+
+            return Json("1");
+        }
+
+        if (path == "/api/settings/bot/username")
+        {
+            ReportedUsernames.Add(body);
+
+            return new HttpResponseMessage(UsernameReportSucceeds ? HttpStatusCode.NoContent : HttpStatusCode.InternalServerError);
+        }
+
         if (path.EndsWith("/rejection-notice-sent", StringComparison.Ordinal)
             || path.EndsWith("/interview-notice-sent", StringComparison.Ordinal))
         {
@@ -520,7 +587,7 @@ public sealed class BotHarness : IDisposable
         {
           "aboutCyrillic":"","aboutLatin":"","aboutRussian":"",
           "contactsCyrillic":"","contactsLatin":"","contactsRussian":"",
-          "location":"","hasLogo":false,
+          "location":{{JsonSerializer.Serialize(Location)}},"hasLogo":false,
           "instagram":"","telegram":"","facebook":"","website":"",
           "offerUrl":{{JsonSerializer.Serialize(OfferUrl)}},
           "conversationTimeoutMinutes":{{ConversationTimeoutMinutes}}

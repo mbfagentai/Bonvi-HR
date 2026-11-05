@@ -512,6 +512,9 @@ public sealed record CandidatePhotoDto(string PhotoKey);
 /// bloklagan va hokazo), HR telefon qilishi kerak; <c>null</c> — hali
 /// urinilmagan yoki eski yozuv (o'shanda faqat yetkazilganlar belgilanardi).
 /// </param>
+/// <param name="TelegramLinked">The bot knows this candidate's chat. The chat id itself is never shown.</param>
+/// <param name="InterviewReminderSentAt">When the day-before reminder went out.</param>
+/// <param name="InterviewReminderDelivered"><c>false</c>: Telegram refused the reminder.</param>
 /// <param name="Stages">Bosqichlar tarixi — yozilgan tartibda.</param>
 /// <param name="Files">
 /// Biriktirilgan fayllar — YUKLASH tartibida (eskisidan yangisiga).
@@ -574,7 +577,10 @@ public sealed record CandidateDto(
     CandidateQuestionnaireDto? Questionnaire,
     Guid? ReferralChannelId,
     string? ReferralChannelName,
-    string? ReferralDetail);
+    string? ReferralDetail,
+    bool TelegramLinked = false,
+    DateTimeOffset? InterviewReminderSentAt = null,
+    bool? InterviewReminderDelivered = null);
 
 /// <summary>
 /// To'g'ridan-to'g'ri ishga olishning natijasi: yopilgan nomzod va

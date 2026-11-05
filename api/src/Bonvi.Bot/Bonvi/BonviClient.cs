@@ -266,6 +266,11 @@ public sealed record InterviewNotice(
     string VacancyTitle,
     DateTimeOffset InterviewAt);
 
+/// <summary>Result of binding a chat by token.</summary>
+/// <param name="Linked">Whether the token was valid.</param>
+/// <param name="Language">The language the candidate wrote in.</param>
+public sealed record TelegramLinkResult(bool Linked, string? Language);
+
 /// <summary>
 /// Bonvi API bilan ishlaydigan mijoz — bot xizmat hisobi nomidan.
 /// </summary>
@@ -666,6 +671,78 @@ public sealed partial class BonviClient : IDisposable
                 cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <summary>Candidates awaiting the day-before interview reminder.</summary>
+    public async Task<IReadOnlyList<InterviewNotice>> GetPendingInterviewRemindersAsync(
+        CancellationToken cancellationToken)
+        => await SendAsync<List<InterviewNotice>>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Get,
+                    new Uri("api/recruiting/candidates/interview-reminders", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? [];
+
+    /// <summary>Records the reminder; one attempt, like the invitation.</summary>
+    public async Task<bool> MarkInterviewReminderSentAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken,
+        bool delivered = true)
+    {
+        var path = $"api/recruiting/candidates/{candidateId:D}/interview-reminder-sent"
+            + (delivered ? string.Empty : "?delivered=false");
+
+        return await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Binds this chat to the candidate holding the token; <c>null</c> when the server failed.</summary>
+    public async Task<TelegramLinkResult?> LinkTelegramAsync(
+        string token,
+        long chatId,
+        CancellationToken cancellationToken)
+        => await SendAsync<TelegramLinkResult>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Post,
+                    new Uri("api/recruiting/candidates/telegram-link", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { token, chatId }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    /// Binds this chat to candidates who named this username on the form or hold this phone.
+    /// Best effort: a failure must never stand between a person and the bot.
+    /// </summary>
+    public async Task MatchTelegramAsync(
+        long chatId,
+        string? username,
+        string? phone,
+        CancellationToken cancellationToken)
+        => await SendAsync<JsonElement>(
+                () => new HttpRequestMessage(
+                    HttpMethod.Post,
+                    new Uri("api/recruiting/candidates/telegram-match", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { chatId, username, phone }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Tells the server the bot's username, which links to the bot are built from.</summary>
+    public async Task<bool> ReportBotUsernameAsync(string username, CancellationToken cancellationToken)
+        => await SendNoContentAsync(
+                () => new HttpRequestMessage(
+                    HttpMethod.Put,
+                    new Uri("api/settings/bot/username", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { username }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
 
     /// <summary>
     /// Kompaniya logotipining baytlarini oladi.

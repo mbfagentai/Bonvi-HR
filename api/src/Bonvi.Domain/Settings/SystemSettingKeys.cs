@@ -449,6 +449,12 @@ public static class SystemSettingKeys
     public const string BotInterviewPhone = "bot.interview.phone";
 
     /// <summary>
+    /// The bot's Telegram username, written by the bot itself at start (it learns it from
+    /// <c>getMe</c>). Links to the bot are built from it; empty until the bot has reported.
+    /// </summary>
+    public const string BotUsername = "bot.username";
+
+    /// <summary>
     /// Suhbat taklifidagi manzil — qisqa satr («Qo'qon», «Toshkent, Chilonzor»).
     /// </summary>
     /// <remarks>
@@ -992,6 +998,7 @@ public static class SystemSettingKeys
             Pattern: LocationPattern),
         new(BotInterviewPhone, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
         new(BotInterviewAddress, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
+        new(BotUsername, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
         new(BotLogo, SystemSettingKind.Photo, string.Empty, MaxLength: MaxKeyLength),
         new(BotSocialInstagram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),

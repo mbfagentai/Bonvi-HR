@@ -1,8 +1,11 @@
-import { CircleCheckBig, RotateCcw } from 'lucide-react'
+import { CircleCheckBig, RotateCcw, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useLocale } from '@/shared/i18n/use-locale'
-import { Button } from '@/shared/ui'
+import { buttonVariants, Button } from '@/shared/ui'
+import { QrCode } from './qr-code'
+
+const TELEGRAM_RETURN_SECONDS = 90
 
 /**
  * «Rahmat!» — the number lets HR match the form to the person.
@@ -13,16 +16,22 @@ import { Button } from '@/shared/ui'
  */
 export function KioskDone({
   formNumber,
+  telegramLink,
   returnAfter,
   onFinish,
 }: {
   formNumber: number
+  /** The link that lets the bot reach this person; `null` — nothing to ask. */
+  telegramLink: string | null
   /** Seconds before returning to the start screen; `null` — stay. */
   returnAfter: number | null
   onFinish: () => void
 }) {
   const { t } = useLocale()
-  const [left, setLeft] = useState(returnAfter ?? 0)
+  // Scanning takes longer than reading «thank you»; the tablet waits for it.
+  const [left, setLeft] = useState(() =>
+    returnAfter === null ? 0 : telegramLink === null ? returnAfter : Math.max(returnAfter, TELEGRAM_RETURN_SECONDS),
+  )
 
   useEffect(() => {
     if (returnAfter === null) return
@@ -46,6 +55,37 @@ export function KioskDone({
       <p className="mt-7 rounded-2xl bg-[var(--bg-elevated)] px-8 py-4 text-title2 font-semibold tabular shadow-card">
         {t('kiosk.done.number', { n: formNumber })}
       </p>
+
+      {telegramLink !== null && (
+        <section className="mt-7 flex w-full max-w-sm flex-col items-center rounded-2xl bg-[var(--bg-elevated)] p-5 shadow-card">
+          <h2 className="text-headline font-semibold">{t('kiosk.done.telegramTitle')}</h2>
+          <p className="mt-1.5 text-subhead text-[var(--fg-secondary)]">{t('kiosk.done.telegramText')}</p>
+
+          {/*
+            The office tablet shows only the code: opening the link there would
+            bind the tablet's own Telegram account to this person.
+          */}
+          {returnAfter === null ? (
+            <>
+              <a
+                href={telegramLink}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ variant: 'primary', size: 'lg', pill: true, className: 'mt-4 w-full' })}
+              >
+                <Send />
+                {t('kiosk.done.telegramOpen')}
+              </a>
+              <QrCode value={telegramLink} className="mt-4 hidden size-40 sm:block" />
+            </>
+          ) : (
+            <>
+              <QrCode value={telegramLink} className="mt-4 size-52" />
+              <p className="mt-3 text-footnote text-[var(--fg-secondary)]">{t('kiosk.done.telegramScan')}</p>
+            </>
+          )}
+        </section>
+      )}
 
       {returnAfter === null ? (
         <>

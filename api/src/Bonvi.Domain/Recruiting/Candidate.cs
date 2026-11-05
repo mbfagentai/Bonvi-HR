@@ -463,6 +463,24 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     /// </remarks>
     public bool? InterviewNoticeDelivered { get; private set; }
 
+    /// <summary>When the day-before reminder of the interview went to Telegram.</summary>
+    /// <remarks>Cleared with the invitation: a moved interview earns a new reminder.</remarks>
+    public DateTimeOffset? InterviewReminderSentAt { get; private set; }
+
+    /// <summary>Whether that reminder reached the candidate; <c>false</c> means Telegram refused it.</summary>
+    public bool? InterviewReminderDelivered { get; private set; }
+
+    /// <summary>
+    /// One-time token of the bot link (<c>t.me/bot?start=token</c>) that gives this candidate a
+    /// Telegram chat. Only candidates without a chat hold one.
+    /// </summary>
+    /// <remarks>
+    /// A bot cannot write to someone who never opened it, so a candidate who applied outside the
+    /// bot stays unreachable until this link is opened. Never shown in lists or the audit journal:
+    /// whoever holds it receives this candidate's invitations.
+    /// </remarks>
+    public string? TelegramLinkToken { get; private set; }
+
     /// <summary>Voronkadan chiqqan sana (rad etilgan / ishga olingan / voz kechgan / rezerv).</summary>
     public DateOnly? ClosedAt { get; private set; }
 
@@ -795,6 +813,27 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     {
         TelegramChatId ??= chatId;
         TelegramLanguage ??= Trim(language);
+        TelegramLinkToken = null;
+    }
+
+    /// <summary>
+    /// Gives the candidate a bot-link token, keeping one issued earlier: a link already handed
+    /// out must keep working.
+    /// </summary>
+    /// <param name="newToken">The token to use when none exists.</param>
+    /// <param name="language">The language the candidate wrote in; the bot answers in it.</param>
+    /// <returns>The token, or <c>null</c> when the candidate already has a chat.</returns>
+    public string? IssueTelegramLink(string newToken, string? language = null)
+    {
+        if (TelegramChatId is not null)
+        {
+            return null;
+        }
+
+        TelegramLinkToken ??= newToken;
+        TelegramLanguage ??= Trim(language);
+
+        return TelegramLinkToken;
     }
 
     /// <summary>
@@ -868,6 +907,8 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
         InterviewAt = at.ToUniversalTime();
         InterviewNoticeSentAt = null;
         InterviewNoticeDelivered = null;
+        InterviewReminderSentAt = null;
+        InterviewReminderDelivered = null;
 
         return Result.Success();
     }
@@ -886,6 +927,13 @@ public sealed class Candidate : AggregateRoot, IAuditable, ISoftDeletable
     {
         InterviewNoticeSentAt = at;
         InterviewNoticeDelivered = delivered;
+    }
+
+    /// <summary>Records the day-before reminder, after the bot actually tried to send it.</summary>
+    public void MarkInterviewReminderSent(DateTimeOffset at, bool delivered = true)
+    {
+        InterviewReminderSentAt = at;
+        InterviewReminderDelivered = delivered;
     }
 
     /// <summary>

@@ -36,6 +36,7 @@
     "leaflet": "1.9.4",
     "lucide-react": "1.33.0",
     "pdfjs-dist": "5.7.284",
+    "qrcode-generator": "1.4.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "7.85.0",

@@ -198,6 +198,26 @@ public static class SettingsEndpoints
            qo'yilmagan va bot `.env` dagi zaxiraga tushadi.
           ═══════════════════════════════════════════════════════════
         */
+        group.MapPut("/bot/username", async (
+                ReportBotUsernameRequest request,
+                ReportBotUsernameCommandHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new ReportBotUsernameCommand(request.Username), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(AuthenticationExtensions.BotServicePolicy)
+            .WithName("ReportBotUsername")
+            .WithSummary("The bot reports its Telegram username, bot only")
+            .WithDescription("Links to the bot are built from it. A malformed name is refused with 400.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         group.MapGet("/bot/token", async (
                 GetBotTokenQueryHandler handler,
                 CancellationToken cancellationToken) =>
@@ -332,3 +352,6 @@ public static class SettingsEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 }
+
+/// <summary>Body of «/bot/username».</summary>
+public sealed record ReportBotUsernameRequest(string? Username);

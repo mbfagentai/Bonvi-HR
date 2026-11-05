@@ -127,9 +127,31 @@ public interface IRecruitingReadModel
     /// suhbat vaqti qo'yilgan, Telegram suhbati ma'lum va xabar hali
     /// ketmagan.
     /// </remarks>
+    /// <param name="limit">The most rows returned.</param>
+    /// <param name="now">An interview already past is not announced any more.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
     Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewNoticesAsync(
         int limit,
+        DateTimeOffset now,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Candidates whose interview falls inside the window and who still await the reminder.
+    /// </summary>
+    /// <remarks>
+    /// Only those whose invitation reached them before <paramref name="invitedBefore"/>: someone
+    /// invited today just got the same text. A stage recorded after the invitation means HR has
+    /// moved the candidate on, so that person isn't reminded either.
+    /// </remarks>
+    Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewRemindersAsync(
+        DateTimeOffset interviewFrom,
+        DateTimeOffset interviewTo,
+        DateTimeOffset invitedBefore,
+        int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The candidate's bot-link token, read without tracking.</summary>
+    Task<string?> FindTelegramLinkTokenAsync(Guid candidateId, CancellationToken cancellationToken = default);
 
     /// <summary>Vakansiyalar ro'yxati — nomzodlar sanog'i bilan.</summary>
     Task<VacancyPage> ListVacanciesAsync(

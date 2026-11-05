@@ -4604,6 +4604,14 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("interview_notice_sent_at");
 
+                    b.Property<bool?>("InterviewReminderDelivered")
+                        .HasColumnType("boolean")
+                        .HasColumnName("interview_reminder_delivered");
+
+                    b.Property<DateTimeOffset?>("InterviewReminderSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("interview_reminder_sent_at");
+
                     b.Property<DateOnly?>("NextContactDate")
                         .HasColumnType("date")
                         .HasColumnName("next_contact_date");
@@ -4665,6 +4673,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("telegram_language");
 
+                    b.Property<string>("TelegramLinkToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("telegram_link_token");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -4719,6 +4732,11 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Source")
                         .HasDatabaseName("ix_candidates_source");
+
+                    b.HasIndex("TelegramLinkToken")
+                        .IsUnique()
+                        .HasDatabaseName("ix_candidates_telegram_link_token")
+                        .HasFilter("telegram_link_token IS NOT NULL");
 
                     b.HasIndex("CurrentStageId", "Status")
                         .HasDatabaseName("ix_candidates_current_stage_id_status");

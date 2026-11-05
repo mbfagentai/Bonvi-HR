@@ -102,6 +102,107 @@ public sealed class XabarnomaTests
     }
 
     [Fact]
+    public async Task Invitation_carries_the_map_point()
+    {
+        using var bot = new BotHarness { Location = "40.50603882, 70.93108974" };
+        bot.PendingInterviews.Add(Taklif(Oddiy));
+
+        await bot.NoticesAsync();
+
+        bot.LocationsSent.ShouldBe([Oddiy]);
+    }
+
+    [Fact]
+    public async Task Reminder_goes_once_with_the_map_point()
+    {
+        using var bot = new BotHarness { Location = "40.50603882, 70.93108974" };
+        var eslatma = Taklif(Oddiy);
+        bot.PendingReminders.Add(eslatma);
+
+        await bot.NoticesAsync();
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Oddiy]);
+        bot.LocationsSent.ShouldBe([Oddiy]);
+        bot.Marked.ShouldBe([("reminder", eslatma.CandidateId, true)]);
+        bot.Last.Text.ShouldContain("Eslatma");
+        bot.Last.Text.ShouldContain("07.10.2026, 10:00", customMessage: "Tashkent time");
+    }
+
+    [Fact]
+    public async Task Reminder_to_a_blocked_chat_is_one_attempt_without_a_point()
+    {
+        using var bot = new BotHarness { Location = "40.50603882, 70.93108974" };
+        bot.BlockedChats.Add(Bloklagan);
+        var eslatma = Taklif(Bloklagan);
+        bot.PendingReminders.Add(eslatma);
+
+        await bot.NoticesAsync();
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Bloklagan]);
+        bot.LocationsSent.ShouldBeEmpty();
+        bot.Marked.ShouldBe([("reminder", eslatma.CandidateId, false)]);
+    }
+
+    [Fact]
+    public async Task Reminder_stays_queued_while_telegram_is_unreachable()
+    {
+        using var bot = new BotHarness { TelegramUnreachable = true };
+        bot.PendingReminders.Add(Taklif(Oddiy));
+
+        await bot.NoticesAsync();
+
+        bot.Marked.ShouldBeEmpty();
+        bot.PendingReminders.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Start_with_a_valid_token_links_and_confirms_instead_of_asking_language()
+    {
+        using var bot = new BotHarness { ValidLinkToken = "0123456789abcdef0123456789abcdef", LinkedLanguage = "ru" };
+
+        await bot.StartAsync("/start 0123456789abcdef0123456789abcdef", "someone");
+
+        bot.LinkRequests.Count.ShouldBe(1);
+        bot.Last.Text.ShouldBe(BotTexts.TelegramLinked(BotLanguage.Russian));
+        bot.MatchRequests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Start_with_an_old_token_starts_as_usual()
+    {
+        using var bot = new BotHarness();
+
+        await bot.StartAsync("/start 0123456789abcdef0123456789abcdef", null);
+
+        bot.LinkRequests.Count.ShouldBe(1);
+        bot.Last.Text.ShouldBe(BotTexts.ChooseLanguage);
+    }
+
+    [Fact]
+    public async Task Plain_start_offers_the_username_and_goes_on_as_usual()
+    {
+        using var bot = new BotHarness();
+
+        await bot.StartAsync("/start", "Azizbek_K");
+
+        bot.LinkRequests.ShouldBeEmpty();
+        bot.MatchRequests.ShouldHaveSingleItem().ShouldContain("Azizbek_K");
+        bot.Last.Text.ShouldBe(BotTexts.ChooseLanguage);
+    }
+
+    [Fact]
+    public async Task Start_without_a_username_asks_the_server_nothing()
+    {
+        using var bot = new BotHarness();
+
+        await bot.StartAsync("/start", null);
+
+        bot.MatchRequests.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Suhbat_taklifi_bloklaganga_bir_marta_va_joylashuvsiz()
     {
         using var bot = new BotHarness();

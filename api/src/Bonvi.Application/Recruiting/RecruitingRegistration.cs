@@ -59,6 +59,11 @@ internal static class RecruitingRegistration
         services.AddScoped<InviteCandidateToInterviewCommandHandler>();
         services.AddScoped<ListPendingInterviewNoticesQueryHandler>();
         services.AddScoped<MarkInterviewNoticeSentCommandHandler>();
+        services.AddScoped<ListPendingInterviewRemindersQueryHandler>();
+        services.AddScoped<MarkInterviewReminderSentCommandHandler>();
+        services.AddScoped<LinkCandidateTelegramCommandHandler>();
+        services.AddScoped<MatchCandidateTelegramCommandHandler>();
+        services.AddScoped<IssueCandidateTelegramLinkCommandHandler>();
         services.AddScoped<UpdateCandidateCommandHandler>();
         services.AddScoped<ReassignCandidateCommandHandler>();
         services.AddScoped<RecordCandidateStageCommandHandler>();

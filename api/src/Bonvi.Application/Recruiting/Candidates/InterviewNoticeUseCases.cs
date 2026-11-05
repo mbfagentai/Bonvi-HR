@@ -209,8 +209,13 @@ public sealed class ListPendingInterviewNoticesQueryHandler
     private const int MaxLimit = 50;
 
     private readonly IRecruitingReadModel _readModel;
+    private readonly IClock _clock;
 
-    public ListPendingInterviewNoticesQueryHandler(IRecruitingReadModel readModel) => _readModel = readModel;
+    public ListPendingInterviewNoticesQueryHandler(IRecruitingReadModel readModel, IClock clock)
+    {
+        _readModel = readModel;
+        _clock = clock;
+    }
 
     public async Task<Result<IReadOnlyList<InterviewNoticeDto>>> HandleAsync(
         ListPendingInterviewNoticesQuery query,
@@ -221,7 +226,7 @@ public sealed class ListPendingInterviewNoticesQueryHandler
         var limit = Math.Clamp(query.Limit, 1, MaxLimit);
 
         var rows = await _readModel
-            .ListPendingInterviewNoticesAsync(limit, cancellationToken)
+            .ListPendingInterviewNoticesAsync(limit, _clock.UtcNow, cancellationToken)
             .ConfigureAwait(false);
 
         return Result.Success(rows);
