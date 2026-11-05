@@ -330,6 +330,13 @@ public static partial class ProcessDefinitionValidator
                     Add(gatePath, $"Gate «{code}» is listed twice.");
                 }
             }
+
+            // «Kerak emas» works before the step opens, so it would get past the gate unnoticed. legacySkippable is
+            // fine: a legacy case has no blocking gates (§7.6).
+            if (step.Skippable && step.Gates.Any(gate => gate.Mode == ProcessGateMode.Block))
+            {
+                Add($"{path}.skippable", "A step behind a block gate cannot be skippable.");
+            }
         }
 
         private void CheckKind(ProcessStep step, string path)

@@ -20,6 +20,12 @@ public static class ProcessWorkSections
     /// <summary>How far ahead «Kutilmoqda» looks (§10 #1).</summary>
     public const int WaitingHorizonDays = 7;
 
+    /// <summary>
+    /// Cards a section returns. Past this, a card list helps nobody and only costs the response: the totals of
+    /// <see cref="ProcessMyWorkDto"/> still say how many there are.
+    /// </summary>
+    public const int MaxSectionRows = 200;
+
     public static (List<ProcessStepRow> Urgent, List<ProcessStepRow> Later, List<ProcessStepRow> Held) Split(
         IEnumerable<ProcessStepRow> steps,
         ProcessViewer viewer,
@@ -58,7 +64,8 @@ public static class ProcessWorkSections
 /// <summary>§10 #2. No pass in front of it: the badge is asked for on every page, and #1 runs one when opened.</summary>
 public sealed class GetMyProcessCountQueryHandler
 {
-    private static readonly ProcessStepState[] CountedStates = [ProcessStepState.Active, ProcessStepState.Blocked];
+    private static readonly ProcessStepState[] ActiveOnly = [ProcessStepState.Active];
+    private static readonly ProcessStepState[] BlockedOnly = [ProcessStepState.Blocked];
 
     private readonly IProcessReadModel _readModel;
     private readonly ProcessViewerLoader _viewers;
@@ -81,38 +88,37 @@ public sealed class GetMyProcessCountQueryHandler
     {
         var (viewer, _) = await _viewers.LoadAsync(cancellationToken).ConfigureAwait(false);
 
-        var steps = await _readModel
-            .ListHeldStepsAsync(viewer.OfficeRoles, viewer.EmployeeId, CountedStates, cancellationToken)
+        // An Active step always counts, so the database counts those. Only a Blocked one is the viewer's or not.
+        var active = await _readModel
+            .CountHeldStepsAsync(viewer.OfficeRoles, viewer.EmployeeId, ActiveOnly, cancellationToken)
             .ConfigureAwait(false);
 
-        // Only a Blocked step needs its case and definition: most badges never reach this.
-        var blocked = steps.Where(step => step.State == ProcessStepState.Blocked).ToList();
-        var resolvers = new Dictionary<(Guid, string), ProcessHolderRef>();
-        if (blocked.Count > 0)
-        {
-            var cases = await _readModel
-                .ListCasesAsync([.. blocked.Select(step => step.CaseId).Distinct()], cancellationToken)
-                .ConfigureAwait(false);
-            var definitions = await _sets
-                .DefinitionsAsync(cases.Select(row => row.TemplateVersionId), cancellationToken)
-                .ConfigureAwait(false);
-            var found = await ProcessGateReading
-                .ResolversAsync(blocked, cases.ToDictionary(row => row.Id), definitions, _readModel, cancellationToken)
-                .ConfigureAwait(false);
+        var blocked = await _readModel
+            .ListHeldStepsAsync(viewer.OfficeRoles, viewer.EmployeeId, BlockedOnly, cancellationToken)
+            .ConfigureAwait(false);
 
-            foreach (var (key, holder) in found)
-            {
-                resolvers[key] = holder;
-            }
+        if (blocked.Count == 0)
+        {
+            return new ProcessMyCountDto(active);
         }
 
-        var (urgent, later, _) = ProcessWorkSections.Split(
-            steps,
+        var cases = await _readModel
+            .ListCasesAsync([.. blocked.Select(step => step.CaseId).Distinct()], cancellationToken)
+            .ConfigureAwait(false);
+        var definitions = await _sets
+            .DefinitionsAsync(cases.Select(row => row.TemplateVersionId), cancellationToken)
+            .ConfigureAwait(false);
+        var resolvers = await ProcessGateReading
+            .ResolversAsync(blocked, cases.ToDictionary(row => row.Id), definitions, _readModel, cancellationToken)
+            .ConfigureAwait(false);
+
+        var (urgent, _, _) = ProcessWorkSections.Split(
+            blocked,
             viewer,
             _clock.Today,
             step => resolvers.GetValueOrDefault((step.CaseId, step.StepCode)));
 
-        return new ProcessMyCountDto(urgent.Count + later.Count);
+        return new ProcessMyCountDto(active + urgent.Count);
     }
 }
 
@@ -168,29 +174,60 @@ public sealed class GetMyWorkQueryHandler
                 && step.DueDate is { } due && due <= horizon)
             .ToList();
         var shown = steps.Where(step => step.State is ProcessStepState.Active or ProcessStepState.Blocked).ToList();
+        var blocked = shown.Where(step => step.State == ProcessStepState.Blocked).ToList();
 
-        var cases = await _readModel
-            .ListCasesAsync([.. shown.Concat(waitingCandidates).Select(step => step.CaseId).Distinct()], cancellationToken)
+        // Sorting into sections needs a case and a definition only for Blocked steps and waiting candidates. An
+        // Active step sorts on its own row, and that is the bulk of a large list.
+        var classified = (await _readModel
+                .ListCasesAsync([.. blocked.Concat(waitingCandidates).Select(step => step.CaseId).Distinct()], cancellationToken)
+                .ConfigureAwait(false))
+            .ToDictionary(row => row.Id);
+        var definitions = await _sets
+            .DefinitionsAsync(classified.Values.Select(row => row.TemplateVersionId), cancellationToken)
+            .ConfigureAwait(false);
+        var resolvers = await ProcessGateReading
+            .ResolversAsync(blocked, classified, definitions, _readModel, cancellationToken)
             .ConfigureAwait(false);
 
-        var set = await _sets
-            .LoadAsync(cases, [.. shown, .. waitingCandidates], directory, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        var (urgent, later, held) = ProcessWorkSections.Split(
+            shown,
+            viewer,
+            today,
+            step => resolvers.GetValueOrDefault((step.CaseId, step.StepCode)));
+        var waiting = ProcessWorkSections.Ordered(
+            await WaitingOnOthersAsync(waitingCandidates, viewer, classified, definitions, cancellationToken).ConfigureAwait(false));
 
-        var (urgent, later, held) = ProcessWorkSections.Split(shown, viewer, today, set.ResolverOf);
-        var waiting = await WaitingOnOthersAsync(waitingCandidates, viewer, set, cancellationToken).ConfigureAwait(false);
+        // Names, holders and links are spent on the rows that are returned, and only those.
+        var visibleUrgent = urgent.Take(ProcessWorkSections.MaxSectionRows).ToList();
+        var visibleLater = later.Take(ProcessWorkSections.MaxSectionRows).ToList();
+        var visibleHeld = held.Take(ProcessWorkSections.MaxSectionRows).ToList();
+        var visibleWaiting = waiting.Take(ProcessWorkSections.MaxSectionRows).ToList();
+        List<ProcessStepRow> visible = [.. visibleUrgent, .. visibleLater, .. visibleHeld, .. visibleWaiting];
+
+        var visibleCaseIds = visible.Select(step => step.CaseId).ToHashSet();
+        var missingCaseIds = visibleCaseIds.Where(id => !classified.ContainsKey(id)).ToList();
+        var missingCases = missingCaseIds.Count == 0
+            ? []
+            : await _readModel.ListCasesAsync(missingCaseIds, cancellationToken).ConfigureAwait(false);
+        var cases = classified.Values.Where(row => visibleCaseIds.Contains(row.Id)).Concat(missingCases).ToList();
+
+        var set = await _sets.LoadAsync(cases, visible, directory, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         var tartib = await _tartib.ReadAsync(today, cancellationToken).ConfigureAwait(false);
 
         return new ProcessMyWorkDto(
             today,
             urgent.Count + later.Count,
-            urgent.Count(step => step.State == ProcessStepState.Active && set.DaysLate(step.DueDate) > 0),
-            [.. urgent.Select(set.Task)],
-            [.. later.Select(set.Task)],
-            [.. held.Select(set.Task)],
-            [.. ProcessWorkSections.Ordered(waiting).Select(set.Task)],
-            tartib);
+            urgent.Count(step => step.State == ProcessStepState.Active && step.DueDate < today),
+            [.. visibleUrgent.Select(set.Task)],
+            [.. visibleLater.Select(set.Task)],
+            [.. visibleHeld.Select(set.Task)],
+            [.. visibleWaiting.Select(set.Task)],
+            tartib,
+            urgent.Count,
+            later.Count,
+            held.Count,
+            waiting.Count);
     }
 
     /// <summary>
@@ -201,7 +238,8 @@ public sealed class GetMyWorkQueryHandler
     private async Task<List<ProcessStepRow>> WaitingOnOthersAsync(
         List<ProcessStepRow> candidates,
         ProcessViewer viewer,
-        ProcessReadSet set,
+        Dictionary<Guid, ProcessCaseRow> cases,
+        IReadOnlyDictionary<Guid, ProcessDefinition> definitions,
         CancellationToken cancellationToken)
     {
         if (candidates.Count == 0)
@@ -214,16 +252,18 @@ public sealed class GetMyWorkQueryHandler
                 .ConfigureAwait(false))
             .ToDictionary(step => (step.CaseId, step.StepCode));
 
+        ProcessDefinition? DefinitionOf(Guid caseId)
+            => cases.TryGetValue(caseId, out var processCase) ? definitions.GetValueOrDefault(processCase.TemplateVersionId) : null;
+
         return
         [
             .. candidates.Where(step =>
                 step.State == ProcessStepState.Waiting
-                || (set.DefinitionOf(step)?.Prereqs ?? []).Any(prerequisite =>
+                || (DefinitionOf(step.CaseId)?.FindStep(step.StepCode)?.Prereqs ?? []).Any(prerequisite =>
                     siblings.TryGetValue((step.CaseId, prerequisite), out var blocker)
                     && blocker.State is ProcessStepState.Active or ProcessStepState.Blocked
                     && blocker.HolderRole is not null
-                    && set.Cases.TryGetValue(step.CaseId, out var processCase)
-                    && set.DefinitionOf(processCase)?.FindStep(prerequisite) is { Optional: false }
+                    && DefinitionOf(step.CaseId)?.FindStep(prerequisite) is { Optional: false }
                     && !viewer.Holds(blocker.HolderRole, blocker.HolderEmployeeId))),
         ];
     }

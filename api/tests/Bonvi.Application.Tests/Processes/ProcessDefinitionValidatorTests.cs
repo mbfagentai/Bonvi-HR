@@ -482,6 +482,31 @@ public sealed class ProcessDefinitionValidatorTests
             .ShouldContain(error => error.Path == "steps[1].gate.mode");
 
     [Fact]
+    public void A_skippable_step_cannot_sit_behind_a_block_gate()
+        => Errors(root =>
+            {
+                Step(root, 1)["gate"] = new JsonObject { ["code"] = "Q03", ["mode"] = "block" };
+                Step(root, 1)["skippable"] = true;
+            })
+            .ShouldContain(error => error.Path == "steps[1].skippable");
+
+    [Fact]
+    public void A_skippable_step_may_carry_a_warn_gate()
+        => Valid(root =>
+        {
+            Step(root, 1)["gate"] = new JsonObject { ["code"] = "Q02", ["mode"] = "warn" };
+            Step(root, 1)["skippable"] = true;
+        });
+
+    [Fact]
+    public void A_legacy_skippable_step_may_sit_behind_a_block_gate()
+        => Valid(root =>
+        {
+            Step(root, 1)["gate"] = new JsonObject { ["code"] = "Q03", ["mode"] = "block" };
+            Step(root, 1)["legacySkippable"] = true;
+        });
+
+    [Fact]
     public void Gate_array_is_read_in_order()
         => Valid(root => Step(root, 1)["gate"] = new JsonArray(
                 new JsonObject { ["code"] = "Q01", ["mode"] = "block" },

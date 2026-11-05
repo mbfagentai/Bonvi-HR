@@ -580,6 +580,31 @@ public sealed partial class ProcessReconcilerTests : IClassFixture<BonviApiFacto
         again.Outcome.ShouldBe("rejected");
     }
 
+    /// <summary>
+    /// r02-11 closes on the decline branch's <c>cand.status</c>, whose linked id is the candidate. On this blank step
+    /// that id must not reach <c>linked_blank_submission_id</c>: its foreign key would fail the whole pass.
+    /// </summary>
+    [Fact]
+    public async Task Offer_closed_on_a_declined_candidate_saves_and_the_case_ends_declined()
+    {
+        await StartEngineAsync();
+        var candidate = await CandidateAsync(await VacancyAsync());
+        await RunAsync();
+        var processCase = await CandidateCaseAsync(candidate);
+
+        await CloseManuallyAsync(processCase.Id, "r02-10", """{"decision":"reject"}""");
+        await SqlAsync($"UPDATE candidates SET status = {(short)CandidateStatus.Rejected} WHERE id = {candidate}");
+        await RunAsync();
+
+        var ended = await CaseByIdAsync(processCase.Id);
+        ended.Status.ShouldBe(ProcessCaseStatus.Completed);
+        ended.Outcome.ShouldBe(ProcessOutcomes.Declined);
+
+        var offer = ended.FindStep(ProcessStepIds.Offer)!;
+        offer.State.ShouldBe(ProcessStepState.Done);
+        offer.LinkedBlankSubmissionId.ShouldBeNull();
+    }
+
     // ────────────────────────────────────────────────────────────
     //  Helpers
     // ────────────────────────────────────────────────────────────

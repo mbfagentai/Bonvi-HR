@@ -97,6 +97,11 @@ public sealed record ProcessTartibDto(
 /// <para><c>Later</c>: Active, due later or with no due date.</para>
 /// <para><c>Held</c>: The viewer's Blocked steps whose missing thing someone else holds.</para>
 /// <para><c>Waiting</c>: The viewer's Locked steps due within 7 days, an open prerequisite of which is held by someone else.</para>
+/// <para>
+/// Each section returns at most <see cref="ProcessWorkSections.MaxSectionRows"/> cards, the soonest first.
+/// <c>UrgentTotal</c>, <c>LaterTotal</c>, <c>HeldTotal</c>, <c>WaitingTotal</c> are the sizes before that cut; <c>Count</c>
+/// and <c>LateCount</c> are over everything too.
+/// </para>
 /// </remarks>
 public sealed record ProcessMyWorkDto(
     DateOnly Today,
@@ -106,7 +111,11 @@ public sealed record ProcessMyWorkDto(
     IReadOnlyList<ProcessTaskDto> Later,
     IReadOnlyList<ProcessTaskDto> Held,
     IReadOnlyList<ProcessTaskDto> Waiting,
-    ProcessTartibDto Tartib);
+    ProcessTartibDto Tartib,
+    int UrgentTotal,
+    int LaterTotal,
+    int HeldTotal,
+    int WaitingTotal);
 
 /// <summary>#2 — the menu badge.</summary>
 public sealed record ProcessMyCountDto(int Count);

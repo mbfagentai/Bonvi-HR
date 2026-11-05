@@ -109,7 +109,7 @@ public sealed partial class EfProcessFactSource
             var candidate = candidates[id];
             var facts = NewFacts();
 
-            facts[ProcessFacts.CandStatus] = Holds(candidate.UpdatedAt, StatusNumber(candidate.Status), id);
+            facts[ProcessFacts.CandStatus] = Holds(candidate.UpdatedAt, StatusNumber(candidate.Status));
 
             // ── Stage bindings: cand.stage:<code>; the «contacted» binding is also cand.contacted ──
             foreach (var (code, stageId) in bound)

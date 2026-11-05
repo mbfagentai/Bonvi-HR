@@ -55,6 +55,11 @@ public sealed record ProcessFactQuery
 /// <param name="Value">Fact value where §7.2 defines one (decision, status number, date).</param>
 /// <param name="LinkedId">The record that proves the fact (blank submission, form, employment).</param>
 /// <param name="LinkedEmployeeId">Only <c>cand.hired</c>: the hired employee.</param>
+/// <remarks>
+/// <c>LinkedId</c> is what the step closed by this fact links. On a step with a blank it lands in
+/// <c>linked_blank_submission_id</c>, a foreign key that fails the whole pass on anything else, so a fact that can
+/// close a blank step names a submission or nothing.
+/// </remarks>
 public sealed record FactValue(
     bool Holds,
     DateTimeOffset? OccurredAt = null,

@@ -86,9 +86,17 @@ public sealed class ProcessStepAbilityTests
     [InlineData(ProcessStepState.Locked)]
     [InlineData(ProcessStepState.Active)]
     [InlineData(ProcessStepState.Waiting)]
-    [InlineData(ProcessStepState.Blocked)]
-    public void The_holder_skips_any_open_skippable_step(ProcessStepState state)
+    public void The_holder_skips_an_open_skippable_step(ProcessStepState state)
         => ProcessStepAbility.CanSkip(Definition(skippable: true), Step(state), Case(), Holder()).ShouldBeTrue();
+
+    [Fact]
+    public void A_blocked_step_cannot_be_skipped_even_by_a_manager()
+    {
+        var definition = Definition(skippable: true, legacySkippable: true);
+
+        ProcessStepAbility.CanSkip(definition, Step(ProcessStepState.Blocked), Case(), Manager()).ShouldBeFalse();
+        ProcessStepAbility.CanSkip(definition, Step(ProcessStepState.Blocked), Case(legacy: true), Manager()).ShouldBeFalse();
+    }
 
     [Theory]
     [InlineData(ProcessStepState.Done)]
