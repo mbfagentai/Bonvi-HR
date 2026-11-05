@@ -4,8 +4,10 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Application.Processes.Facts;
+using Bonvi.Application.Processes.Inputs;
 using Bonvi.Application.Processes.Queries;
 using Bonvi.Domain.Abstractions;
+using Bonvi.Domain.Auditing;
 using Bonvi.Domain.Common;
 using Bonvi.Domain.Processes;
 
@@ -16,7 +18,8 @@ namespace Bonvi.Application.Processes.Commands;
 /// <param name="StepCode">The step.</param>
 /// <param name="Version">The case version the client acted on.</param>
 /// <param name="Inputs">The manual inputs, see <see cref="ProcessManualInputs"/>.</param>
-public sealed record CompleteProcessStepCommand(Guid CaseId, string StepCode, int? Version, JsonElement? Inputs);
+/// <param name="MissingReason"><c>processes.manage</c> only: why the step closes while required data is missing. Ignored when none is.</param>
+public sealed record CompleteProcessStepCommand(Guid CaseId, string StepCode, int? Version, JsonElement? Inputs, string? MissingReason);
 
 /// <summary>POST <c>/cases/{id}/steps/{code}/skip</c>.</summary>
 /// <param name="CaseId">The case.</param>
@@ -191,12 +194,21 @@ public sealed class CompleteProcessStepCommandHandler
     private readonly ProcessStepWriter _writer;
     private readonly IProcessFactSource _facts;
     private readonly IProcessStageBindingRepository _bindings;
+    private readonly ProcessInputAutoLoader _autoItems;
+    private readonly IAuditLogger _audit;
 
-    public CompleteProcessStepCommandHandler(ProcessStepWriter writer, IProcessFactSource facts, IProcessStageBindingRepository bindings)
+    public CompleteProcessStepCommandHandler(
+        ProcessStepWriter writer,
+        IProcessFactSource facts,
+        IProcessStageBindingRepository bindings,
+        ProcessInputAutoLoader autoItems,
+        IAuditLogger audit)
     {
         _writer = writer;
         _facts = facts;
         _bindings = bindings;
+        _autoItems = autoItems;
+        _audit = audit;
     }
 
     public Task<Result<ProcessCaseDetailDto>> HandleAsync(CompleteProcessStepCommand command, CancellationToken cancellationToken = default)
@@ -207,11 +219,11 @@ public sealed class CompleteProcessStepCommandHandler
             command.CaseId,
             command.StepCode,
             command.Version,
-            (target, token) => CompleteAsync(target, command.Inputs, token),
+            (target, token) => CompleteAsync(target, command, token),
             cancellationToken);
     }
 
-    private async Task<Result> CompleteAsync(ProcessStepTarget target, JsonElement? inputs, CancellationToken cancellationToken)
+    private async Task<Result> CompleteAsync(ProcessStepTarget target, CompleteProcessStepCommand command, CancellationToken cancellationToken)
     {
         if (target.Step.State == ProcessStepState.Blocked && ProcessGateReading.ErrorOf(target.Step.BlockedGateCode) is { } gate)
         {
@@ -233,17 +245,77 @@ public sealed class CompleteProcessStepCommandHandler
 
         var facts = await FactsWhenAskedAsync(target, cancellationToken).ConfigureAwait(false);
 
-        var payload = ProcessManualInputs.Validate(definition.Manual, inputs, name => facts?.Get(name) ?? FactValue.NotHeld);
-        if (payload.IsFailure)
+        var autoItems = await AutoItemsAsync(target, cancellationToken).ConfigureAwait(false);
+
+        var outcome = ProcessManualInputs.Validate(
+            definition.Manual,
+            command.Inputs,
+            name => facts?.Get(name) ?? FactValue.NotHeld,
+            autoItems,
+            command.MissingReason,
+            target.Viewer.CanManage);
+
+        if (outcome.IsFailure)
         {
-            return payload.Error;
+            return outcome.Error;
         }
 
-        var evidence = definition.Signature == EvidencedSignature && payload.Value is { } canonical
+        var evidence = definition.Signature == EvidencedSignature && outcome.Value.Payload is { } canonical
             ? ProcessManualInputs.EvidenceOf(canonical)
             : null;
 
-        return target.Case.CompleteStepManually(target.Step.StepCode, target.UserId, payload.Value, evidence, target.At);
+        var completed = target.Case.CompleteStepManually(target.Step.StepCode, target.UserId, outcome.Value.Payload, evidence, target.At);
+
+        if (completed.IsSuccess && outcome.Value.MissingOverride is { } missingOverride)
+        {
+            AuditOverride(target, missingOverride);
+        }
+
+        return completed;
+    }
+
+    /// <summary>The same loader the read uses, so what the screen showed and what is enforced can't disagree.</summary>
+    private async Task<ProcessStepAutoItems?> AutoItemsAsync(ProcessStepTarget target, CancellationToken cancellationToken)
+    {
+        var processCase = target.Case;
+        if (!ProcessInputSources.Covers(processCase.ProcessCode, target.Definition!))
+        {
+            return null;
+        }
+
+        var items = await _autoItems
+            .LoadAsync(
+                processCase.ProcessCode,
+                target.CaseDefinition!,
+                processCase.Steps.ToDictionary(step => step.StepCode, step => step.State, StringComparer.Ordinal),
+                processCase.EmployeeId,
+                processCase.EmploymentId,
+                processCase.CandidateId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return items.GetValueOrDefault(target.Step.StepCode);
+    }
+
+    private void AuditOverride(ProcessStepTarget target, ProcessMissingOverride missingOverride)
+    {
+        var items = new JsonArray();
+        foreach (var item in missingOverride.Items)
+        {
+            items.Add(new JsonObject { ["input"] = item.Input, ["item"] = item.Value });
+        }
+
+        _audit.Record(
+            AuditAction.Update,
+            nameof(ProcessCase),
+            target.Case.Id.ToString(),
+            newValues: new JsonObject
+            {
+                ["action"] = "closedWithMissingData",
+                ["step"] = target.Step.StepCode,
+                ["reason"] = missingOverride.Reason,
+                ["items"] = items,
+            }.ToJsonString());
     }
 
     /// <summary>Only <c>requiredWhen.fact</c> reads a fact, and most steps have none: then no query is spent.</summary>
