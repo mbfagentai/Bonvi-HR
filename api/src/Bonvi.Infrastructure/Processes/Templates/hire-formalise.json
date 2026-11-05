@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "code": "hire-formalise",
-  "version": "1.0",
+  "version": "1.1",
   "title": "Ishga qabulni rasmiylashtirish",
   "source": "HR-R01, 2.1",
   "subjectKind": "employment",
   "board": [
     {"key": "docs", "title": "Hujjatlar"},
     {"key": "order", "title": "Shartnoma va buyruq"},
-    {"key": "firstDay", "title": "Birinchi kun"},
-    {"key": "after", "title": "Keyingi 5 kun"}
+    {"key": "after", "title": "Ro'yxatga olish"},
+    {"key": "firstDay", "title": "Birinchi kun"}
   ],
   "steps": [
     {
@@ -126,59 +126,6 @@
       "link": {"screen": "none"}
     },
     {
-      "id": "mm",
-      "title": "Mehnat muhofazasi yo'riqnomasini o'tkazing",
-      "column": "firstDay",
-      "role": "safetyEngineer",
-      "fallbackRole": "hr2",
-      "signature": "D1",
-      "kind": "manual",
-      "prereqs": ["r01-5"],
-      "due": {"from": "employment.hireDate", "days": 0, "fallback": {"from": "case.anchorDate", "days": 0}},
-      "manual": {
-        "allowed": true,
-        "inputs": [
-          {
-            "id": "topics",
-            "label": "Yo'riqnoma mavzulari",
-            "type": "checklist",
-            "required": true,
-            "options": [
-              {"value": "machine", "label": "stanok"},
-              {"value": "gas", "label": "gaz"},
-              {"value": "electricity", "label": "elektr"},
-              {"value": "fire", "label": "yong'in"}
-            ]
-          }
-        ]
-      },
-      "guide": [
-        "Yangi xodimga ish joyidagi xavfsizlik yo'riqnomasini o'tkazing (stanok, gaz, elektr, yong'in).",
-        "Yo'riqnoma o'tkazilganini shu yerda tasdiqlang: platformadagi yozuv qog'oz jurnal o'rnini bosadi.",
-        "Xodimning o'z tasdig'i (kod bilan) keyinroq qo'shiladi."
-      ],
-      "sourceRef": "HR-R01 3-bo'lim (taqiq), HR-F05 (ishga chiqish kuni), HR-R03 (1-kun); HR-01 1.5 (mazmuni — mehnat muhofazasi xizmatida)",
-      "link": {"screen": "none"}
-    },
-    {
-      "id": "r01-8a",
-      "title": "Xodimni davomat tizimiga kiriting (Face ID)",
-      "column": "firstDay",
-      "role": "hr3",
-      "kind": "fact",
-      "prereqs": ["r01-5"],
-      "due": {"from": "employment.hireDate", "days": 0},
-      "gate": {"code": "Q02", "mode": "warn"},
-      "completion": {"fact": "emp.attendance"},
-      "guide": [
-        "Xodim ishga chiqqan kuni uni davomat terminaliga qo'shing — yuz rasmi xodim kartasidagi rasmdan olinadi.",
-        "Birinchi kirishda terminal xodimni taniganini tekshiring; tanimasa, terminalda bir marta qayta rasmga oling.",
-        "Shaxsiy ishda hujjat yetishmasa ham kiritasiz: kunlari hisoblanib boradi, faqat oylik ro'yxati kutib turadi."
-      ],
-      "sourceRef": "HR-LY-3 (egasi qarori: davomatni HR-3 kiritadi, BonviHR Face ID)",
-      "link": {"screen": "attendanceMapping"}
-    },
-    {
       "id": "r01-6",
       "title": "Xodimni mehnat.uz ga kiriting",
       "column": "after",
@@ -234,6 +181,59 @@
       ],
       "sourceRef": "HR-R01, 2.1-bo'lim, 7-qadam",
       "link": {"screen": "employee"}
+    },
+    {
+      "id": "mm",
+      "title": "Mehnat muhofazasi yo'riqnomasini o'tkazing",
+      "column": "firstDay",
+      "role": "safetyEngineer",
+      "fallbackRole": "hr2",
+      "signature": "D1",
+      "kind": "manual",
+      "prereqs": ["r01-5"],
+      "due": {"from": "employment.hireDate", "days": 0, "fallback": {"from": "case.anchorDate", "days": 0}},
+      "manual": {
+        "allowed": true,
+        "inputs": [
+          {
+            "id": "topics",
+            "label": "Yo'riqnoma mavzulari",
+            "type": "checklist",
+            "required": true,
+            "options": [
+              {"value": "machine", "label": "stanok"},
+              {"value": "gas", "label": "gaz"},
+              {"value": "electricity", "label": "elektr"},
+              {"value": "fire", "label": "yong'in"}
+            ]
+          }
+        ]
+      },
+      "guide": [
+        "Yangi xodimga ish joyidagi xavfsizlik yo'riqnomasini o'tkazing (stanok, gaz, elektr, yong'in).",
+        "Yo'riqnoma o'tkazilganini shu yerda tasdiqlang: platformadagi yozuv qog'oz jurnal o'rnini bosadi.",
+        "Xodimning o'z tasdig'i (kod bilan) keyinroq qo'shiladi."
+      ],
+      "sourceRef": "HR-R01 3-bo'lim (taqiq), HR-F05 (ishga chiqish kuni), HR-R03 (1-kun); HR-01 1.5 (mazmuni — mehnat muhofazasi xizmatida)",
+      "link": {"screen": "none"}
+    },
+    {
+      "id": "r01-8a",
+      "title": "Xodimni davomat tizimiga kiriting (Face ID)",
+      "column": "firstDay",
+      "role": "hr3",
+      "kind": "fact",
+      "prereqs": ["r01-5"],
+      "due": {"from": "employment.hireDate", "days": 0},
+      "gate": {"code": "Q02", "mode": "warn"},
+      "completion": {"fact": "emp.attendance"},
+      "guide": [
+        "Xodim ishga chiqqan kuni uni davomat terminaliga qo'shing — yuz rasmi xodim kartasidagi rasmdan olinadi.",
+        "Birinchi kirishda terminal xodimni taniganini tekshiring; tanimasa, terminalda bir marta qayta rasmga oling.",
+        "Shaxsiy ishda hujjat yetishmasa ham kiritasiz: kunlari hisoblanib boradi, faqat oylik ro'yxati kutib turadi."
+      ],
+      "sourceRef": "HR-LY-3 (egasi qarori: davomatni HR-3 kiritadi, BonviHR Face ID)",
+      "link": {"screen": "attendanceMapping"}
     },
     {
       "id": "r01-9",

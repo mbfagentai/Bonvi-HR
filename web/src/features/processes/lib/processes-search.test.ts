@@ -46,6 +46,19 @@ describe('validateProcessesSearch on the board tab', () => {
   })
 })
 
+describe('validateProcessesSearch on the documents tab', () => {
+  it('keeps its own parameters', () => {
+    const search = { tab: 'docs', missing: 'orderNo', department: 'd1', q: 'Aliyev', page: 2 }
+    expect(validateProcessesSearch(search)).toEqual(search)
+  })
+
+  it('drops the board parameters and what it cannot read', () => {
+    expect(
+      validateProcessesSearch({ tab: 'docs', view: 'list', process: 'hire', missing: ' ', page: 1 }),
+    ).toEqual({ tab: 'docs' })
+  })
+})
+
 describe('hasBoardListFilters', () => {
   it('does not count the process, the view or the page', () => {
     expect(hasBoardListFilters({ view: 'list', process: 'dismissal', page: 2 })).toBe(false)

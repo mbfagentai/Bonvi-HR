@@ -1,5 +1,7 @@
 using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Identities;
+using Bonvi.Application.Employees.Common;
+using Bonvi.Application.Employees.Completeness;
 using Bonvi.Application.Notifications;
 using Bonvi.Application.Notifications.Dtos;
 using Bonvi.Application.Processes.Definitions;
@@ -236,6 +238,7 @@ public sealed class ProcessTartibReader
     public const string UnmatchedTerminalPersons = "unmatchedTerminalPersons";
     public const string EmployeesWithoutPhoto = "employeesWithoutPhoto";
     public const string EmployeesWithoutSchedule = "employeesWithoutSchedule";
+    public const string EmployeesWithIncompleteFiles = "employeesWithIncompleteFiles";
 
     private static readonly HashSet<NotificationType> Shown =
     [
@@ -249,17 +252,20 @@ public sealed class ProcessTartibReader
     private readonly NotificationCollector _notifications;
     private readonly ListUnmatchedQueryHandler _unmatched;
     private readonly IProcessReadModel _readModel;
+    private readonly IEmployeeCompletenessReadModel _completeness;
     private readonly ICurrentUser _user;
 
     public ProcessTartibReader(
         NotificationCollector notifications,
         ListUnmatchedQueryHandler unmatched,
         IProcessReadModel readModel,
+        IEmployeeCompletenessReadModel completeness,
         ICurrentUser user)
     {
         _notifications = notifications;
         _unmatched = unmatched;
         _readModel = readModel;
+        _completeness = completeness;
         _user = user;
     }
 
@@ -284,6 +290,7 @@ public sealed class ProcessTartibReader
         if (_user.HasPermission(Permissions.EmployeesView))
         {
             Add(counts, EmployeesWithoutPhoto, await _readModel.CountActiveEmployeesWithoutPhotoAsync(cancellationToken).ConfigureAwait(false));
+            Add(counts, EmployeesWithIncompleteFiles, await _completeness.CountWithGapsAsync(_user.CanSeeSalary(), cancellationToken).ConfigureAwait(false));
         }
 
         if (_user.HasPermission(Permissions.AttendanceManage))

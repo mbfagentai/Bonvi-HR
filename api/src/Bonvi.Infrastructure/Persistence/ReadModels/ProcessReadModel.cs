@@ -256,6 +256,17 @@ public sealed class ProcessReadModel : IProcessReadModel
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<ProcessCaseRow>> ListChildCasesAsync(
+        Guid parentCaseId,
+        string processCode,
+        CancellationToken cancellationToken = default)
+        => await _context.ProcessCases
+            .AsNoTracking()
+            .Where(row => row.ParentCaseId == parentCaseId && row.ProcessCode == processCode)
+            .Select(CaseRow)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<IReadOnlyList<ProcessChildStepRow>> ListChildStepsAsync(
         IReadOnlyCollection<Guid> parentCaseIds,
         string stepCode,

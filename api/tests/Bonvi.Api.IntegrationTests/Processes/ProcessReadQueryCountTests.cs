@@ -108,6 +108,39 @@ public sealed class ProcessReadQueryCountTests : IClassFixture<BonviApiFactory>
             .ToList();
 
         grown.ShouldBeEmpty(string.Join(Environment.NewLine, grown));
+
+        // Here, not in a test of its own: the database is the class's, and a second seed would break the exact counts above.
+        await TheChainReadSendsAtMostThreeCaseCommandsAsync(host, client);
+    }
+
+    private async Task TheChainReadSendsAtMostThreeCaseCommandsAsync(WebApplicationFactory<Program> host, HttpClient client)
+    {
+        var candidate = await DbAsync(host, db => db.ProcessCases.AsNoTracking()
+            .Where(row => row.ProcessCode == ProcessCodes.HireFormalise && row.ParentCaseId != null)
+            .Select(row => row.ParentCaseId!.Value)
+            .FirstAsync(Ct));
+        var formalise = await DbAsync(host, db => db.ProcessCases.AsNoTracking()
+            .Where(row => row.ParentCaseId == candidate)
+            .Select(row => row.Id)
+            .FirstAsync(Ct));
+        var request = await DbAsync(host, db => db.ProcessCases.AsNoTracking()
+            .Where(row => row.ProcessCode == ProcessCodes.HireRequest)
+            .Select(row => row.Id)
+            .FirstAsync(Ct));
+        await DbAsync(host, db => db.Database.ExecuteSqlAsync($"UPDATE process_cases SET parent_case_id = {request} WHERE id = {candidate}", Ct));
+
+        foreach (var (asked, length) in new[] { (request, 1), (candidate, 3), (formalise, 3) })
+        {
+            (await GetAsync(client, $"{Root}/cases/{asked}/chain")).ValueKind.ShouldBe(JsonValueKind.Object);
+
+            _log.Start();
+            var chain = await GetAsync(client, $"{Root}/cases/{asked}/chain");
+            var commands = _log.Stop();
+
+            chain.GetProperty("caseIds").GetArrayLength().ShouldBe(length);
+            commands.Count(command => command.Contains("process_cases", StringComparison.Ordinal)).ShouldBeLessThanOrEqualTo(3);
+            commands.ShouldNotContain(command => command.Contains(StepsTable, StringComparison.Ordinal));
+        }
     }
 
     // ────────────────────────────────────────────────────────────
@@ -182,6 +215,7 @@ public sealed class ProcessReadQueryCountTests : IClassFixture<BonviApiFactory>
     {
         await DbAsync(host, db => db.Database.ExecuteSqlAsync($"DELETE FROM blank_role_assignments", Ct));
         await DbAsync(host, db => ProcessTestBlanks.EnsureStandInsAsync(db, Ct));
+        await ProcessTestGates.EnforceAsync(host.Services, Ct);
         await DbAsync(host, async db =>
         {
             var value = Today(host).ToString(SystemSettingKeys.ProcessesStartedOnFormat, System.Globalization.CultureInfo.InvariantCulture);

@@ -1,7 +1,7 @@
 import { PROCESS_CASE_STATUSES, type ProcessCaseStatus } from '../api/processes-api'
 
-/** The three tabs of `/mening-ishlarim` (SPEC §11.2–§11.4). */
-export const PROCESS_TABS = ['my', 'board', 'late'] as const
+/** The tabs of `/mening-ishlarim` (SPEC §11.2–§11.4); `docs` is «Hujjatlari chala». */
+export const PROCESS_TABS = ['my', 'board', 'late', 'docs'] as const
 export type ProcessTab = (typeof PROCESS_TABS)[number]
 
 /** The «Jarayonlar» tab's address (SPEC §11.3): which process, which view, and the list's filters (§10 #3). */
@@ -22,7 +22,15 @@ export interface ProcessBoardSearch {
   page?: number
 }
 
-export interface ProcessesSearch extends ProcessBoardSearch {
+/** The «Hujjatlari chala» tab's own filter; its department, `q` and page share the board's parameters. */
+export interface ProcessDocsSearch {
+  missing?: string
+  department?: string
+  q?: string
+  page?: number
+}
+
+export interface ProcessesSearch extends ProcessBoardSearch, ProcessDocsSearch {
   /** Absent means the first tab, so the plain menu address stays clean. */
   tab?: Exclude<ProcessTab, 'my'>
 }
@@ -67,10 +75,24 @@ function validateBoardSearch(search: Record<string, unknown>): ProcessBoardSearc
   ) as ProcessBoardSearch
 }
 
-/** Never throws: a stale or mistyped `tab` opens the first tab, and only the board tab keeps its own parameters. */
+function validateDocsSearch(search: Record<string, unknown>): ProcessDocsSearch {
+  const entries: ProcessDocsSearch = {
+    missing: readText(search['missing']),
+    department: readText(search['department']),
+    q: readText(search['q']),
+    page: readPage(search['page']),
+  }
+
+  return Object.fromEntries(
+    Object.entries(entries).filter(([, value]) => value !== undefined),
+  ) as ProcessDocsSearch
+}
+
+/** Never throws: a stale or mistyped `tab` opens the first tab, and each tab keeps only its own parameters. */
 export function validateProcessesSearch(search: Record<string, unknown>): ProcessesSearch {
   const tab = search['tab']
   if (tab === 'board') return { tab, ...validateBoardSearch(search) }
+  if (tab === 'docs') return { tab, ...validateDocsSearch(search) }
   return tab === 'late' ? { tab } : {}
 }
 

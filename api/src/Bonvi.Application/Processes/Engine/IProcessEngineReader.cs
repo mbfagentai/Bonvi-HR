@@ -144,4 +144,7 @@ public interface IProcessEngineJournal
     void TemplateMissing(string processCode);
 
     void TemplateUnreadable(Guid versionId, Exception exception);
+
+    /// <summary>A hook gate could not answer in <c>warn</c> mode and let the operation through (§8.2).</summary>
+    void GateFailedOpen(string operation, Guid employeeId, Exception exception);
 }

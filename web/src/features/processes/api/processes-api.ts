@@ -404,6 +404,19 @@ export async function fetchProcessBoard(
 }
 
 /** #5 — one case with its steps, reconciled by the server first. */
+/** The cases one person's hiring reads as, oldest stage first. Any other case is just itself. */
+export interface ProcessCaseChain {
+  caseIds: string[]
+}
+
+export async function fetchProcessCaseChain(
+  caseId: string,
+  signal?: AbortSignal,
+): Promise<ProcessCaseChain> {
+  const { data } = await api.get<ProcessCaseChain>(`/api/processes/cases/${caseId}/chain`, { signal })
+  return data
+}
+
 export async function fetchProcessCase(
   caseId: string,
   signal?: AbortSignal,

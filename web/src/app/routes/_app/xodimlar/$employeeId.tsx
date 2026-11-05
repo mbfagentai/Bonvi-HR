@@ -76,6 +76,7 @@ export const Route = createFileRoute('/_app/xodimlar/$employeeId')({
     tab: TABS.find((value) => value === search['tab']),
     year: readNumber(search['year']),
     month: readNumber(search['month']),
+    edit: search['edit'] === true ? true : undefined,
   }),
   component: EmployeeCardPage,
 })
@@ -85,6 +86,8 @@ interface EmployeeCardSearch {
   /** Davomat kalendarining oyi — `year` va `month` DOIM birga. */
   year?: number
   month?: number
+  /** Opens the edit form: «Hujjatlari chala» sends HR straight to where a missing field is entered. */
+  edit?: true
 }
 
 function readNumber(value: unknown): number | undefined {
@@ -170,7 +173,20 @@ function EmployeeCardPage() {
     employment: EmploymentSummary
   } | null>(null)
 
-  const [editing, setEditing] = useState(false)
+  const [editingHere, setEditingHere] = useState(false)
+  const editing = editingHere || search.edit === true
+
+  const closeEditing = () => {
+    setEditingHere(false)
+    if (search.edit === true) {
+      void navigate({
+        to: '/xodimlar/$employeeId',
+        params: { employeeId },
+        search: { ...search, edit: undefined },
+        replace: true,
+      })
+    }
+  }
 
   const { hasPermission } = useAuth()
   const canEdit = hasPermission(EMPLOYEES_EDIT)
@@ -397,7 +413,7 @@ function EmployeeCardPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setEditing(true)}
+              onClick={() => setEditingHere(true)}
               className="shrink-0"
             >
               <Pencil />
@@ -493,7 +509,7 @@ function EmployeeCardPage() {
         <EmployeeEditDialog
           open={editing}
           employee={person}
-          onClose={() => setEditing(false)}
+          onClose={closeEditing}
         />
       )}
 

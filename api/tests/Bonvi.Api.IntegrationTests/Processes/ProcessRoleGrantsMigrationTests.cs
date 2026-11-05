@@ -15,6 +15,7 @@ namespace Bonvi.Api.IntegrationTests.Processes;
 /// </summary>
 public sealed class ProcessRoleGrantsMigrationTests
 {
+    private const string BeforeProcesses = "20261103111355_Blankalar";
     private const string Previous = "20261104124759_Processes";
     private const string Target = "20261105100333_JarayonRuxsatlariRollarga";
     private const string Custom = "kadr_bolimi";
@@ -196,6 +197,44 @@ public sealed class ProcessRoleGrantsMigrationTests
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// <c>Down</c> of <c>Processes</c> itself: its settings go with its tables, or the next deploy would meet an old
+    /// <c>processes.startedOn</c> and take everything since then for new (docs/DEPLOY-CHECKLIST.md, go-live).
+    /// </summary>
+    [Fact]
+    public async Task Processes_down_deletes_its_settings_and_no_other()
+    {
+        var cancellation = TestContext.Current.CancellationToken;
+        await using var database = await TemporaryDatabase.CreateAsync(cancellation);
+        await MigrateAsync(database.ConnectionString, Previous, cancellation);
+
+        await using var connection = await OpenAsync(database, cancellation);
+        await ExecuteAsync(
+            connection,
+            """
+            INSERT INTO system_settings (id, key, value, created_at, updated_at) VALUES
+                (gen_random_uuid(), 'processes.startedOn', '2026-11-05', now(), now()),
+                (gen_random_uuid(), 'processes.gates.mode', 'warn', now(), now()),
+                (gen_random_uuid(), 'processes.councilWeekday', '4', now(), now()),
+                (gen_random_uuid(), 'processes.reconcile.watermark', '2026-11-05T00:00:00Z', now(), now()),
+                (gen_random_uuid(), 'processes_not_ours', 'x', now(), now())
+            """,
+            cancellation);
+
+        await MigrateAsync(database.ConnectionString, BeforeProcesses, cancellation);
+
+        await using var read = connection.CreateCommand();
+        read.CommandText = "SELECT key FROM system_settings WHERE key LIKE 'processes%' ORDER BY key";
+        await using var reader = await read.ExecuteReaderAsync(cancellation);
+        var left = new List<string>();
+        while (await reader.ReadAsync(cancellation))
+        {
+            left.Add(reader.GetString(0));
+        }
+
+        left.ShouldBe(["processes_not_ours"]);
     }
 
     private static async Task MigrateAsync(string connectionString, string target, CancellationToken cancellation)

@@ -79,7 +79,7 @@ public sealed record ProcessTaskDto(
 
 /// <summary>A count card of §11.8.</summary>
 /// <remarks>
-/// <para><c>Key</c>: <c>unmatchedTerminalPersons</c>, <c>employeesWithoutPhoto</c> or <c>employeesWithoutSchedule</c>.</para>
+/// <para><c>Key</c>: <c>unmatchedTerminalPersons</c>, <c>employeesWithoutPhoto</c>, <c>employeesWithoutSchedule</c> or <c>employeesWithIncompleteFiles</c>.</para>
 /// <para><c>Count</c>: Always above zero: an empty card is not sent.</para>
 /// </remarks>
 public sealed record ProcessTartibCountDto(string Key, int Count);
