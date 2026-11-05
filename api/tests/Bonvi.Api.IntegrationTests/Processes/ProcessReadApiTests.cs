@@ -162,7 +162,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         await StartEngineAsync();
         var hire = await HireAsync(orderNo: "READ-" + Suffix(), hireDate: Today);
         await RunAsync();
-        var processCase = await FormaliseAsync(hire);
+        var processCase = await RunningSinceAsync(await FormaliseAsync(hire), Today.AddDays(-7));
 
         var viewer = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView);
         await AssignRoleAsync(viewer.UserId, ProcessRoles.Hr2);
@@ -559,7 +559,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         var candidate = await CandidateAsync(await VacancyAsync());
         await RunAsync();
 
-        var caseA = await FormaliseAsync(hireA);
+        var caseA = await RunningSinceAsync(await FormaliseAsync(hireA), Today.AddDays(-7));
         var caseB = await FormaliseAsync(hireB);
         var requestCase = await CaseAsync(ProcessCodes.HireRequest, ProcessSubjectRefs.VacancyRequest(request.Id));
         var candidateCase = await CaseAsync(ProcessCodes.HireCandidate, ProcessSubjectRefs.Candidate(candidate, Today));
@@ -606,7 +606,10 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         var department = await DepartmentAsync("Oʻqish " + Suffix());
         var hire = await HireAsync(orderNo: "READ-" + Suffix(), hireDate: Today, departmentId: department);
         await RunAsync();
-        var processCase = await FormaliseAsync(hire);
+        var started = await FormaliseAsync(hire);
+        started.StartedOn.ShouldBe(Today, "the day the hire was recorded");
+        var since = Today.AddDays(-7);
+        var processCase = await RunningSinceAsync(started, since);
 
         using var client = await ClientAsync(Permissions.ProcessesView);
 
@@ -622,7 +625,7 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         item.GetProperty("departmentId").GetGuid().ShouldBe(department);
         item.GetProperty("departmentName").GetString().ShouldStartWith("Oʻqish");
         item.GetProperty("subject").GetProperty("name").GetString().ShouldBe(hire.FullName);
-        item.GetProperty("startedOn").GetString().ShouldBe(Iso(Today));
+        item.GetProperty("startedOn").GetString().ShouldBe(Iso(since));
         item.GetProperty("completedAt").ValueKind.ShouldBe(JsonValueKind.Null);
 
         var current = item.GetProperty("currentSteps").EnumerateArray().ToList();
@@ -1125,8 +1128,8 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         var worse = await HireAsync(orderNo: "READ-" + Suffix(), hireDate: Today.AddDays(-60), orderDate: Today.AddDays(-60));
         var onTime = await VacancyRequestAsync();
         await RunAsync();
-        var processCase = await FormaliseAsync(hire);
-        var worseCase = await FormaliseAsync(worse);
+        var processCase = await RunningSinceAsync(await FormaliseAsync(hire), Today.AddDays(-40));
+        var worseCase = await RunningSinceAsync(await FormaliseAsync(worse), Today.AddDays(-70));
         var requestCase = await CaseAsync(ProcessCodes.HireRequest, ProcessSubjectRefs.VacancyRequest(onTime.Id));
 
         using var client = await ClientAsync(Permissions.ProcessesView);
@@ -1153,6 +1156,41 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
         StepsOf(late, "late", worseCase.Id).ShouldContain("r01-2");
         Task(late, "late", worseCase.Id, "r01-2").GetProperty("daysLate").GetInt32()
             .ShouldBeGreaterThan(lateStep.GetProperty("daysLate").GetInt32());
+    }
+
+    /// <summary>
+    /// §3.1 floor: a hire recorded 30 days after the fact is due the day it is recorded, not 31 days ago. The floor
+    /// is the start date, so it stays put: the same step is one day late the next day, and the rule's own date wins
+    /// once it is the later one.
+    /// </summary>
+    [Fact]
+    public async Task Late_a_case_is_not_late_on_the_day_it_starts_and_is_late_from_the_next()
+    {
+        await StartEngineAsync();
+        var hire = await HireAsync(orderNo: "READ-" + Suffix(), hireDate: Today.AddDays(-30), orderDate: Today.AddDays(-30));
+        await RunAsync();
+        var processCase = await FormaliseAsync(hire);
+
+        using var client = await ClientAsync(Permissions.ProcessesView);
+
+        processCase.StartedOn.ShouldBe(Today);
+        processCase.FindStep("r01-2")!.DueDate.ShouldBe(Today);
+        StepsOf(await GetAsync(client, Root + "/late"), "late", processCase.Id).ShouldNotContain("r01-2");
+        (await IdsOfAsync(client, $"employee={hire.EmployeeId}&late=true")).ShouldBeEmpty();
+
+        var nextDay = await RunningSinceAsync(processCase, Today.AddDays(-1));
+
+        nextDay.FindStep("r01-2")!.DueDate.ShouldBe(Today.AddDays(-1));
+        var late = await GetAsync(client, Root + "/late");
+        Task(late, "late", processCase.Id, "r01-2").GetProperty("daysLate").GetInt32().ShouldBe(1);
+        (await IdsOfAsync(client, $"employee={hire.EmployeeId}&late=true")).ShouldBe([processCase.Id]);
+
+        var longAgo = await RunningSinceAsync(processCase, Today.AddDays(-60));
+
+        var raw = longAgo.FindStep("r01-2")!.DueDate.ShouldNotBeNull();
+        raw.ShouldBeLessThan(Today.AddDays(-30), "the working day before the hire");
+        Task(await GetAsync(client, Root + "/late"), "late", processCase.Id, "r01-2").GetProperty("daysLate").GetInt32()
+            .ShouldBe(Today.DayNumber - raw.DayNumber);
     }
 
     [Fact]
@@ -1354,6 +1392,17 @@ public sealed class ProcessReadApiTests : IClassFixture<BonviApiFactory>
 
     private Task<ProcessCase> FormaliseAsync(Hire hire)
         => CaseAsync(ProcessCodes.HireFormalise, ProcessSubjectRefs.FormaliseFromEmployment(hire.EmploymentId));
+
+    /// <summary>
+    /// The case has been open since <paramref name="since"/>, then a pass. A case never starts already late (§3.1
+    /// floor), so a test of lateness needs one that started earlier: the clock cannot be moved.
+    /// </summary>
+    private async Task<ProcessCase> RunningSinceAsync(ProcessCase processCase, DateOnly since)
+    {
+        await SqlAsync($"UPDATE process_cases SET started_on = {since} WHERE id = {processCase.Id}");
+        await RunAsync();
+        return await CaseByIdAsync(processCase.Id);
+    }
 
     // ────────────────────────────────────────────────────────────
     //  HTTP and JSON
