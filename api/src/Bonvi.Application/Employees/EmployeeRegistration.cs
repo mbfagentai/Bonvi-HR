@@ -1,5 +1,6 @@
 using Bonvi.Application.Employees.Checks;
 using Bonvi.Application.Employees.Commands;
+using Bonvi.Application.Employees.Completeness;
 using Bonvi.Application.Employees.Common;
 using Bonvi.Application.Employees.Competencies;
 using Bonvi.Application.Employees.Documents;
@@ -47,6 +48,8 @@ internal static class EmployeeRegistration
 
         // Xodimlar
         services.AddScoped<SearchEmployeesQueryHandler>();
+        services.AddScoped<GetEmployeeCompletenessQueryHandler>();
+        services.AddScoped<GetEmployeeCompletenessSummaryQueryHandler>();
         services.AddScoped<GetEmployeeQueryHandler>();
         services.AddScoped<GetEmployeeTimelineQueryHandler>();
         services.AddScoped<CreateEmployeeCommandHandler>();
