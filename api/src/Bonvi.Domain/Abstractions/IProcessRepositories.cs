@@ -23,6 +23,9 @@ public interface IProcessTemplateVersionRepository : IRepository<ProcessTemplate
 
     /// <summary>Every Published version (one per template).</summary>
     Task<IReadOnlyList<ProcessTemplateVersion>> ListPublishedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The given versions in any status: an Active case keeps its version after that version is retired.</summary>
+    Task<IReadOnlyList<ProcessTemplateVersion>> ListByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Storage port for process cases (§6.2–§6.3).</summary>
@@ -39,6 +42,12 @@ public interface IProcessCaseRepository : IRepository<ProcessCase>
 
     /// <summary>Every Active case with its steps — one reconciler pass (split query, no N+1).</summary>
     Task<IReadOnlyList<ProcessCase>> ListActiveWithStepsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The cases of the given subjects of one process, any status, with steps — what a starter checks first.</summary>
+    Task<IReadOnlyList<ProcessCase>> ListBySubjectRefsAsync(string processCode, IReadOnlyCollection<string> subjectRefs, CancellationToken cancellationToken = default);
+
+    /// <summary>The children of the given cases, any status, with steps.</summary>
+    Task<IReadOnlyList<ProcessCase>> ListByParentIdsAsync(IReadOnlyCollection<Guid> parentIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Storage port for gate overrides (§6.4).</summary>
