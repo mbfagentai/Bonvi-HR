@@ -449,6 +449,24 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
     }
 
     [Fact]
+    public async Task Skipping_the_payroll_handover_blocked_on_the_jshshir_is_409_with_the_gates_code()
+    {
+        var (_, processCase) = await FormaliseAsync(withPinfl: false);
+        using var client = await ManagerAsync();
+        var detail = await DetailAsync(client, processCase.Id);
+        StepOf(detail, ProcessStepIds.PayrollHandover).GetProperty("state").GetString().ShouldBe("Blocked");
+
+        var reply = await PostAsync(
+            client,
+            $"{Root}/cases/{processCase.Id}/steps/{ProcessStepIds.PayrollHandover}/skip",
+            new { version = Version(detail), reason = "Kerak emas" });
+
+        reply.Status.ShouldBe(HttpStatusCode.Conflict, reply.Raw);
+        reply.Title.ShouldBe(JshshirYoq);
+        (await CaseByIdAsync(processCase.Id)).FindStep(ProcessStepIds.PayrollHandover)!.State.ShouldBe(ProcessStepState.Blocked);
+    }
+
+    [Fact]
     public async Task An_override_on_Q03_lifts_the_jshshir_block_but_not_the_payment()
     {
         var (_, processCase) = await FormaliseAsync(withPinfl: false);

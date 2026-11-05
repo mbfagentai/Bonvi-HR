@@ -307,6 +307,11 @@ public sealed class SkipProcessStepCommandHandler
             return ProcessErrors.InvalidStepState;
         }
 
+        if (target.Step.State == ProcessStepState.Blocked && ProcessGateReading.ErrorOf(target.Step.BlockedGateCode) is { } gate)
+        {
+            return gate;
+        }
+
         if (!ProcessStepAbility.CanSkip(target.Definition, target.StepRow, target.CaseRow, target.Viewer))
         {
             return ProcessStepAbility.MayAct(target.StepRow, target.Viewer) ? ProcessErrors.InvalidStepState : ProcessErrors.Forbidden;

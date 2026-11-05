@@ -420,6 +420,10 @@ public static class ProcessStepAbility
             && MayAct(step, viewer);
     }
 
+    /// <remarks>
+    /// A Blocked step cannot be skipped by anyone: «Kerak emas» would close it without the gate's condition and open
+    /// everything behind it. The way past a gate is the override (§8.4).
+    /// </remarks>
     public static bool CanSkip(ProcessStep? definition, ProcessStepRow step, ProcessCaseRow processCase, ProcessViewer viewer)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -429,6 +433,7 @@ public static class ProcessStepAbility
         return viewer.CanWork
             && processCase.Status == ProcessCaseStatus.Active
             && step.IsOpen
+            && step.State != ProcessStepState.Blocked
             && definition is not null
             && (definition.Skippable || (processCase.Legacy && definition.LegacySkippable))
             && MayAct(step, viewer);
