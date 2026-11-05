@@ -4259,7 +4259,8 @@
       "gate": {
         "openCase": "Jarayonni ochish",
         "openWork": "«Mening ishlarim»ni ochish"
-      }
+      },
+      "reloadFailed": "Qadam bajarildi, lekin sahifa yangilanmadi."
     },
     "settings": {
       "title": "Sozlamalar",

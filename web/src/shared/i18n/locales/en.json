@@ -4259,7 +4259,8 @@
       "gate": {
         "openCase": "Open the process",
         "openWork": "Open «My work»"
-      }
+      },
+      "reloadFailed": "The step is done, but the page did not refresh."
     },
     "settings": {
       "title": "Settings",
