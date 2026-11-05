@@ -52,6 +52,27 @@ public sealed class ProcessInlineReconcile
     public Task BeforeCaseReadAsync(Guid caseId, CancellationToken cancellationToken = default)
         => RunShelteredAsync(reconciler => reconciler.RunCaseAsync(caseId, cancellationToken), cancellationToken);
 
+    /// <summary>
+    /// §10 #18: a full pass now, past the throttle, and its answer. Not sheltered: this is a diagnostic, and a failure
+    /// must reach whoever asked. Still «the system» to the audit, whoever clicked.
+    /// </summary>
+    public async Task<ProcessReconcileResult> RunNowAsync(CancellationToken cancellationToken = default)
+    {
+        Task<ProcessReconcileResult> running;
+        using (ExecutionContext.SuppressFlow())
+        {
+            running = Task.Run(
+                async () =>
+                {
+                    await using var scope = _scopes.CreateAsyncScope();
+                    return await scope.ServiceProvider.GetRequiredService<ProcessReconciler>().RunAsync(cancellationToken).ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
+
+        return await running.ConfigureAwait(false);
+    }
+
     private bool TryTakeSlot()
     {
         var now = _clock.UtcNow.UtcTicks;

@@ -24,6 +24,18 @@ public static class ProcessErrors
     public static readonly Error Stale =
         Error.Conflict("jarayon.versiya", "Jarayonni boshqa foydalanuvchi o'zgartirdi — sahifani yangilang.");
 
+    /// <summary>A manual start for an employment that already has its case: one subject, one case (§3.2).</summary>
+    public static readonly Error CaseAlreadyStarted =
+        Error.Conflict("jarayon.allaqachon_ochilgan", "Bu xodim uchun bu jarayon allaqachon ochilgan.");
+
+    /// <summary>A pass holds the engine lock for its moment: nothing was written, the same click works in a few seconds.</summary>
+    public static readonly Error EngineBusy =
+        Error.Conflict("jarayon.band", "Jarayonlar hozir hisoblanmoqda — bir necha soniyadan keyin qayta urining.");
+
+    /// <summary>Reopen refused: what ended the case still holds, the very next pass would end it again (§7.5).</summary>
+    public static readonly Error EndFactStillHolds =
+        Error.Conflict("jarayon.yakun_kuchda", "Jarayonni yakunlagan holat hali o'zgarmagan — qayta ochilsa yana yakunlanadi.");
+
     public static readonly Error OverrideNotUsable =
         Error.Conflict("jarayon.istisno_yaroqsiz", "Istisno ishlatilgan yoki muddati o'tgan.");
 

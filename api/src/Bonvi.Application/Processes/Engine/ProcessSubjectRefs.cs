@@ -34,6 +34,9 @@ public static class ProcessStepIds
     /// <summary>Final settlement, engine part of Q12.</summary>
     public const string FinalSettlement = "ex-10";
 
+    /// <summary>The application of a dismissal: a manual start records it here (§3.7).</summary>
+    public const string DismissalApplication = "ex-1";
+
     /// <summary>F09 opened.</summary>
     public const string ActOpened = "ex-2";
 

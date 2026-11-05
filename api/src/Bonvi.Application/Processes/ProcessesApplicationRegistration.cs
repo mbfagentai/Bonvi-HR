@@ -1,3 +1,4 @@
+using Bonvi.Application.Processes.Commands;
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
 using Bonvi.Application.Processes.Gates;
@@ -45,6 +46,21 @@ public static class ProcessesApplicationRegistration
         services.AddScoped<GetProcessLateQueryHandler>();
         services.AddScoped<ListProcessTemplatesQueryHandler>();
         services.AddScoped<GetProcessStatusQueryHandler>();
+
+        // Writes (§10 #9–#13, #16–#18).
+        services.AddScoped<ProcessStepWriter>();
+        services.AddScoped<StartProcessCaseCommandHandler>();
+        services.AddScoped<CompleteProcessStepCommandHandler>();
+        services.AddScoped<SkipProcessStepCommandHandler>();
+        services.AddScoped<UndoProcessStepCommandHandler>();
+        services.AddScoped<CancelProcessCaseCommandHandler>();
+        services.AddScoped<ReopenProcessCaseCommandHandler>();
+        services.AddScoped<RunProcessReconcileCommandHandler>();
+        services.AddScoped<ListProcessStageBindingsQueryHandler>();
+        services.AddScoped<SetProcessStageBindingsCommandHandler>();
+        services.AddScoped<ListProcessHolidaysQueryHandler>();
+        services.AddScoped<SaveProcessHolidayCommandHandler>();
+        services.AddScoped<DeleteProcessHolidayCommandHandler>();
 
         return services;
     }
