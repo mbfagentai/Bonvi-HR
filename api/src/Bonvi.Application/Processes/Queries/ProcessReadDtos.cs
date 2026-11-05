@@ -315,7 +315,7 @@ public sealed record ProcessTemplateDto(
     string Version,
     string Title,
     string Source,
-    string SubjectKind,
+    ProcessSubjectKind SubjectKind,
     IReadOnlyList<ProcessColumnDto> Board,
     IReadOnlyList<ProcessTemplateStepDto> Steps);
 

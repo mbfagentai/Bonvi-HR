@@ -173,7 +173,7 @@ public static class ProcessDefinitionDtos
             definition.Version,
             definition.Title,
             definition.Source,
-            definition.SubjectKind,
+            Enum.Parse<ProcessSubjectKind>(definition.SubjectKind, ignoreCase: true),
             [.. definition.Board.Select(column => new ProcessColumnDto(column.Key, column.Title))],
             [.. definition.Steps.Select(Step)]);
     }
