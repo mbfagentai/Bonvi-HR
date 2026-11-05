@@ -181,7 +181,9 @@ public sealed partial class ProcessWriteApiTests : IClassFixture<BonviApiFactory
     public async Task Done_closes_the_step_as_the_person_and_the_answer_shows_what_the_pass_opened()
     {
         await ClearRolesAsync();
-        var (_, processCase) = await FormaliseAsync();
+        var (hire, processCase) = await FormaliseAsync();
+        await FillCardAsync(hire.EmployeeId, RandomPassport());
+        await AttachDocumentsAsync(hire.EmployeeId, DocsStepTypes);
         var holder = await TestAccounts.CreateAsync(_factory, Permissions.ProcessesView, Permissions.ProcessesWork);
         await AssignRoleAsync(holder.UserId, ProcessRoles.Hr2);
         using var client = ClientWith(holder.AccessToken);

@@ -943,6 +943,7 @@
     "jarayon.holat_notogri": "This action is not available in the process's current state.",
     "jarayon.versiya": "Another user changed this process — refresh the page.",
     "jarayon.allaqachon_ochilgan": "This process is already open for this employee.",
+    "jarayon.malumot_yetishmaydi": "Required data is missing from the system — fill it in first.",
     "jarayon.band": "Processes are being recalculated — try again in a few seconds.",
     "jarayon.yakun_kuchda": "What ended this process has not changed — reopened, it would end again.",
     "jarayon.istisno_yaroqsiz": "The exception has already been used or has expired.",

@@ -17,5 +17,7 @@
     <None Include="..\..\src\Bonvi.Infrastructure\Blanks\Templates\*.json" Link="Blanks\Templates\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Process templates (Infrastructure, embedded) — each must pass the validator (SPEC-mening-ishlarim §3.1) -->
     <None Include="..\..\src\Bonvi.Infrastructure\Processes\Templates\*.json" Link="Processes\Templates\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- ProcessInputSourcesTests holds the document type names of its map to this file. -->
+    <None Include="..\..\src\Bonvi.Infrastructure\Persistence\Seed\data\document-types.json" Link="Seed\document-types.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
