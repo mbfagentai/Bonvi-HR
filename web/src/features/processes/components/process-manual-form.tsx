@@ -60,7 +60,7 @@ export function ProcessManualForm({
         if (Object.keys(errors).length === 0) onSubmit(toManualInputs(inputs, values))
       }}
     >
-      <fieldset disabled={locked || pending} className="space-y-4">
+      <fieldset disabled={locked || pending} className="min-w-0 space-y-4">
         {inputs.map((input) => (
           <ManualField
             key={input.id}

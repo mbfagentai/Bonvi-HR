@@ -1,5 +1,13 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowUpRight, ChevronRight, ExternalLink, FileText, Lock } from 'lucide-react'
+import {
+  ArrowUpRight,
+  ChevronRight,
+  ExternalLink,
+  FileText,
+  Lock,
+  type LucideIcon,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -25,12 +33,57 @@ const STRIPE: Record<ProcessTaskTone, string> = {
   normal: 'border-l-[var(--accent)]',
 }
 
+/** A heading over a group of task cards: small icon, uppercase title, grey count. */
+export function ProcessTaskSection({
+  icon: Icon,
+  title,
+  count,
+  children,
+}: {
+  icon: LucideIcon
+  title: ReactNode
+  count?: number
+  children: ReactNode
+}) {
+  const { num } = useLocale()
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 px-1 text-footnote font-semibold tracking-wide text-[var(--fg-secondary)] uppercase">
+        <Icon aria-hidden className="size-4 shrink-0" strokeWidth={2} />
+        <span className="min-w-0">{title}</span>
+        {count !== undefined && (
+          <span className="tabular rounded-full bg-[var(--bg-sunken)] px-2 py-0.5 font-mono text-caption2 font-medium">
+            {num(count)}
+          </span>
+        )}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
 /**
- * One task on «Mening ishlarim», in the look of the chef's prototype: a white panel, process above, a large verb-first
- * title, then pill chips. The whole card opens the case: the title is the only link, stretched over the card, so a screen
- * reader hears one link, and the second button stays a real, separate control above it.
+ * One task, in the look of the chef's prototype: a white panel, process above, a large verb-first title, then pill chips.
+ * The whole card opens the case: the title is the only link, stretched over the card, so a screen reader hears one link,
+ * and any other control stays real and separate above it.
+ *
+ * «Kim kechikdi» draws the same card for someone else's task. `stripeTone` overrides the task's own tone, and `notice` and
+ * `actions`, when given, take the place of the holder's own note under the chips and of the button to the step's screen.
  */
-export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: string }) {
+export function ProcessTaskCard({
+  task,
+  today,
+  stripeTone,
+  notice,
+  actions,
+}: {
+  task: ProcessTask
+  today: string
+  stripeTone?: ProcessTaskTone
+  notice?: ReactNode
+  actions?: ReactNode
+}) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
   const navigate = useNavigate()
@@ -45,12 +98,12 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
   return (
     <Card
       className={cn(
-        'relative rounded-xl border-l-4',
-        STRIPE[tone],
+        'relative rounded-lg border-l-4',
+        STRIPE[stripeTone ?? tone],
         'transition-colors duration-[120ms] ease-[var(--ease-ios)] hover:bg-[var(--bg-hover)]',
       )}
     >
-      <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <p className="truncate-1 text-footnote text-[var(--fg-secondary)]">{task.processTitle}</p>
 
@@ -66,7 +119,7 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
               to="/mening-ishlarim/$caseId"
               params={{ caseId: task.caseId }}
               className={cn(
-                'min-w-0 outline-none after:absolute after:inset-0 after:rounded-xl',
+                'min-w-0 outline-none after:absolute after:inset-0 after:rounded-lg',
                 'focus-visible:after:ring-2 focus-visible:after:ring-[var(--accent)] focus-visible:after:ring-inset',
               )}
             >
@@ -91,7 +144,9 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
             {task.legacy && <ProcessLegacyBadge />}
           </div>
 
-          {(gateMessage !== null || resolver !== null) && (
+          {notice}
+
+          {notice === undefined && (gateMessage !== null || resolver !== null) && (
             <div className="mt-3 rounded-lg border-l-4 border-l-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-subhead">
               {gateMessage !== null && <p className="font-medium">{gateMessage}</p>}
               {resolver !== null && (
@@ -118,7 +173,13 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
             <ChevronRight strokeWidth={2.5} className="size-4" />
           </span>
 
-          {action !== null && (
+          {Boolean(actions) && (
+            <div className="relative z-10 flex flex-wrap items-center gap-2 sm:justify-end">
+              {actions}
+            </div>
+          )}
+
+          {actions === undefined && action !== null && (
             <Button
               variant="ghost"
               size="sm"

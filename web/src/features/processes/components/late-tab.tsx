@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { CircleCheck, ShieldAlert } from 'lucide-react'
+import { CircleCheck, Clock, Lock, ShieldAlert, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { useAuth } from '@/features/auth'
@@ -11,23 +11,17 @@ import { Badge, type BadgeTone, Button, buttonVariants, Card, CardHeader, EmptyS
 import type { ProcessGateOverrideRow, ProcessTask } from '../api/processes-api'
 import { useProcessLate } from '../api/processes-queries'
 import { PROCESSES_OVERRIDE } from '../lib/permissions'
+import type { ProcessTaskTone } from '../lib/process-due'
 import {
   canTakeOverride,
   openOverrideFor,
   overrideStanding,
   type ProcessOverrideStanding,
 } from '../lib/process-override'
-import {
-  ProcessBlankChip,
-  ProcessCountChip,
-  ProcessDueChip,
-  ProcessHolderLabel,
-  ProcessLegacyBadge,
-  ProcessWarningChips,
-  processSubjectLine,
-} from './process-chips'
+import { ProcessHolderLabel } from './process-chips'
 import { CaseOverrideDialog, DirectHireOverrideDialog } from './process-override-dialogs'
 import { ProcessListSkeleton, ProcessLoadError } from './process-states'
+import { ProcessTaskCard, ProcessTaskSection } from './process-task-card'
 
 const STANDING_TONE: Record<ProcessOverrideStanding, BadgeTone> = {
   used: 'success',
@@ -35,98 +29,79 @@ const STANDING_TONE: Record<ProcessOverrideStanding, BadgeTone> = {
   expired: 'neutral',
 }
 
-const ROW_CLASS = 'flex flex-col gap-3 px-5 py-4 sm:px-6 md:flex-row md:items-start md:justify-between'
+const ROW_CLASS = 'flex flex-col gap-3 px-5 py-4 md:flex-row md:items-start md:justify-between'
 const LIST_CLASS = 'divide-y divide-[var(--border)] border-t border-[var(--border)]'
 const OPEN_LINK_CLASS = buttonVariants({ variant: 'secondary', size: 'sm' })
 
-/** One step someone is behind on (SPEC §11.4): case, step, holder, why, how late, and the way in. */
-function LateRow({
+/** Why a blocked step stands and who can clear it, the two things only this tab says about a task. */
+function LateNotice({ task }: { task: ProcessTask }) {
+  const { t } = useLocale()
+  const errorMessage = useErrorMessage()
+
+  if (task.state !== 'Blocked') return null
+
+  return (
+    <div className="mt-3 space-y-1">
+      <p className="text-subhead font-medium text-ios-red">
+        {task.gateErrorCode === null
+          ? t('processes.late.blockedNoReason')
+          : errorMessage(task.gateErrorCode)}
+      </p>
+      {task.resolver !== null && (
+        <p className="text-footnote text-[var(--fg-secondary)]">
+          {t('processes.late.resolver')}: <ProcessHolderLabel holder={task.resolver} />
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One step someone is behind on (SPEC §11.4), as a card of its own like «Mening ishlarim». `children` are the controls
+ * beside «Ochish»; a task on this tab has no button to its step's screen, because the viewer usually does not hold it.
+ */
+function LateCard({
   task,
   today,
+  stripeTone,
   children,
 }: {
   task: ProcessTask
   today: string
+  stripeTone: ProcessTaskTone
   children?: ReactNode
 }) {
-  const { t } = useLocale()
-  const errorMessage = useErrorMessage()
-  const subject = processSubjectLine(task.subject, task.departmentName)
-  const blocked = task.state === 'Blocked'
-
   return (
-    <li className={ROW_CLASS}>
-      <div className="min-w-0 space-y-1">
-        <p className="flex flex-wrap items-center gap-2 text-subhead font-semibold">
-          {subject === '' ? task.processTitle : subject}
-          {task.legacy && <ProcessLegacyBadge />}
-        </p>
-        <p className="text-subhead">
-          {task.processTitle}
-          {' · '}
-          {task.stepTitle}
-        </p>
-        <p className="text-footnote text-[var(--fg-secondary)]">
-          <ProcessHolderLabel holder={task.holder} />
-        </p>
-        {blocked && (
-          <p className="text-footnote text-ios-red">
-            {task.gateErrorCode === null
-              ? t('processes.late.blockedNoReason')
-              : errorMessage(task.gateErrorCode)}
-          </p>
-        )}
-        {blocked && task.resolver !== null && (
-          <p className="text-footnote text-[var(--fg-secondary)]">
-            {t('processes.late.resolver')}: <ProcessHolderLabel holder={task.resolver} />
-          </p>
-        )}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <ProcessDueChip dueDate={task.dueDate} daysLate={task.daysLate} today={today} />
-          <ProcessBlankChip code={task.blankCode} title={task.blankTitle} />
-          <ProcessWarningChips codes={task.warnings} />
-        </div>
-      </div>
-
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {children}
-        <Link to="/mening-ishlarim/$caseId" params={{ caseId: task.caseId }} className={OPEN_LINK_CLASS}>
-          {t('processes.late.open')}
-        </Link>
-      </div>
+    <li>
+      <ProcessTaskCard
+        task={task}
+        today={today}
+        stripeTone={stripeTone}
+        notice={<LateNotice task={task} />}
+        actions={children ?? null}
+      />
     </li>
   )
 }
 
 /** A group with nothing in it drops out: an empty heading would only be noise above the ones that matter. */
 function LateGroup({
+  icon,
   title,
-  tone,
   count,
   children,
 }: {
+  icon: LucideIcon
   title: string
-  tone: BadgeTone
   count: number
   children: ReactNode
 }) {
-  const { num } = useLocale()
   if (count === 0) return null
 
   return (
-    <Card className="overflow-hidden rounded-xl">
-      <h2 className="flex items-center gap-2 px-5 py-3.5 text-footnote font-semibold tracking-wide uppercase sm:px-6">
-        <span className="min-w-0 break-words">{title}</span>
-        {tone === 'danger' ? (
-          <Badge tone="danger" size="sm" className="tabular font-mono">
-            {num(count)}
-          </Badge>
-        ) : (
-          <ProcessCountChip>{num(count)}</ProcessCountChip>
-        )}
-      </h2>
-      <ul className={LIST_CLASS}>{children}</ul>
-    </Card>
+    <ProcessTaskSection icon={icon} title={title} count={count}>
+      <ul className="space-y-3">{children}</ul>
+    </ProcessTaskSection>
   )
 }
 
@@ -195,7 +170,7 @@ export function LateTab() {
   return (
     <div className="space-y-5">
       {nobodyBehind ? (
-        <Card className="rounded-xl">
+        <Card>
           <EmptyState
             icon={CircleCheck}
             title={t('processes.late.emptyTitle')}
@@ -204,14 +179,19 @@ export function LateTab() {
         </Card>
       ) : (
         <>
-          <LateGroup title={t('processes.late.blocked')} tone="danger" count={blocked.length}>
+          <LateGroup icon={Lock} title={t('processes.late.blocked')} count={blocked.length}>
             {blocked.map((task) => {
               const open = openOverrideFor(task, overrides, nowMs)
 
               return (
-                <LateRow key={`${task.caseId}:${task.stepCode}`} task={task} today={today}>
+                <LateCard
+                  key={`${task.caseId}:${task.stepCode}`}
+                  task={task}
+                  today={today}
+                  stripeTone="late"
+                >
                   {open !== undefined ? (
-                    <Badge tone="brand">
+                    <Badge tone="brand" className="h-auto min-h-6 py-0.5 whitespace-normal">
                       {t('processes.late.overrideOpen', { date: dateTime(open.expiresAt) })}
                     </Badge>
                   ) : (
@@ -223,28 +203,38 @@ export function LateTab() {
                       </Button>
                     )
                   )}
-                </LateRow>
+                </LateCard>
               )
             })}
           </LateGroup>
 
-          <LateGroup title={t('processes.late.late')} tone="danger" count={late.length}>
+          <LateGroup icon={Clock} title={t('processes.late.late')} count={late.length}>
             {late.map((task) => (
-              <LateRow key={`${task.caseId}:${task.stepCode}`} task={task} today={today} />
+              <LateCard
+                key={`${task.caseId}:${task.stepCode}`}
+                task={task}
+                today={today}
+                stripeTone="late"
+              />
             ))}
           </LateGroup>
 
-          <LateGroup title={t('processes.late.warn')} tone="warning" count={warn.length}>
+          <LateGroup icon={TriangleAlert} title={t('processes.late.warn')} count={warn.length}>
             {warn.map((task) => (
-              <LateRow key={`${task.caseId}:${task.stepCode}`} task={task} today={today} />
+              <LateCard
+                key={`${task.caseId}:${task.stepCode}`}
+                task={task}
+                today={today}
+                stripeTone="today"
+              />
             ))}
           </LateGroup>
         </>
       )}
 
-      <Card className="overflow-hidden rounded-xl">
+      <Card className="overflow-hidden rounded-lg">
         <CardHeader
-          className="px-5 pb-3 sm:px-6"
+          className="px-5 pb-3"
           title={t('processes.late.overridesTitle')}
           subtitle={t('processes.late.overridesHint')}
           action={

@@ -5,7 +5,12 @@ import { cn } from '@/shared/lib/cn'
 
 import type { ProcessCaseStep, ProcessColumn } from '../api/processes-api'
 import { groupStepsByColumn, isStepFinished, stepProgress } from '../lib/process-step'
-import { ProcessCountChip, ProcessHolderLabel } from './process-chips'
+import {
+  isHolderUnassigned,
+  ProcessCountChip,
+  ProcessHolderLabel,
+  useProcessRoleLabel,
+} from './process-chips'
 
 /** A step the system closes by itself has no person to name. */
 function isSystemStep(step: ProcessCaseStep): boolean {
@@ -33,7 +38,7 @@ function StepMarker({ step, selected }: { step: ProcessCaseStep; selected: boole
         aria-label={label}
         className={cn(MARKER_CLASS, 'bg-ios-green text-[var(--fg-on-accent)]')}
       >
-        <Icon aria-hidden className="size-4" strokeWidth={3} />
+        <Icon aria-hidden className={system ? 'size-3.5' : 'size-4'} strokeWidth={system ? 2 : 3} />
       </span>
     )
   }
@@ -116,6 +121,7 @@ function StepRow({
   const { t, num } = useLocale()
   const system = isSystemStep(step)
   const finished = isStepFinished(step.state)
+  const roleLabel = useProcessRoleLabel()
 
   return (
     <li className="relative -mx-2">
@@ -135,7 +141,7 @@ function StepRow({
         <span className="min-w-0 flex-1 pt-px">
           <span
             className={cn(
-              'block text-subhead leading-snug',
+              'block text-subhead leading-6',
               selected && 'font-semibold',
               system && !selected && 'text-[var(--fg-secondary)]',
             )}
@@ -143,28 +149,33 @@ function StepRow({
             {step.title}
           </span>
           {system ? (
-            <span className="mt-1 block text-footnote text-[var(--fg-secondary)] italic">
+            <span className="mt-0.5 block text-caption1 leading-5 text-[var(--fg-secondary)] italic">
               {t('processes.case.systemHolder')}
             </span>
-          ) : (
+          ) : !finished && isHolderUnassigned(step.holder) ? (
+            // The one thing about a holder the row must say: the person's name is the panel's business.
             <ProcessHolderLabel
               holder={step.holder}
-              className="mt-1 block text-footnote break-words text-[var(--fg-secondary)]"
+              className="mt-0.5 block text-caption1 leading-5 break-words text-[var(--fg-secondary)]"
             />
+          ) : (
+            <span className="mt-0.5 block text-caption1 leading-5 break-words text-[var(--fg-secondary)]">
+              {roleLabel(step.holder.role)}
+            </span>
           )}
           {!finished && step.daysLate > 0 && (
-            <span className="mt-0.5 block text-footnote font-medium text-ios-red">
+            <span className="block text-caption1 leading-5 font-medium text-ios-red">
               {t('processes.due.late', { n: num(step.daysLate) })}
             </span>
           )}
         </span>
       </button>
       {!last && (
-        // Centred under the 26 px dot: 3 px accent edge + 6 px padding + 13 px half a dot − 1 px half the line.
+        // From dot to dot, centred under the 26 px dot: 3 px accent edge + 6 px padding + 13 px half a dot − 1 px half the line.
         <span
           aria-hidden
           className={cn(
-            'pointer-events-none absolute top-[36px] -bottom-2 left-[21px] w-0.5',
+            'pointer-events-none absolute top-[34px] -bottom-2 left-[21px] w-0.5',
             finished ? 'bg-ios-green/45' : 'bg-[var(--border-strong)]',
           )}
         />
