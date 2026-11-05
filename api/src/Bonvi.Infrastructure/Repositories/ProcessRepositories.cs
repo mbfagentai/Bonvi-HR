@@ -42,6 +42,18 @@ public sealed class ProcessTemplateVersionRepository : Repository<ProcessTemplat
             .Where(version => version.Status == ProcessTemplateVersionStatus.Published)
             .OrderBy(version => version.TemplateId)
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessTemplateVersion>> ListByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        return ids.Count == 0
+            ? []
+            : await Set
+                .Where(version => ids.Contains(version.Id))
+                .ToListAsync(cancellationToken);
+    }
 }
 
 /// <remarks>
@@ -74,6 +86,58 @@ public sealed class ProcessCaseRepository : Repository<ProcessCase>, IProcessCas
             .ThenBy(processCase => processCase.Id)
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessCase>> ListBySubjectRefsAsync(
+        string processCode,
+        IReadOnlyCollection<string> subjectRefs,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(subjectRefs);
+
+        return subjectRefs.Count == 0
+            ? []
+            : await WithSteps()
+                .Where(processCase => processCase.ProcessCode == processCode && subjectRefs.Contains(processCase.SubjectRef))
+                .OrderBy(processCase => processCase.CreatedAt)
+                .ThenBy(processCase => processCase.Id)
+                .AsSplitQuery()
+                .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessCase>> ListByParentIdsAsync(
+        IReadOnlyCollection<Guid> parentIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(parentIds);
+
+        return parentIds.Count == 0
+            ? []
+            : await WithSteps()
+                .Where(processCase => processCase.ParentCaseId != null && parentIds.Contains(processCase.ParentCaseId.Value))
+                .OrderBy(processCase => processCase.CreatedAt)
+                .ThenBy(processCase => processCase.Id)
+                .AsSplitQuery()
+                .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessCase>> ListByEmploymentIdsAsync(
+        IReadOnlyCollection<Guid> employmentIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(employmentIds);
+
+        return employmentIds.Count == 0
+            ? []
+            : await WithSteps()
+                .Where(processCase => processCase.EmploymentId != null && employmentIds.Contains(processCase.EmploymentId.Value))
+                .OrderBy(processCase => processCase.CreatedAt)
+                .ThenBy(processCase => processCase.Id)
+                .AsSplitQuery()
+                .ToListAsync(cancellationToken);
+    }
 
     private IQueryable<ProcessCase> WithSteps()
         => Set.Include(processCase => processCase.Steps.OrderBy(step => step.OrderNo).ThenBy(step => step.StepCode));
