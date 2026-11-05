@@ -337,6 +337,7 @@ if (app.Configuration.GetValue(EmployeeAppEnabledKey, defaultValue: true))
 app.MapPipelineStageEndpoints();
 app.MapVacancyEndpoints();
 app.MapVacancyRequestEndpoints();
+app.MapProcessGateOverrideEndpoints();
 app.MapCandidateEndpoints();
 
 // Nomzod anketasi HR-F02: ochiq onlayn forma (login ham, kalit ham yo'q — ofis

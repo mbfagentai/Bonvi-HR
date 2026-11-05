@@ -20,6 +20,9 @@ public sealed record ProcessEngineSettings(DateOnly? StartedOn, string GatesMode
     /// <summary>Whether a failing <c>block</c> gate blocks; <c>warn</c> and <c>off</c> never do.</summary>
     public bool GatesEnforced => GatesMode == SystemSettingKeys.ProcessesGatesEnforce;
 
+    /// <summary>The kill switch: a hook gate answers Allow, not even a warning (§8.2).</summary>
+    public bool GatesOff => GatesMode == SystemSettingKeys.ProcessesGatesOff;
+
     public static ProcessEngineSettings From(SystemSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

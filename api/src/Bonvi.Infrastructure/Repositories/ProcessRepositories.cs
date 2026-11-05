@@ -159,6 +159,21 @@ public sealed class ProcessGateOverrideRepository : Repository<ProcessGateOverri
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessGateOverride>> ListUsableByCaseIdsAsync(
+        IReadOnlyCollection<Guid> caseIds,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(caseIds);
+
+        return caseIds.Count == 0
+            ? []
+            : await Set
+                .Where(row => row.CaseId != null && caseIds.Contains(row.CaseId.Value) && row.ConsumedAt == null && row.ExpiresAt > at)
+                .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ProcessGateOverride>> ListGrantedSinceAsync(
         DateTimeOffset since,
         CancellationToken cancellationToken = default)

@@ -1,5 +1,6 @@
 using Bonvi.Application.Processes.Definitions;
 using Bonvi.Application.Processes.Engine;
+using Bonvi.Application.Processes.Gates;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bonvi.Application.Processes;
@@ -25,6 +26,11 @@ public static class ProcessesApplicationRegistration
 
         // A singleton: it holds the throttle, and opens a scope of its own for each pass.
         services.AddSingleton<ProcessInlineReconcile>();
+
+        services.AddScoped<IProcessGate, ProcessGate>();
+        services.AddScoped<GrantCaseGateOverrideCommandHandler>();
+        services.AddScoped<GrantDirectHireOverrideCommandHandler>();
+        services.AddScoped<ListGateOverridesQueryHandler>();
 
         return services;
     }
