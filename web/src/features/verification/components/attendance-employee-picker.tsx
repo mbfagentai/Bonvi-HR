@@ -100,21 +100,22 @@ export function AttendanceEmployeePicker({
     return (
       <div className="space-y-2">
         <p className="text-footnote font-medium text-[var(--fg-secondary)]">{heading}</p>
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-sunken)] px-4 py-3">
           <EmployeePhoto
             employeeId={value.id}
             photoKey={value.photoKey}
             name={value.fullName}
             size="lg"
           />
-          <div className="min-w-0 flex-1">
+          {/* On a phone the button drops to its own line: the operator must read the whole name. */}
+          <div className="min-w-40 flex-1">
             <p className="truncate-1 font-medium">{value.fullName}</p>
             <p className="truncate-1 text-footnote text-[var(--fg-secondary)]">
               {[value.position, value.department].filter(Boolean).join(' · ') || '—'}
             </p>
           </div>
           {!disabled && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+            <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => onChange(null)}>
               {t('attendance.chooseAnother')}
             </Button>
           )}
