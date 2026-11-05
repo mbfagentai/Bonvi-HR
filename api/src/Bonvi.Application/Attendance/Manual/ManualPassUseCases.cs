@@ -2,6 +2,7 @@ using Bonvi.Application.Abstractions;
 using Bonvi.Application.Attendance.Abstractions;
 using Bonvi.Application.Attendance.Dtos;
 using Bonvi.Application.Attendance.Recompute;
+using Bonvi.Application.Attendance.Scheduling;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Attendance;
 using Bonvi.Domain.Common;
@@ -145,6 +146,19 @@ public sealed class AddManualPassCommandHandler
         if (!await _employments.IsEmployedOnAsync(command.EmployeeId, command.Date, cancellationToken).ConfigureAwait(false))
         {
             return ManualPassErrors.NotEmployed;
+        }
+
+        // The scope check above asks about today; the day being corrected may belong to the
+        // department this person worked in before a transfer, and that one may be out of scope.
+        if (await _scope.AllowedDepartmentIdsAsync(cancellationToken).ConfigureAwait(false) is { } allowed)
+        {
+            var employments = await _employments.GetByEmployeeAsync(command.EmployeeId, cancellationToken).ConfigureAwait(false);
+
+            if (PrimaryEmployment.Select(employments, command.Date)?.DepartmentId is not { } department
+                || !allowed.Contains(department))
+            {
+                return ManualPassErrors.EmployeeNotFound;
+            }
         }
 
         var recorded = AttendancePass.RecordByHr(command.EmployeeId, occurredAt, now, command.Direction);

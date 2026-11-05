@@ -357,6 +357,34 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         added.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(added));
     }
 
+    // ── department on the date ────────────────────────────────────
+
+    [Fact]
+    public async Task Adding_a_pass_needs_the_department_on_that_date_to_be_in_scope()
+    {
+        var world = await SeedWorldAsync();
+        var movedOn = Today().AddDays(-10);
+        var moved = await MovedIntoDepartmentAAsync(world, movedOn);
+
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+        using var hr = await ClientAsync(HrManagerPermissions);
+
+        using (var before = await AddPassAsync(scoped, moved, movedOn.AddDays(-1)))
+        {
+            await ExpectErrorAsync(before, HttpStatusCode.NotFound, "davomat.xodim_topilmadi");
+        }
+
+        (await CountRowsAsync(moved)).Passes.ShouldBe(0);
+
+        using (var after = await AddPassAsync(scoped, moved, movedOn))
+        {
+            after.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(after));
+        }
+
+        using var byHr = await AddPassAsync(hr, moved, movedOn.AddDays(-1));
+        byHr.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(byHr));
+    }
+
     // ── age ───────────────────────────────────────────────────────
 
     [Fact]
@@ -462,6 +490,27 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
     }
 
     /// <summary>A pass from the mobile line, i.e. not HR manual. <c>null</c> leaves it unmatched.</summary>
+    /// <summary>Worked in department B until the day before <paramref name="movedOn"/>, in A since.</summary>
+    private async Task<Guid> MovedIntoDepartmentAAsync(World world, DateOnly movedOn)
+    {
+        await using var serviceScope = _factory.Services.CreateAsyncScope();
+        var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var inB = await context.Set<Employment>().AsNoTracking().SingleAsync(row => row.EmployeeId == world.InB, Ct);
+
+        var person = Employee.Create(FullName.Create("Qamrovov", "Xodim", world.Mark + "Moved").Value, Today().AddYears(-30)).Value;
+
+        var before = Employment.Hire(person.Id, inB.LegalEntityId, new DateOnly(2000, 1, 1), inB.DepartmentId, inB.PositionId).Value;
+        before.Terminate(movedOn.AddDays(-1), reasonId: null).IsSuccess.ShouldBeTrue();
+
+        var after = Employment.Hire(person.Id, inB.LegalEntityId, movedOn, world.DepartmentA, inB.PositionId).Value;
+
+        context.AddRange(person, before, after);
+        await context.SaveChangesAsync(Ct);
+
+        return person.Id;
+    }
+
     /// <summary>Written directly: the add route refuses the dates the age test needs.</summary>
     private async Task<Guid> ManualPassAsync(Guid employee, DateOnly date)
     {
