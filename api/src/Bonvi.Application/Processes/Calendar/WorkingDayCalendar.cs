@@ -1,8 +1,8 @@
 namespace Bonvi.Application.Processes.Calendar;
 
 /// <summary>
-/// Pure <see cref="IWorkingDayCalendar"/> over a fixed list of exception days. The DB-backed source
-/// (<c>process_holidays</c>, P2b) loads the rows once per reconcile pass and builds one of these.
+/// Pure <see cref="IWorkingDayCalendar"/> over a fixed list of exception days. <see cref="IWorkingDayCalendarSource"/>
+/// loads the <c>process_holidays</c> rows and builds one of these.
 /// </summary>
 /// <remarks>
 /// A Holiday row on a weekend and a WorkingDay row on a weekday change nothing. When one date has both kinds

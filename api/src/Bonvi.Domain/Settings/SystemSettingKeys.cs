@@ -822,6 +822,9 @@ public static class SystemSettingKeys
     /// </summary>
     public const string ProcessesStartedOn = "processes.startedOn";
 
+    /// <summary><see cref="ProcessesStartedOn"/> value format.</summary>
+    public const string ProcessesStartedOnFormat = "yyyy-MM-dd";
+
     /// <summary>Gate kill switch (§6.6): <c>enforce</c>, <c>warn</c> (every block becomes a warning) or <c>off</c>.</summary>
     public const string ProcessesGatesMode = "processes.gates.mode";
 

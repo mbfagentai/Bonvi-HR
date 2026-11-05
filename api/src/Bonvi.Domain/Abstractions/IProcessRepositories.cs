@@ -69,4 +69,7 @@ public interface IProcessHolidayRepository : IRepository<ProcessHoliday>
 
     /// <summary>Rows in <c>[from, to]</c>, by date.</summary>
     Task<IReadOnlyList<ProcessHoliday>> ListAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+
+    /// <summary>Every row, by date, untracked — what the calendar is built from.</summary>
+    Task<IReadOnlyList<ProcessHoliday>> ListAllAsync(CancellationToken cancellationToken = default);
 }

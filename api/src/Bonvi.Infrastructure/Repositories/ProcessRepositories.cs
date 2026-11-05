@@ -134,4 +134,11 @@ public sealed class ProcessHolidayRepository : Repository<ProcessHoliday>, IProc
             .Where(holiday => holiday.Date >= from && holiday.Date <= to)
             .OrderBy(holiday => holiday.Date)
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProcessHoliday>> ListAllAsync(CancellationToken cancellationToken = default)
+        => await Set
+            .AsNoTracking()
+            .OrderBy(holiday => holiday.Date)
+            .ToListAsync(cancellationToken);
 }

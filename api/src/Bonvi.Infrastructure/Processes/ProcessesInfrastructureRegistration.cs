@@ -14,7 +14,7 @@ namespace Bonvi.Infrastructure.Processes;
 /// </remarks>
 public static class ProcessesInfrastructureRegistration
 {
-    /// <summary>Repositories.</summary>
+    /// <summary>Repositories, seeders.</summary>
     public static IServiceCollection AddProcessesInfrastructure(this IServiceCollection services)
     {
         services.AddScoped<IProcessTemplateRepository, ProcessTemplateRepository>();
@@ -23,6 +23,9 @@ public static class ProcessesInfrastructureRegistration
         services.AddScoped<IProcessGateOverrideRepository, ProcessGateOverrideRepository>();
         services.AddScoped<IProcessStageBindingRepository, ProcessStageBindingRepository>();
         services.AddScoped<IProcessHolidayRepository, ProcessHolidayRepository>();
+
+        services.AddScoped<ProcessTemplateSeeder>();
+        services.AddScoped<ProcessHolidaySeeder>();
 
         services.AddProcessFacts();
 
