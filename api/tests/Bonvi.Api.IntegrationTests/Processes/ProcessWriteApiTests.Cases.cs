@@ -859,13 +859,21 @@ public sealed partial class ProcessWriteApiTests
             await DbAsync(async db =>
             {
                 var employee = await db.Employees.SingleAsync(row => row.Id == hire.EmployeeId, Ct);
-                employee.SetPinfl(Pinfl.Create("3150191" + Random.Shared.Next(1_000_000, 9_999_999)).Value).IsSuccess.ShouldBeTrue();
+                employee.SetPinfl(RandomPinfl()).IsSuccess.ShouldBeTrue();
                 return await db.SaveChangesAsync(Ct);
             });
         }
 
         await RunAsync();
         return (hire, await CaseAsync(ProcessCodes.HireFormalise, ProcessSubjectRefs.FormaliseFromEmployment(hire.EmploymentId)));
+    }
+
+    /// <summary>A valid JSHSHIR: 13 digits and the one check digit that fits them, so it is never left to chance.</summary>
+    private static Pinfl RandomPinfl()
+    {
+        var stem = "3150191" + Random.Shared.Next(100_000, 1_000_000).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var check = Enumerable.Range(0, 10).First(digit => Pinfl.IsChecksumValid(stem + digit));
+        return Pinfl.Create(stem + check).Value;
     }
 
     private async Task<ProcessCase> CandidateCaseAsync()
