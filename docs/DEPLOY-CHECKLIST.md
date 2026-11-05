@@ -3,6 +3,26 @@
 > Prod: `root@189.74.98.57`, `/opt/bonvi-hr`, `https://hr.bonvi.uz`.
 > Server 2 GB RAM — shu sababli deploy image'larni KETMA-KET quradi.
 
+## Not released yet: «Davomat mas'uli» (`attendance_responsible`), migration `DavomatQamrovi`
+
+### Rollback to an image from before this feature
+
+**Do this BEFORE swapping the image.** The role and its holders survive a rollback, while the old
+image has neither the `attendance.scoped` marker nor the guard. Every holder would get org-wide
+attendance access and every login-only route. The migration's `Down` does not help: it only drops
+`user_attendance_scopes`.
+
+1. List the active holders:
+   ```sql
+   SELECT u.id, u.login FROM users u JOIN roles r ON r.id = ANY(u.role_ids)
+   WHERE r.code = 'attendance_responsible' AND u.is_active;
+   ```
+2. Deactivate each of them on the Users screen, or move them to a role with no attendance access
+   (the screen does not allow an empty role).
+3. Wait 15 minutes (`Jwt:AccessTokenMinutes`): an access token already issued stays valid until it
+   expires, and the old image would honour it.
+4. Only now swap the image and run `Down` if the plan calls for it. Re-run the query: it must be empty.
+
 ## ✅ Reliz `b9aa1d4` — ma'lumotnomalarda «Faol / Faol emas», anketa F.I. + sana bilan ham topadi — 2026-10-31 16:34 (Toshkent)
 
 Prod `e94969b` → `b9aa1d4` (9c3cd8a, b9aa1d4). Migratsiya YO'Q (75 ta, o'zgarmadi). Rollback: image tegi

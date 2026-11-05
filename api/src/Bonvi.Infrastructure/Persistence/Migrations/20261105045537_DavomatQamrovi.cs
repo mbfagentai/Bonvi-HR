@@ -7,9 +7,15 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
 {
     /// <summary>
     /// «Davomat mas'uli»: adds the empty table of departments assigned to a scoped user.
-    /// Additive, no existing table changes. Rolling back loses only those assignments.
-    /// The role itself is data and comes from <c>IdentitySeeder</c>.
+    /// Additive, no existing table changes. The role itself is data and comes from
+    /// <c>IdentitySeeder</c>.
     /// </summary>
+    /// <remarks>
+    /// <b>Rollback is not harmless.</b> <c>Down</c> drops only the assignments, but the role and
+    /// its holders stay, and a pre-feature image knows neither the marker nor the guard. Its
+    /// holders get org-wide attendance access and every login-only route. Deactivate them or
+    /// move them to another role BEFORE returning to such an image (docs/DEPLOY-CHECKLIST.md).
+    /// </remarks>
     public partial class DavomatQamrovi : Migration
     {
         /// <inheritdoc />
