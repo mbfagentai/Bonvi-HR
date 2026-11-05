@@ -34,10 +34,11 @@ import {
   Select,
 } from '@/shared/ui'
 
-import type { TimesheetFilters, TimesheetRow } from '../api/attendance-api'
+import type { AttendancePass, TimesheetFilters, TimesheetRow } from '../api/attendance-api'
 import { useExportTimesheet, useRecompute, useTimesheet } from '../api/attendance-queries'
 import {
   ATTENDANCE_MANAGE,
+  ATTENDANCE_REQUESTS_MANAGE,
   ATTENDANCE_VIEW,
   DEFAULT_PAGE_SIZE,
   REPORTS_EXPORT,
@@ -51,6 +52,8 @@ import {
   type MonthValue,
   type TimesheetSearch,
 } from '../lib/attendance-search'
+import { AttendanceDayDialog } from './attendance-day-dialog'
+import { AttendancePassPhotoDialog } from './attendance-pass-photo-dialog'
 import { AttendanceTimesheetGrid, TimesheetLegend } from './attendance-timesheet-grid'
 
 /**
@@ -104,6 +107,9 @@ export function AttendanceTimesheetPage() {
 
   const [org, setOrg] = useState<OrgFilters>(NO_ORG_FILTERS)
   const [panelOpen, setPanelOpen] = useState(false)
+  // Only the day's address: the cell itself is re-read from the current rows, so a manual pass shows up
+  const [openDay, setOpenDay] = useState<{ employeeId: string; date: string } | null>(null)
+  const [openPass, setOpenPass] = useState<AttendancePass | null>(null)
 
   /**
    * Manzilni yangilash.
@@ -204,6 +210,13 @@ export function AttendanceTimesheetPage() {
   const days = data?.days ?? EMPTY_DAYS
   const total = data?.total ?? 0
   const firstLoad = query.isPending
+
+  const openCell =
+    openDay === null
+      ? null
+      : (rows
+          .find((row) => row.employeeId === openDay.employeeId)
+          ?.cells.find((cell) => cell.date === openDay.date) ?? null)
 
   const filtered =
     q.trim() !== '' || org.legalEntityId !== '' || org.departmentId !== '' || org.positionId !== ''
@@ -478,6 +491,9 @@ export function AttendanceTimesheetPage() {
             rows={rows}
             loading={firstLoad}
             canOpenEmployee={canOpenEmployee}
+            onOpenDay={
+              isAttendanceScoped ? (employeeId, date) => setOpenDay({ employeeId, date }) : undefined
+            }
           />
         )}
 
@@ -503,6 +519,29 @@ export function AttendanceTimesheetPage() {
       <Alert tone="info" title={t('attendance.cannotEditTitle')}>
         {t('attendance.cannotEditText')}
       </Alert>
+
+      {/*
+        The employee card holds this dialog for everyone else. A «Davomat mas'uli» cannot reach
+        the card, and manual passes are the point of their role.
+      */}
+      {isAttendanceScoped && (
+        <>
+          <AttendanceDayDialog
+            employeeId={openDay?.employeeId ?? ''}
+            cell={openPass === null ? openCell : null}
+            canManage={hasPermission(ATTENDANCE_REQUESTS_MANAGE)}
+            onOpenPass={setOpenPass}
+            onClose={() => setOpenDay(null)}
+          />
+
+          <AttendancePassPhotoDialog
+            passId={openPass?.id ?? null}
+            pass={openPass}
+            canOpenEmployee={canOpenEmployee}
+            onClose={() => setOpenPass(null)}
+          />
+        </>
+      )}
     </div>
   )
 }

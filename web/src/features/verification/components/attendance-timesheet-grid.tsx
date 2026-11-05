@@ -113,6 +113,7 @@ export function AttendanceTimesheetGrid({
   rows,
   loading,
   canOpenEmployee,
+  onOpenDay,
 }: {
   days: readonly string[]
   rows: readonly TimesheetRow[]
@@ -122,15 +123,20 @@ export function AttendanceTimesheetGrid({
    * matn: 403 ga olib boradigan havola bajarilmaydigan va'da bo'lardi.
    */
   canOpenEmployee: boolean
+  /**
+   * Given only for a «Davomat mas'uli»: a cell then opens the day dialog instead of the read-only
+   * popover. The employee card, where everyone else adds a manual pass, is closed to them.
+   */
+  onOpenDay?: (employeeId: string, date: string) => void
 }) {
   const desktop = useIsDesktop()
 
   if (loading) return <GridSkeleton />
 
   return desktop ? (
-    <DesktopGrid days={days} rows={rows} linked={canOpenEmployee} />
+    <DesktopGrid days={days} rows={rows} linked={canOpenEmployee} onOpenDay={onOpenDay} />
   ) : (
-    <MobileList rows={rows} linked={canOpenEmployee} />
+    <MobileList rows={rows} linked={canOpenEmployee} onOpenDay={onOpenDay} />
   )
 }
 
@@ -159,10 +165,12 @@ function DesktopGrid({
   days,
   rows,
   linked,
+  onOpenDay,
 }: {
   days: readonly string[]
   rows: readonly TimesheetRow[]
   linked: boolean
+  onOpenDay: ((employeeId: string, date: string) => void) | undefined
 }) {
   const { t } = useLocale()
   const today = todayIso()
@@ -232,7 +240,11 @@ function DesktopGrid({
 
               {row.cells.map((cell) => (
                 <td key={cell.date} className="p-px">
-                  <DayCell cell={cell} employeeName={row.fullName} />
+                  <DayCell
+                    cell={cell}
+                    employeeName={row.fullName}
+                    onOpen={onOpenDay && (() => onOpenDay(row.employeeId, cell.date))}
+                  />
                 </td>
               ))}
 
@@ -254,7 +266,15 @@ function DesktopGrid({
  * ko'ringan jadval yomon taassurot qoldiradi va bu bor-yo'g'i bitta
  * chegara (SPEC §8.6).
  */
-function MobileList({ rows, linked }: { rows: readonly TimesheetRow[]; linked: boolean }) {
+function MobileList({
+  rows,
+  linked,
+  onOpenDay,
+}: {
+  rows: readonly TimesheetRow[]
+  linked: boolean
+  onOpenDay: ((employeeId: string, date: string) => void) | undefined
+}) {
   const today = todayIso()
 
   return (
@@ -273,7 +293,11 @@ function MobileList({ rows, linked }: { rows: readonly TimesheetRow[]; linked: b
               {row.cells.map((cell) => (
                 <div key={cell.date} className="flex flex-col items-center gap-1">
                   <DayNumber date={cell.date} today={today} />
-                  <DayCell cell={cell} employeeName={row.fullName} />
+                  <DayCell
+                    cell={cell}
+                    employeeName={row.fullName}
+                    onOpen={onOpenDay && (() => onOpenDay(row.employeeId, cell.date))}
+                  />
                 </div>
               ))}
             </div>
@@ -415,35 +439,55 @@ function EmployeeCell({
  * `role="dialog"` — ichida menyu bandlari yo'q, faqat ma'lumot; Radix
  * qo'ygan `menu` roli ekran o'quvchisiga yolg'on gapirardi.
  */
-function DayCell({ cell, employeeName }: { cell: TimesheetCell; employeeName: string }) {
+function DayCell({
+  cell,
+  employeeName,
+  onOpen,
+}: {
+  cell: TimesheetCell
+  employeeName: string
+  /** Given — a plain button that hands the day to the caller, no popover. */
+  onOpen?: (() => void) | undefined
+}) {
   const { t, locale, date } = useLocale()
   const look = DAY_STATUS_LOOK[cell.status]
   const label = `${employeeName} · ${date(cell.date)} · ${t(look.labelKey)}`
 
+  const className = cn(
+    'tabular grid place-items-center overflow-hidden rounded-xs font-medium',
+    /*
+      Katak katta ekranda O'SADI (egasi, 2026-09-20): faqat
+      kenglik bo'yicha cho'zilish bo'sh joyni xodim ustuniga
+      berardi, jadvalning o'zi esa kichkina bo'lib qolaverardi.
+      36 → 40 → 44 px: 31 kunda bu ~1180 dan ~1430 px gacha,
+      ya'ni 27 dyuymli monitorda jadval maydonni to'ldiradi.
+    */
+    'size-9 text-caption2',
+    '@min-[1500px]/tabel:size-10 @min-[1750px]/tabel:size-11 @min-[1750px]/tabel:text-caption1',
+    look.cellClass,
+    // Erkin kunda kechikish yo'q — chiziq normadan kamini aytadi (SPEC-erkin-jadval §7.1)
+    (cell.lateMinutes > 0 || (cell.shortfallMinutes ?? 0) > 0) && LATE_BAR_CLASS,
+    'transition-shadow duration-150 data-[state=open]:ring-2 data-[state=open]:ring-[var(--ring)]',
+  )
+
+  if (onOpen !== undefined) {
+    return (
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={label}
+        className={className}
+        onClick={onOpen}
+      >
+        {cellText(cell, t, locale)}
+      </button>
+    )
+  }
+
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          aria-label={label}
-          className={cn(
-            'tabular grid place-items-center overflow-hidden rounded-xs font-medium',
-            /*
-              Katak katta ekranda O'SADI (egasi, 2026-09-20): faqat
-              kenglik bo'yicha cho'zilish bo'sh joyni xodim ustuniga
-              berardi, jadvalning o'zi esa kichkina bo'lib qolaverardi.
-              36 → 40 → 44 px: 31 kunda bu ~1180 dan ~1430 px gacha,
-              ya'ni 27 dyuymli monitorda jadval maydonni to'ldiradi.
-            */
-            'size-9 text-caption2',
-            '@min-[1500px]/tabel:size-10 @min-[1750px]/tabel:size-11 @min-[1750px]/tabel:text-caption1',
-            look.cellClass,
-            // Erkin kunda kechikish yo'q — chiziq normadan kamini aytadi (SPEC-erkin-jadval §7.1)
-            (cell.lateMinutes > 0 || (cell.shortfallMinutes ?? 0) > 0) && LATE_BAR_CLASS,
-            'transition-shadow duration-150 data-[state=open]:ring-2 data-[state=open]:ring-[var(--ring)]',
-          )}
-        >
+        <button type="button" aria-haspopup="dialog" aria-label={label} className={className}>
           {cellText(cell, t, locale)}
         </button>
       </DropdownMenu.Trigger>
