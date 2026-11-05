@@ -6,17 +6,10 @@ import { Card, EmptyState, Skeleton } from '@/shared/ui'
 
 import type { ProcessMyWork, ProcessTask } from '../api/processes-api'
 import { useMyWork } from '../api/processes-queries'
-import { isMyWorkEmpty, hasNoTasks, type MyWorkSection } from '../lib/my-work'
-import { ProcessListSkeleton, ProcessLoadError } from './process-states'
+import { hasNoTasks, isMyWorkEmpty } from '../lib/my-work'
+import { ProcessLoadError } from './process-states'
 import { ProcessTartibCards } from './process-tartib-cards'
 import { ProcessTaskCard } from './process-task-card'
-
-const SECTION_ICON: Record<MyWorkSection, LucideIcon> = {
-  urgent: Sun,
-  later: ListChecks,
-  held: Lock,
-  waiting: Hourglass,
-}
 
 function Section({
   icon: Icon,
@@ -32,12 +25,14 @@ function Section({
   const { num } = useLocale()
 
   return (
-    <section className="space-y-2.5">
-      <h2 className="flex items-center gap-2 px-1 text-subhead font-semibold text-[var(--fg-secondary)]">
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 px-1 text-footnote font-semibold tracking-wide text-[var(--fg-secondary)] uppercase">
         <Icon aria-hidden className="size-4 shrink-0" strokeWidth={2} />
         <span className="min-w-0">{title}</span>
         {count !== undefined && (
-          <span className="tabular font-medium text-[var(--fg-tertiary)]">{num(count)}</span>
+          <span className="tabular rounded-full bg-[var(--bg-sunken)] px-2 py-0.5 font-mono text-caption2 font-medium">
+            {num(count)}
+          </span>
         )}
       </h2>
       {children}
@@ -47,7 +42,7 @@ function Section({
 
 function TaskList({ tasks, today }: { tasks: readonly ProcessTask[]; today: string }) {
   return (
-    <ul className="grid gap-2.5 xl:grid-cols-2">
+    <ul className="space-y-3">
       {tasks.map((task) => (
         <li key={`${task.caseId}:${task.stepCode}`}>
           <ProcessTaskCard task={task} today={today} />
@@ -61,29 +56,33 @@ function Summary({ work }: { work: ProcessMyWork }) {
   const { t, num, date } = useLocale()
 
   return (
-    <div className="px-1">
-      <p className="text-title3 leading-tight font-semibold">
+    <Card className="rounded-xl px-6 py-5">
+      <p className="text-title1 leading-tight font-bold">
         {t('processes.my.today', { date: date(work.today) })}
       </p>
       {work.count > 0 && (
-        <p className="mt-1 text-subhead text-[var(--fg-secondary)]">
+        <p className="mt-1.5 text-subhead text-[var(--fg-secondary)]">
           {work.lateCount > 0
             ? t('processes.my.summary', { n: num(work.count), k: num(work.lateCount) })
             : t('processes.my.summaryNoLate', { n: num(work.count) })}
         </p>
       )}
-    </div>
+    </Card>
   )
 }
 
 function MyWorkLoading() {
   return (
     <div className="space-y-6" aria-busy="true">
-      <div className="space-y-2 px-1">
-        <Skeleton className="h-6 w-56 rounded-md" />
+      <Card className="space-y-2.5 rounded-xl px-6 py-5">
+        <Skeleton className="h-8 w-64 rounded-md" />
         <Skeleton className="h-4 w-40 rounded-md" />
+      </Card>
+      <div className="space-y-3">
+        <Skeleton className="h-36 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-xl" />
       </div>
-      <ProcessListSkeleton rows={3} />
     </div>
   )
 }
@@ -95,7 +94,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
     return (
       <>
         <Summary work={work} />
-        <Card>
+        <Card className="rounded-xl">
           <EmptyState
             icon={Inbox}
             title={t('processes.my.emptyTitle')}
@@ -106,33 +105,26 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
     )
   }
 
-  const noTasks = hasNoTasks(work)
-  const showTartib = work.tartib.notifications.length > 0 || work.tartib.counts.length > 0
-
   return (
     <>
       <Summary work={work} />
 
-      {noTasks ? (
-        <Card>
-          <EmptyState
-            icon={Inbox}
-            title={t('processes.my.emptyTitle')}
-            className="py-8"
-          />
+      {hasNoTasks(work) ? (
+        <Card className="rounded-xl">
+          <EmptyState icon={Inbox} title={t('processes.my.emptyTitle')} className="py-8" />
         </Card>
       ) : (
         <>
           {/* The first section stays even when empty: «nothing for today» is the news someone opens this page for. */}
           <Section
-            icon={SECTION_ICON.urgent}
+            icon={Sun}
             title={t('processes.my.sections.urgent')}
             count={work.urgent.length}
           >
             {work.urgent.length > 0 ? (
               <TaskList tasks={work.urgent} today={work.today} />
             ) : (
-              <Card className="flex items-center gap-2.5 px-4 py-3 text-subhead text-[var(--fg-secondary)]">
+              <Card className="flex items-center gap-2.5 rounded-xl px-6 py-4 text-subhead text-[var(--fg-secondary)]">
                 <Sparkles aria-hidden className="size-4 shrink-0 text-ios-green" strokeWidth={2} />
                 {t('processes.my.urgentEmpty')}
               </Card>
@@ -141,7 +133,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
 
           {work.later.length > 0 && (
             <Section
-              icon={SECTION_ICON.later}
+              icon={ListChecks}
               title={t('processes.my.sections.later')}
               count={work.later.length}
             >
@@ -151,7 +143,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
 
           {work.held.length > 0 && (
             <Section
-              icon={SECTION_ICON.held}
+              icon={Lock}
               title={t('processes.my.sections.held')}
               count={work.held.length}
             >
@@ -161,7 +153,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
 
           {work.waiting.length > 0 && (
             <Section
-              icon={SECTION_ICON.waiting}
+              icon={Hourglass}
               title={t('processes.my.sections.waiting')}
               count={work.waiting.length}
             >
@@ -171,7 +163,7 @@ function MyWorkContent({ work }: { work: ProcessMyWork }) {
         </>
       )}
 
-      {showTartib && (
+      {(work.tartib.notifications.length > 0 || work.tartib.counts.length > 0) && (
         <Section icon={ListChecks} title={t('processes.my.sections.tartib')}>
           <ProcessTartibCards tartib={work.tartib} />
         </Section>

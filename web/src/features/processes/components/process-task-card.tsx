@@ -1,9 +1,9 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowUpRight, ChevronRight, ExternalLink, FileText, Lock, User } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, ExternalLink, FileText, Lock } from 'lucide-react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
-import { Button, Card } from '@/shared/ui'
+import { Badge, Button, Card } from '@/shared/ui'
 
 import type { ProcessTask } from '../api/processes-api'
 import { taskLinkAction, taskResolver } from '../lib/my-work'
@@ -19,15 +19,16 @@ import {
 
 /** The stripe says how pressing the task is before a word is read (SPEC §11.2). */
 const STRIPE: Record<ProcessTaskTone, string> = {
-  late: 'bg-ios-red',
-  today: 'bg-ios-yellow',
-  blocked: 'bg-ios-gray',
-  normal: 'bg-[var(--border)]',
+  late: 'border-l-ios-red',
+  today: 'border-l-ios-yellow',
+  blocked: 'border-l-ios-gray',
+  normal: 'border-l-[var(--accent)]',
 }
 
 /**
- * One task on «Mening ishlarim». The whole card opens the case: the title is the only link, stretched over the card, so
- * a screen reader hears one link and the second button stays a real, separate control above it.
+ * One task on «Mening ishlarim», in the look of the chef's prototype: a white panel, process above, a large verb-first
+ * title, then pill chips. The whole card opens the case: the title is the only link, stretched over the card, so a screen
+ * reader hears one link, and the second button stays a real, separate control above it.
  */
 export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: string }) {
   const { t } = useLocale()
@@ -38,39 +39,34 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
   const subjectLine = processSubjectLine(task.subject, task.departmentName)
   const resolver = taskResolver(task)
   const action = taskLinkAction(task)
-  const hasChips =
-    task.daysLate > 0 ||
-    task.dueDate !== null ||
-    task.blankCode !== null ||
-    task.warnings.length > 0 ||
-    task.legacy
+  const gateMessage =
+    task.state === 'Blocked' && task.gateErrorCode !== null ? errorMessage(task.gateErrorCode) : null
 
   return (
     <Card
       className={cn(
-        'group relative overflow-hidden',
+        'relative rounded-xl border-l-4',
+        STRIPE[tone],
         'transition-colors duration-[120ms] ease-[var(--ease-ios)] hover:bg-[var(--bg-hover)]',
       )}
     >
-      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', STRIPE[tone])} />
-
-      <div className="flex items-start gap-3 py-3.5 pr-3 pl-5">
+      <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
-          <p className="truncate-1 text-caption1 text-[var(--fg-tertiary)]">{task.processTitle}</p>
+          <p className="truncate-1 text-footnote text-[var(--fg-secondary)]">{task.processTitle}</p>
 
-          <h3 className="mt-0.5 flex items-start gap-1.5 text-callout leading-snug font-semibold">
+          <h3 className="mt-1 flex items-start gap-2 text-title3 leading-snug font-semibold">
             {task.state === 'Blocked' && (
               <Lock
                 aria-hidden
                 strokeWidth={2.5}
-                className="mt-[3px] size-4 shrink-0 text-ios-gray"
+                className="mt-[5px] size-[18px] shrink-0 text-ios-gray"
               />
             )}
             <Link
               to="/mening-ishlarim/$caseId"
               params={{ caseId: task.caseId }}
               className={cn(
-                'min-w-0 outline-none after:absolute after:inset-0 after:rounded-lg',
+                'min-w-0 outline-none after:absolute after:inset-0 after:rounded-xl',
                 'focus-visible:after:ring-2 focus-visible:after:ring-[var(--accent)] focus-visible:after:ring-inset',
               )}
             >
@@ -79,82 +75,81 @@ export function ProcessTaskCard({ task, today }: { task: ProcessTask; today: str
           </h3>
 
           {subjectLine !== '' && (
-            <p className="mt-0.5 text-footnote text-[var(--fg-secondary)]">{subjectLine}</p>
+            <p className="mt-1 text-subhead text-[var(--fg-secondary)]">{subjectLine}</p>
           )}
 
-          {hasChips && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <ProcessDueChip dueDate={task.dueDate} daysLate={task.daysLate} today={today} />
-              <ProcessBlankChip code={task.blankCode} title={task.blankTitle} />
-              <ProcessWarningChips codes={task.warnings} />
-              {task.legacy && <ProcessLegacyBadge />}
-            </div>
-          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2 [&>*]:h-7 [&>*]:max-w-full [&>*]:px-3 [&>*]:text-footnote">
+            <Badge
+              tone={task.holder.unassigned ? 'warning' : 'brand'}
+              title={t('processes.my.holder')}
+            >
+              <ProcessHolderLabel holder={task.holder} className="truncate" />
+            </Badge>
+            <ProcessBlankChip code={task.blankCode} title={task.blankTitle} />
+            <ProcessDueChip dueDate={task.dueDate} daysLate={task.daysLate} today={today} />
+            <ProcessWarningChips codes={task.warnings} />
+            {task.legacy && <ProcessLegacyBadge />}
+          </div>
 
-          {task.state === 'Blocked' && task.gateErrorCode !== null && (
-            <p className="mt-2 text-footnote text-[var(--fg-secondary)]">
-              {errorMessage(task.gateErrorCode)}
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-            <div className="min-w-0 space-y-0.5 text-caption1 text-[var(--fg-tertiary)]">
-              <p className="flex items-center gap-1.5">
-                <User aria-hidden className="size-3.5 shrink-0" />
-                <span className="min-w-0">
-                  {t('processes.my.holder')}: <ProcessHolderLabel holder={task.holder} />
-                </span>
-              </p>
-
+          {(gateMessage !== null || resolver !== null) && (
+            <div className="mt-3 rounded-lg border-l-4 border-l-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-subhead">
+              {gateMessage !== null && <p className="font-medium">{gateMessage}</p>}
               {resolver !== null && (
-                <p className="flex items-center gap-1.5">
-                  <Lock aria-hidden className="size-3.5 shrink-0" />
-                  <span className="min-w-0">
-                    {t('processes.my.resolver')}: <ProcessHolderLabel holder={resolver} />
-                  </span>
+                <p
+                  className={cn(
+                    'text-footnote text-[var(--fg-secondary)]',
+                    gateMessage !== null && 'mt-1',
+                  )}
+                >
+                  {t('processes.my.resolver')}: <ProcessHolderLabel holder={resolver} />
                 </p>
               )}
             </div>
-
-            {action !== null && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="relative z-10 -my-1"
-                onClick={() => {
-                  if (action.kind === 'external') {
-                    window.open(action.url, '_blank', 'noopener,noreferrer')
-                  } else {
-                    void navigate({ href: action.href })
-                  }
-                }}
-              >
-                {action.kind === 'external' ? (
-                  <>
-                    <ExternalLink />
-                    {t('processes.my.link.external')}
-                  </>
-                ) : action.label === 'blank' ? (
-                  <>
-                    <FileText />
-                    {t('processes.my.link.blank')}
-                  </>
-                ) : (
-                  <>
-                    <ArrowUpRight />
-                    {t('processes.my.link.screen')}
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          )}
         </div>
 
-        <ChevronRight
-          aria-hidden
-          strokeWidth={2.5}
-          className="mt-5 size-4 shrink-0 text-[var(--fg-tertiary)]"
-        />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+          {/* Only the look of the action: the stretched title above is what takes the click and the focus. */}
+          <span
+            aria-hidden
+            className="inline-flex h-9 items-center gap-1 rounded-full bg-[var(--accent-soft)] pr-2.5 pl-4 text-subhead font-semibold text-[var(--accent-on-soft)]"
+          >
+            {t('processes.my.open')}
+            <ChevronRight strokeWidth={2.5} className="size-4" />
+          </span>
+
+          {action !== null && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative z-10"
+              onClick={() => {
+                if (action.kind === 'external') {
+                  window.open(action.url, '_blank', 'noopener,noreferrer')
+                } else {
+                  void navigate({ href: action.href })
+                }
+              }}
+            >
+              {action.kind === 'external' ? (
+                <>
+                  <ExternalLink />
+                  {t('processes.my.link.external')}
+                </>
+              ) : action.label === 'blank' ? (
+                <>
+                  <FileText />
+                  {t('processes.my.link.blank')}
+                </>
+              ) : (
+                <>
+                  <ArrowUpRight />
+                  {t('processes.my.link.screen')}
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   )
