@@ -22,11 +22,11 @@ public sealed class PassPairingTests
     // ────────────────────── O'tishlar ro'yxati uchun yo'nalish ──────────────────────
 
     /// <summary>
-    /// Yo'nalishi berilmagan terminal (2026-10-12): ro'yxatda har bir o'tish navbat bilan
-    /// kirish/chiqish bo'lib ko'rinadi; tartibsiz kelsa ham vaqt bo'yicha sanaladi.
+    /// Owner, 2026-11-06: on a terminal that gives no direction the first reading is the entry and the last the exit;
+    /// those between show the entry's direction and are not counted. Time decides the order, not arrival.
     /// </summary>
     [Fact]
-    public void EffectiveDirections_noma_lumni_navbat_bilan_toldiradi()
+    public void EffectiveDirections_noma_lumda_birinchisi_kirish_oxirgisi_chiqish()
     {
         var a = P("09:00", PassDirection.Unknown);
         var b = P("13:00", PassDirection.Unknown);
@@ -36,9 +36,10 @@ public sealed class PassPairingTests
         var natija = PassPairing.EffectiveDirections([d, b, a, c]);
 
         natija[a.Id].ShouldBe(PassDirection.In);
-        natija[b.Id].ShouldBe(PassDirection.Out);
+        natija[b.Id].ShouldBe(PassDirection.In);
         natija[c.Id].ShouldBe(PassDirection.In);
         natija[d.Id].ShouldBe(PassDirection.Out);
+        PassPairing.CountedPassIds([d, b, a, c]).ShouldBe([a.Id, d.Id], ignoreOrder: true);
     }
 
     [Fact]
@@ -411,9 +412,9 @@ public sealed class PassPairingTests
 
     // ────────────────────── Noma'lum yo'nalish (#46, #47) ──────────────────────
 
-    /// <summary>#46. Yo'nalish aytmaydigan qurilma: kirish, chiqish, kirish, chiqish.</summary>
+    /// <summary>The first and last reading of a day with no direction make one interval (owner, 2026-11-06).</summary>
     [Fact]
-    public void Nomalum_yonalishlar_navbat_bilan_toldiriladi()
+    public void Nomalum_kunda_birinchisi_kirish_oxirgisi_chiqish()
     {
         var natija = Pair(
             P("09:00", PassDirection.Unknown),
@@ -421,11 +422,57 @@ public sealed class PassPairingTests
             P("14:00", PassDirection.Unknown),
             P("18:00", PassDirection.Unknown));
 
-        natija.ClosedMinutes.ShouldBe(480);
+        natija.ClosedMinutes.ShouldBe(540);
+        natija.IgnoredPassCount.ShouldBe(2);
         natija.FirstInAt.ShouldBe(At(Monday, "09:00"));
         natija.LastOutAt.ShouldBe(At(Monday, "18:00"));
         natija.MissingEntry.ShouldBeFalse();
         natija.MissingExit.ShouldBeFalse();
+    }
+
+    /// <summary>The day that started this rule: 08:28, 09:45, 17:38 read as 77 minutes with no exit.</summary>
+    [Fact]
+    public void Ertalabki_ortiqcha_otish_kechki_chiqishni_kirishga_aylantirmaydi()
+    {
+        var natija = Pair(
+            P("08:28:39", PassDirection.Unknown),
+            P("08:28:43", PassDirection.Unknown),
+            P("09:45:43", PassDirection.Unknown),
+            P("09:45:44", PassDirection.Unknown),
+            P("17:38:02", PassDirection.Unknown));
+
+        natija.FirstInAt.ShouldBe(At(Monday, "08:28:39"));
+        natija.LastOutAt.ShouldBe(At(Monday, "17:38:02"));
+        natija.MissingExit.ShouldBeFalse();
+        natija.ClosedMinutes.ShouldBe(549);
+    }
+
+    /// <summary>Terminals that know their direction keep today's rule; the first-and-last rule never reaches them.</summary>
+    [Fact]
+    public void Yonalishi_malum_kun_ozgarmaydi()
+    {
+        var natija = Pair(
+            P("09:00", PassDirection.In),
+            P("13:00", PassDirection.Out),
+            P("14:00", PassDirection.In),
+            P("18:00", PassDirection.Out));
+
+        natija.ClosedMinutes.ShouldBe(480);
+        natija.IgnoredPassCount.ShouldBe(0);
+    }
+
+    /// <summary>A manual mark in the day keeps turn-taking: that mix is still the owner's open question.</summary>
+    [Fact]
+    public void Qolda_belgi_aralashgan_kun_navbatda_qoladi()
+    {
+        var natija = Pair(
+            P("09:00", PassDirection.Unknown),
+            P("13:00", PassDirection.Unknown),
+            P("14:00", PassDirection.Unknown),
+            P("18:00", PassDirection.Out));
+
+        natija.ClosedMinutes.ShouldBe(480);
+        natija.IgnoredPassCount.ShouldBe(0);
     }
 
     /// <summary>#46. Taxmin o'tishga QAYTA YOZILMAYDI — jadval tuzatilsa tarix o'zgarmasligi kerak.</summary>

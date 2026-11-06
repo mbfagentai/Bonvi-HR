@@ -13,7 +13,7 @@ namespace Bonvi.Application.Tests.Attendance.Computation;
 /// <para>
 /// Qolgan testlar §5.7 ni aniq «kirish/chiqish» bilan tekshiradi. Agent esa terminaldan
 /// yo'nalish olmaydi va doim <see cref="PassDirection.Unknown"/> yuboradi (SPEC-agent H8):
-/// yo'nalishni server navbat bilan beradi. Aniq yo'nalishli test yashil bo'lib, haqiqiy
+/// yo'nalishni server beradi: kunning birinchisi kirish, oxirgisi chiqish (egasi, 2026-11-06). Aniq yo'nalishli test yashil bo'lib, haqiqiy
 /// kun boshqacha hisoblanishi mumkin edi — bu fayl shu bo'shliqni yopadi.
 /// </para>
 /// <para>
@@ -29,17 +29,19 @@ public sealed class UnknownDirectionEdgeCaseTests
 
     // ────────────────────── §5.7 asosiy jadval ──────────────────────
 
-    /// <summary>Toq sonli o'tish, oxirgisi (navbat bilan) kirish — <c>MissingExit</c>, faqat yopilgan oraliqlar.</summary>
+    /// <summary>Owner, 2026-11-06: an odd count no longer means a missing exit, the last reading is the exit.</summary>
     [Fact]
-    public void Toq_sonli_otish_oxirgisi_kirish()
+    public void Toq_sonli_otishda_oxirgisi_chiqish()
     {
         var sahna = Office();
         sahna.Unknowns(Monday, "09:00", "12:00", "13:00");
 
         var kun = sahna.Day(Monday).Facts;
 
-        kun.Status.ShouldBe(AttendanceDayStatus.MissingExit);
-        kun.WorkedMinutes.ShouldBe(180);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
+        kun.LastOutAt.ShouldBe(At(Monday, "13:00"));
+        kun.WorkedMinutes.ShouldBe(240);
+        kun.IgnoredPassCount.ShouldBe(1);
     }
 
     /// <summary>
@@ -74,7 +76,7 @@ public sealed class UnknownDirectionEdgeCaseTests
     }
 
     [Fact]
-    public void On_ta_otish_besh_oraliq()
+    public void On_ta_otish_bitta_oraliq()
     {
         var sahna = Office();
         sahna.Unknowns(Monday, "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:30");
@@ -82,28 +84,27 @@ public sealed class UnknownDirectionEdgeCaseTests
         var kun = sahna.Day(Monday).Facts;
 
         kun.Status.ShouldBe(AttendanceDayStatus.Present);
-        kun.WorkedMinutes.ShouldBe(330);
+        kun.WorkedMinutes.ShouldBe(570);
         kun.PassCount.ShouldBe(10);
-        kun.IgnoredPassCount.ShouldBe(0);
+        kun.IgnoredPassCount.ShouldBe(8);
     }
 
     /// <summary>
-    /// ⭐ Egasining qarori (2026-09-27), ATAYLAB: bitta umumiy terminalda 20 soniya farqli ikki o'qish
-    /// birlashtirilmaydi — navbat bilan kirish va chiqish bo'laveradi. 09:00:00, 09:00:20, 18:00 kuni
-    /// «kirdi, chiqdi, kirdi»: ishlangan 0, «chiqish yo'q».
+    /// Owner, 2026-11-06, replacing the 2026-09-27 reading: a morning read twice 20 seconds apart no longer eats the
+    /// evening exit. 09:00:00, 09:00:20, 18:00 is 09:00–18:00, the middle reading is not counted.
     /// </summary>
     [Fact]
-    public void Yigirma_soniya_farqli_ikki_nomalum_oqish_birlashtirilmaydi()
+    public void Yigirma_soniya_farqli_oqish_kechki_chiqishni_yemaydi()
     {
         var sahna = Office();
         sahna.Unknowns(Monday, "09:00:00", "09:00:20", "18:00:00");
 
         var kun = sahna.Day(Monday).Facts;
 
-        kun.IgnoredPassCount.ShouldBe(0);
+        kun.IgnoredPassCount.ShouldBe(1);
         kun.PassCount.ShouldBe(3);
-        kun.WorkedMinutes.ShouldBe(0);
-        kun.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kun.WorkedMinutes.ShouldBe(540);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
     }
 
     /// <summary>§5.7: tungi smena 20:00→08:00 — BITTA qator boshlangan sanada, ikkala o'tish ham unga.</summary>
@@ -274,14 +275,17 @@ public sealed class UnknownDirectionEdgeCaseTests
         kun.WorkedMinutes.ShouldBe(540);
     }
 
-    /// <summary>(kirish, chiqish, breakTaken, breakDeduction, worked) — §5.7 tanaffus jadvalining satrlari.</summary>
+    /// <summary>
+    /// (readings, breakTaken, breakDeduction, worked). Owner, 2026-11-06: readings between the first and last are not
+    /// counted on such a terminal, so a trip out is never taken from the day and the whole break is deducted.
+    /// </summary>
     [Theory]
     [InlineData("chiqmagan", new[] { "09:00", "18:00" }, 0, 60, 480)]
-    [InlineData("aynan oyna bo'yicha tushlik", new[] { "09:00", "13:00", "14:00", "18:00" }, 60, 0, 480)]
-    [InlineData("tanaffusdan uzoq chiqqan", new[] { "09:00", "12:30", "14:00", "18:00" }, 60, 0, 450)]
-    [InlineData("oynadan tashqarida chiqqan", new[] { "09:00", "10:00", "10:30", "18:00" }, 0, 60, 450)]
-    [InlineData("oyna ichida ikki qisqa chiqish", new[] { "09:00", "13:05", "13:20", "13:40", "13:55", "18:00" }, 30, 30, 480)]
-    [InlineData("oyna chegarasidan o'tgan chiqish", new[] { "09:00", "12:45", "13:25", "18:00" }, 25, 35, 465)]
+    [InlineData("aynan oyna bo'yicha tushlik", new[] { "09:00", "13:00", "14:00", "18:00" }, 0, 60, 480)]
+    [InlineData("tanaffusdan uzoq chiqqan", new[] { "09:00", "12:30", "14:00", "18:00" }, 0, 60, 480)]
+    [InlineData("oynadan tashqarida chiqqan", new[] { "09:00", "10:00", "10:30", "18:00" }, 0, 60, 480)]
+    [InlineData("oyna ichida ikki qisqa chiqish", new[] { "09:00", "13:05", "13:20", "13:40", "13:55", "18:00" }, 0, 60, 480)]
+    [InlineData("oyna chegarasidan o'tgan chiqish", new[] { "09:00", "12:45", "13:25", "18:00" }, 0, 60, 480)]
     [InlineData("oynadan oldin uyga ketgan", new[] { "09:00", "12:55" }, 0, 0, 235)]
     [InlineData("oyna o'rtasida kelgan", new[] { "13:30", "18:00" }, 0, 30, 240)]
     [InlineData("oyna ichida ketgan", new[] { "09:00", "13:15" }, 0, 15, 240)]
@@ -311,7 +315,7 @@ public sealed class UnknownDirectionEdgeCaseTests
     }
 
     [Fact]
-    public void Oynali_kunda_chiqish_yozilmagan()
+    public void Oynali_kunda_uchta_otishda_oxirgisi_chiqish()
     {
         var sahna = Lunch();
         sahna.Unknowns(Monday, "09:00", "13:00", "14:00");
@@ -319,9 +323,9 @@ public sealed class UnknownDirectionEdgeCaseTests
         var kun = sahna.Day(Monday).Facts;
 
         kun.BreakTakenMinutes.ShouldBe(0);
-        kun.BreakDeductionMinutes.ShouldBe(0);
+        kun.BreakDeductionMinutes.ShouldBe(60);
         kun.WorkedMinutes.ShouldBe(240);
-        kun.Status.ShouldBe(AttendanceDayStatus.MissingExit);
+        kun.Status.ShouldBe(AttendanceDayStatus.Present);
     }
 
     [Fact]
@@ -353,9 +357,9 @@ public sealed class UnknownDirectionEdgeCaseTests
         var kunlar = sahna.Days(Monday, Tuesday);
         var kun = kunlar[0].Facts;
 
-        kun.BreakTakenMinutes.ShouldBe(35);
-        kun.BreakDeductionMinutes.ShouldBe(25);
-        kun.WorkedMinutes.ShouldBe(660, "275 + 410 − 25");
+        kun.BreakTakenMinutes.ShouldBe(0);
+        kun.BreakDeductionMinutes.ShouldBe(60);
+        kun.WorkedMinutes.ShouldBe(660, "720 − 60");
         kun.Status.ShouldBe(AttendanceDayStatus.Present);
         kunlar[1].Facts.PassCount.ShouldBe(0, "bitta qator, boshlangan sanada");
     }
