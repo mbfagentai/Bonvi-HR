@@ -122,6 +122,22 @@ public sealed class CouncilDigestTimingTests
     }
 
     [Fact]
+    public async Task Vakansiya_tugmaga_boradi_va_ozgarsa_xabar_yangilanadi()
+    {
+        var id = Guid.NewGuid();
+        Soat(11);
+        Chaqirilgan(Bugun);
+        Chaqirilgan(Ertaga, Qator(id, Ertaga));
+        var birinchi = (await HolatAsync()).Digest!;
+        birinchi.Rows[0].Position.ShouldBe("Кассир");
+        _group.FindDigestAsync(Ertaga, Arg.Any<CancellationToken>()).Returns(CouncilDigest.Create(Ertaga, Chat, 55, birinchi.Signature));
+
+        Chaqirilgan(Ertaga, Qator(id, Ertaga) with { Position = "Назоратчи" });
+
+        (await HolatAsync()).Digest!.MessageId.ShouldBe(55);
+    }
+
+    [Fact]
     public async Task Mini_app_nomi_ozgarsa_tugmalar_yangilanadi()
     {
         var qator = Qator(Guid.NewGuid(), Ertaga);

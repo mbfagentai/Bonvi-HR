@@ -30,7 +30,7 @@ the group as well.
 
 ## 4. Day-before message
 One message per council day at 10:00 Tashkent the day before. Its text has the date and the count; each
-candidate is one button «Surname Name · HH:mm», plus «All candidates». Over 90 candidates the rest are
+candidate is one button «HH:mm · Surname Name · Vacancy», plus «All candidates». Over 90 candidates the rest are
 reached through «All candidates». Candidates added or removed later edit the same message, without a new
 post. A digest for tomorrow, or for today if it was missed, is only first posted 10:00–20:00.
 

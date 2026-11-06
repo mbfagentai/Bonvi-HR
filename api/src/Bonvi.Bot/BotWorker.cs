@@ -1100,6 +1100,14 @@ public sealed partial class BotWorker : BackgroundService
         }
     }
 
+    /// <summary>Time first: a phone cuts a long button at its end, and the vacancy is what can go.</summary>
+    private static string CouncilButtonText(CouncilDigestRow row)
+    {
+        var start = $"{BotClock.Local(row.At):HH:mm} · {row.Name}";
+
+        return string.IsNullOrWhiteSpace(row.Position) ? start : $"{start} · {row.Position}";
+    }
+
     /// <summary>One row per candidate and one for everybody. Telegram allows 100 buttons, «all» reaches the rest.</summary>
     internal static IReadOnlyList<IReadOnlyList<InlineButton>> CouncilButtons(CouncilDigest digest, string username, string? miniApp)
     {
@@ -1115,7 +1123,7 @@ public sealed partial class BotWorker : BackgroundService
         var rows = digest.Rows
             .Take(MaxCouncilButtons)
             .Select(row => (IReadOnlyList<InlineButton>)
-                [InlineButton.Link($"{row.Name} · {BotClock.Local(row.At):HH:mm}", Link(row.CandidateId))])
+                [InlineButton.Link(CouncilButtonText(row), Link(row.CandidateId))])
             .ToList();
 
         if (digest.Rows.Count > 0)

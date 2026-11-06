@@ -209,12 +209,12 @@ public sealed class GuruhTests
         bot.CouncilCalls.ShouldHaveSingleItem().ShouldContain("s1");
 
         var tugmalar = BotWorker.CouncilButtons(
-            new CouncilDigest(new DateOnly(2026, 11, 7), false, null, "s1", [new CouncilDigestRow(Nomzod, "Каримов Азиз", new DateTimeOffset(2026, 11, 7, 5, 0, 0, TimeSpan.Zero))]),
+            new CouncilDigest(new DateOnly(2026, 11, 7), false, null, "s1", [new CouncilDigestRow(Nomzod, "Каримов Азиз", new DateTimeOffset(2026, 11, 7, 5, 0, 0, TimeSpan.Zero), "Кассир")]),
             "Bonvi_HR_bot",
             "kengash");
 
         tugmalar.Count.ShouldBe(2);
-        tugmalar[0][0].Text.ShouldBe("Каримов Азиз · 10:00");
+        tugmalar[0][0].Text.ShouldBe("10:00 · Каримов Азиз · Кассир");
         tugmalar[0][0].Url.ShouldBe($"https://t.me/Bonvi_HR_bot/kengash?startapp={Nomzod:N}");
         tugmalar[1][0].Url.ShouldBe("https://t.me/Bonvi_HR_bot/kengash");
     }
@@ -227,6 +227,7 @@ public sealed class GuruhTests
             "Bonvi_HR_bot",
             null);
 
+        tugmalar[0][0].Text.ShouldBe("05:00 · Каримов Азиз");
         tugmalar[0][0].Url.ShouldBe($"https://t.me/Bonvi_HR_bot?start=km_{Nomzod:N}");
         tugmalar[1][0].Url.ShouldBe("https://t.me/Bonvi_HR_bot?start=km_all");
     }

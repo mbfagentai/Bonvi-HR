@@ -22,7 +22,7 @@ public sealed record OpenVacancy(Guid Id, string Title);
 public sealed record ReferralChannel(Guid Id, string Name, bool AsksDetail);
 
 /// <summary>A candidate on the council group's message.</summary>
-public sealed record CouncilDigestRow(Guid CandidateId, string Name, DateTimeOffset At);
+public sealed record CouncilDigestRow(Guid CandidateId, string Name, DateTimeOffset At, string? Position = null);
 
 /// <summary>The message due in the council group; with <see cref="MessageId"/> it replaces the posted one.</summary>
 public sealed record CouncilDigest(DateOnly Date, bool IsToday, long? MessageId, string Signature, IReadOnlyList<CouncilDigestRow> Rows);

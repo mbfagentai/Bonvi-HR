@@ -40,7 +40,7 @@ public sealed record CouncilGroupDto(
 public sealed record CouncilBindCodeDto(string Command, DateTimeOffset ExpiresAt);
 
 /// <summary>One candidate on the group's message.</summary>
-public sealed record CouncilDigestRowDto(Guid CandidateId, string Name, DateTimeOffset At);
+public sealed record CouncilDigestRowDto(Guid CandidateId, string Name, DateTimeOffset At, string Position);
 
 /// <summary>A message the bot should post, or edit when <see cref="MessageId"/> is set.</summary>
 public sealed record CouncilDigestDto(
@@ -689,7 +689,7 @@ public sealed class GetCouncilBotStateQueryHandler
     /// </summary>
     private static string Signature(IReadOnlyList<CouncilDigestRowDto> rows, string? miniApp)
     {
-        var text = (miniApp ?? string.Empty) + '\n' + string.Join('\n', rows.Select(row => row.CandidateId.ToString("N") + (row.At.ToUnixTimeSeconds() / 60).ToString(CultureInfo.InvariantCulture)));
+        var text = (miniApp ?? string.Empty) + '\n' + string.Join('\n', rows.Select(row => row.CandidateId.ToString("N") + (row.At.ToUnixTimeSeconds() / 60).ToString(CultureInfo.InvariantCulture) + row.Position));
 
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..CouncilDigest.MaxSignatureLength];
     }
@@ -706,7 +706,7 @@ internal static class CouncilInvitations
         var from = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), BonviTime.TashkentOffset).ToUniversalTime();
         var rows = await readModel.ListCouncilInvitedAsync(from, from.AddDays(1), null, cancellationToken).ConfigureAwait(false);
 
-        return [.. rows.Select(row => new CouncilDigestRowDto(row.Id, row.ShortName, row.InterviewAt))];
+        return [.. rows.Select(row => new CouncilDigestRowDto(row.Id, row.ShortName, row.InterviewAt, row.Position))];
     }
 }
 
