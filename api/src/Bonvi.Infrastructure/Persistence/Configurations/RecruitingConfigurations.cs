@@ -106,6 +106,52 @@ public sealed class VacancyConfiguration : IEntityTypeConfiguration<Vacancy>
 /// Uchala bog'lanish <c>Restrict</c>: so'rov tarix yozuvi, uning bo'limi, boshlig'i yoki
 /// ochilgan vakansiyasi qattiq o'chirilmaydi (hammasi yumshoq o'chiriladi).
 /// </remarks>
+public sealed class CouncilMeetingConfiguration : IEntityTypeConfiguration<CouncilMeeting>
+{
+    public void Configure(EntityTypeBuilder<CouncilMeeting> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("council_meetings");
+        builder.HasKey(meeting => meeting.Id);
+        builder.Ignore(meeting => meeting.DomainEvents);
+
+        builder.Property(meeting => meeting.Members).HasColumnType("jsonb").IsRequired();
+        builder.Property(meeting => meeting.FollowUp).HasColumnType("jsonb").IsRequired();
+
+        builder.HasIndex(meeting => meeting.MeetingDate).IsUnique();
+        builder.HasIndex(meeting => meeting.Number).IsUnique();
+    }
+}
+
+public sealed class CouncilDecisionConfiguration : IEntityTypeConfiguration<CouncilDecision>
+{
+    public void Configure(EntityTypeBuilder<CouncilDecision> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("council_decisions");
+        builder.HasKey(decision => decision.Id);
+        builder.Ignore(decision => decision.DomainEvents);
+
+        builder.Property(decision => decision.OfferedSalary).HasPrecision(18, 2);
+        builder.Property(decision => decision.Condition).HasMaxLength(CouncilDecision.MaxConditionLength);
+        builder.Property(decision => decision.Conclusion).HasMaxLength(CouncilDecision.MaxConclusionLength);
+
+        builder.HasOne<CouncilMeeting>()
+            .WithMany()
+            .HasForeignKey(decision => decision.MeetingId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Candidate>()
+            .WithMany()
+            .HasForeignKey(decision => decision.CandidateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(decision => new { decision.MeetingId, decision.CandidateId }).IsUnique();
+    }
+}
+
 public sealed class VacancyRequestConfiguration : IEntityTypeConfiguration<VacancyRequest>
 {
     public void Configure(EntityTypeBuilder<VacancyRequest> builder)

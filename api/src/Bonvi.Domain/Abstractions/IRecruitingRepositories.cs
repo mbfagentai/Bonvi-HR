@@ -65,6 +65,26 @@ public interface IVacancyRepository : IRepository<Vacancy>
 /// <summary>Bo'lim boshliqlarining vakansiya so'rovlari uchun saqlash porti.</summary>
 public interface IVacancyRequestRepository : IRepository<VacancyRequest>;
 
+/// <summary>Storage port of the council's sittings.</summary>
+public interface ICouncilMeetingRepository : IRepository<CouncilMeeting>
+{
+    /// <summary>The sitting of this day, tracked for writing.</summary>
+    Task<CouncilMeeting?> FindByDateAsync(DateOnly date, CancellationToken cancellationToken = default);
+
+    /// <summary>The latest sitting before this day: its members fill a new sitting.</summary>
+    Task<CouncilMeeting?> FindLatestBeforeAsync(DateOnly date, CancellationToken cancellationToken = default);
+
+    /// <summary>The largest minutes' number, 0 when there are none.</summary>
+    Task<int> MaxNumberAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Storage port of the candidates' rows on the council's minutes.</summary>
+public interface ICouncilDecisionRepository : IRepository<CouncilDecision>
+{
+    /// <summary>This candidate's row in this sitting, tracked for writing.</summary>
+    Task<CouncilDecision?> FindAsync(Guid meetingId, Guid candidateId, CancellationToken cancellationToken = default);
+}
+
 /// <summary>Nomzodlar uchun saqlash porti.</summary>
 public interface ICandidateRepository : IRepository<Candidate>
 {

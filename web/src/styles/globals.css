@@ -708,3 +708,15 @@
     overflow: hidden;
   }
 }
+
+/* The council's minutes print alone: the sheet is portalled next to #root (council-print-sheet.tsx). */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body:has(> .council-print) > #root {
+    display: none !important;
+  }
+}

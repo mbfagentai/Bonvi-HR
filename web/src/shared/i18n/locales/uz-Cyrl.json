@@ -55,7 +55,8 @@
     "attendanceSites": "Жойлашувлар",
     "absenceTypes": "Йўқлик турлари",
     "attendanceRequests": "Сўровлар",
-    "blanks": "Бланкалар"
+    "blanks": "Бланкалар",
+    "councilMinutes": "Кенгаш хулосаси"
   },
   "roles": {
     "hr_manager": "HR менежери",
@@ -1243,7 +1244,10 @@
     "blanka.fayl_makro": "Макросли файлларни юклаб бўлмайди.",
     "blanka.fayl_katta": "Файл ҳажми рухсат этилганидан катта.",
     "blanka.fayl_soni": "Бу майдонга бошқа файл қўшиб бўлмайди.",
-    "blanka.fayl_bosh": "Файл бўш."
+    "blanka.fayl_bosh": "Файл бўш.",
+    "kengash.qaror_majburiy": "Кенгаш қарорини танланг.",
+    "kengash.qaror_notogri": "Қарор майдонлари нотўғри тўлдирилган.",
+    "kengash.azolar_notogri": "Кенгаш аъзолари рўйхати нотўғри."
   },
   "language": {
     "en": "English",
@@ -4506,6 +4510,69 @@
       "notFoundText": "Бу филтрларга мос ходим йўқ.",
       "emptyTitle": "Ҳамма ҳужжатлар тўлиқ",
       "emptyText": "Ишлаётган ходимларда етишмаётган нарса йўқ."
+    }
+  },
+  "council": {
+    "title": "Кенгаш хулосаси",
+    "printButton": "Чоп этиш / PDF",
+    "day": "Кенгаш куни",
+    "dayChip": "{{date}} · {{count}} нафар",
+    "number": "Баённома № {{number}}",
+    "progress": "{{total}} номзоддан {{decided}} тасига қарор ёзилди",
+    "empty": "Бу кунга кенгашга чақирилган номзод йўқ.",
+    "loadError": "Баённомани юклаб бўлмади. Саҳифани янгиланг.",
+    "members": "Кенгаш аъзолари",
+    "presentCount": "Иштирок этди: {{count}} нафар",
+    "present": "Иштирок",
+    "memberName": "Ф.И.Ш.",
+    "memberRole": "Лавозим",
+    "addMember": "Аъзо қўшиш",
+    "removeMember": "Аъзони олиб ташлаш",
+    "followUpTitle": "Кенгашдан кейинги қадамлар",
+    "save": "Сақлаш",
+    "saved": "Сақланди",
+    "choose": "Танланг",
+    "formNumber": "Анкета № {{number}}",
+    "leftFunnel": "Воронкадан чиққан",
+    "noDecision": "Қарор йўқ",
+    "decisionLabel": "Қарор",
+    "decisionRequired": "Қарорни танланг",
+    "practicalLabel": "Амалий синов баҳоси",
+    "salary": "Иш ҳақи",
+    "startDate": "Ишга чиқиш санаси",
+    "condition": "Алоҳида шарт",
+    "conditionHint": "Синов муддати, устоз, ўқитиш, моддий жавобгарлик шартномаси",
+    "conclusion": "Кенгаш хулосаси",
+    "decision": {
+      "Accept": "Қабул",
+      "Conditional": "Шартли қабул — суриштирувдан кейин",
+      "Reserve": "Захира",
+      "Reject": "Рад"
+    },
+    "practical": {
+      "Passed": "Ўтди",
+      "Failed": "Ўтмади",
+      "NotRequired": "Талаб қилинмайди"
+    },
+    "followUp": {
+      "resultsDeliveredOn": "Номзодларга натижа етказилди",
+      "offersGivenOn": "Қабул қилинганларга таклиф ва ҳужжатлар рўйхати берилди",
+      "documentsHandedOn": "Ҳужжатлар буйруқ учун топширилди",
+      "registryOn": "Реестрга киритилди",
+      "reserveOn": "Захира базага киритилди"
+    },
+    "print": {
+      "title": "HR-F04. ИШГА ҚАБУЛ КЕНГАШИ БАЁННОМАСИ",
+      "header": "MBF Company · Баённома № {{number}} · Сана: {{date}} · Иштирок этди: {{present}} нафар аъзо (кворум — тасдиқланган таркибнинг камида 2/3 қисми)",
+      "membersTitle": "1. Кенгаш аъзолари",
+      "candidatesTitle": "2. Кўриб чиқилган номзодлар",
+      "conditionsTitle": "3. Алоҳида шартлар",
+      "name": "Ф.И.Ш.",
+      "signature": "Имзо",
+      "candidate": "Номзод Ф.И.Ш.",
+      "position": "Лавозим / бўлим",
+      "form": "Анкета №",
+      "signatures": "Раис: ________________   Котиб (HR-1): ________________"
     }
   }
 }

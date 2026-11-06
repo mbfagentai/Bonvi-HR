@@ -1525,3 +1525,7 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-05] How does the probation flow show warn-mode gate warnings, when resolve returned only `ProbationDto`? → `ProbationDto.Warnings` (empty except on a leaving result), filled from the termination → the reply was the only place left and they were being dropped.
 - [2026-11-05] Toast or inline for warn-mode warnings? → A result view inside the dialog, as `candidate-hire-dialog.tsx` → the app has no toast, and these warnings arrive in this one reply; flags HR just confirmed on the 409 are not repeated.
 - [2026-11-05] Which case does a gate refusal link to? → The first Active `dismissal` of the employee, or Active case of the candidate; none found links to «Mening ishlarim»; a direct hire and a viewer without `processes.view` get only the reasons → a direct hire has no subject yet.
+- [2026-11-05] HR-F04 council minutes before HRMentor serves it → page with own tables, printed by the browser → owner: 31 people invited for 2026-11-07; logged as debt D7
+- [2026-11-05] Does a council decision change the candidate's status → no, it writes the day's «Кенгаш» stage entry; rejecting and hiring stay HR's own actions → matches every other stage
+- [2026-11-05] Paper columns «So'rov № (F01)» and «Surishtiruv (F03)» on the minutes → left out → no link from a candidate to a vacancy request exists, and F03 comes after the council
+- [2026-11-05] Council members' names in code → no, HR types them once and each sitting copies the previous one → the repo has a public mirror

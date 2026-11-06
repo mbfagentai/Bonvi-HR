@@ -1,3 +1,5 @@
+using Bonvi.Domain.Abstractions;
+using Bonvi.Application.Recruiting.Council;
 using Bonvi.Application.Recruiting.Abstractions;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Employees;
@@ -624,6 +626,101 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
                 candidate.InterviewAt!.Value);
 
         return await rows.Take(limit).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilCandidateDto>> ListCouncilCandidatesAsync(
+        DateOnly date,
+        Guid? meetingId,
+        CancellationToken cancellationToken = default)
+    {
+        var dayStart = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), BonviTime.TashkentOffset).ToUniversalTime();
+        var dayEnd = dayStart.AddDays(1);
+
+        var rows = await (
+            from candidate in _context.Candidates.AsNoTracking()
+            join decision in _context.CouncilDecisions.AsNoTracking().Where(row => row.MeetingId == meetingId)
+                on candidate.Id equals decision.CandidateId into decisionGroup
+            from decision in decisionGroup.DefaultIfEmpty()
+            where decision != null || (candidate.InterviewAt >= dayStart && candidate.InterviewAt < dayEnd)
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            select new
+            {
+                candidate.Id,
+                candidate.FullName.LastName,
+                candidate.FullName.FirstName,
+                candidate.FullName.MiddleName,
+                Position = vacancy.Title,
+                candidate.Status,
+                Decision = decision,
+                FormNumber = _context.CandidateForms
+                    .Where(form => form.CandidateId == candidate.Id)
+                    .OrderByDescending(form => form.Number)
+                    .Select(form => (int?)form.Number)
+                    .FirstOrDefault(),
+                EarlierText = (
+                    from entry in _context.CandidateStageEntries
+                    join stage in _context.PipelineStages on entry.StageId equals stage.Id
+                    where entry.CandidateId == candidate.Id && entry.Date == date && stage.Name == "Кенгаш"
+                    orderby entry.RecordedAt descending
+                    select entry.Conclusion).FirstOrDefault(),
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows
+            .Select(row => new CouncilCandidateDto(
+                row.Id,
+                string.Join(' ', new[] { row.LastName, row.FirstName, row.MiddleName }.Where(part => !string.IsNullOrEmpty(part))),
+                row.Position ?? string.Empty,
+                row.FormNumber,
+                row.Status == CandidateStatus.InProgress,
+                row.Decision != null,
+                row.Decision?.Decision,
+                row.Decision?.Practical,
+                row.Decision?.OfferedSalary,
+                row.Decision?.StartDate,
+                row.Decision?.Condition,
+                row.Decision != null ? row.Decision.Conclusion : row.EarlierText))
+            .OrderBy(row => row.FullName, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilDayDto>> ListCouncilDaysAsync(
+        DateOnly since,
+        CancellationToken cancellationToken = default)
+    {
+        var start = new DateTimeOffset(since.ToDateTime(TimeOnly.MinValue), BonviTime.TashkentOffset).ToUniversalTime();
+
+        var invitedAt = await _context.Candidates.AsNoTracking()
+            .Where(candidate => candidate.InterviewAt >= start)
+            .Select(candidate => candidate.InterviewAt!.Value)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var meetings = await (
+            from meeting in _context.CouncilMeetings.AsNoTracking()
+            where meeting.MeetingDate >= since
+            select new
+            {
+                meeting.MeetingDate,
+                Decided = _context.CouncilDecisions.Count(decision => decision.MeetingId == meeting.Id),
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var invited = invitedAt
+            .GroupBy(at => DateOnly.FromDateTime(at.ToOffset(BonviTime.TashkentOffset).DateTime))
+            .ToDictionary(group => group.Key, group => group.Count());
+        var decided = meetings.ToDictionary(row => row.MeetingDate, row => row.Decided);
+
+        return invited.Keys.Union(decided.Keys)
+            .Order()
+            .Select(day => new CouncilDayDto(day, invited.GetValueOrDefault(day), decided.GetValueOrDefault(day)))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewRemindersAsync(

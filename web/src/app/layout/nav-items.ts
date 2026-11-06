@@ -236,6 +236,8 @@ export const NAV: NavSection[] = [
             permission: 'recruiting.view' },
           { key: 'candidates', to: '/nomzodlar',    icon: UserPlus,
             permission: 'recruiting.view' },
+          { key: 'councilMinutes', to: '/kengash-xulosasi', icon: Gavel,
+            permission: 'recruiting.view' },
           /*
             Rad etilganlar — arxiv. `formerEmployees` bandining AYNAN
             naqshi: alohida sahifa emas, o'sha ro'yxatning boshqa kesimi

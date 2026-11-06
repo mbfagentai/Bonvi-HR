@@ -5594,6 +5594,136 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("candidate_stage_entries", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<string>("Conclusion")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("conclusion");
+
+                    b.Property<string>("Condition")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("condition");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("integer")
+                        .HasColumnName("decision");
+
+                    b.Property<Guid>("MeetingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("meeting_id");
+
+                    b.Property<decimal?>("OfferedSalary")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("offered_salary");
+
+                    b.Property<int?>("Practical")
+                        .HasColumnType("integer")
+                        .HasColumnName("practical");
+
+                    b.Property<Guid?>("StageEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stage_entry_id");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_council_decisions");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_council_decisions_candidate_id");
+
+                    b.HasIndex("MeetingId", "CandidateId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_decisions_meeting_id_candidate_id");
+
+                    b.ToTable("council_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilMeeting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("FollowUp")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("follow_up");
+
+                    b.Property<DateOnly>("MeetingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<string>("Members")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("members");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_council_meetings");
+
+                    b.HasIndex("MeetingDate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_meetings_meeting_date");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_meetings_number");
+
+                    b.ToTable("council_meetings", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Recruiting.FormDefinitionSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6849,6 +6979,23 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_candidate_stage_entries_pipeline_stages_stage_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilDecision", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_council_decisions_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.CouncilMeeting", null)
+                        .WithMany()
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_council_decisions_council_meetings_meeting_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.VacancyRequest", b =>

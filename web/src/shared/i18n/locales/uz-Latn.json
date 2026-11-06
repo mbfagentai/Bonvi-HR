@@ -55,7 +55,8 @@
     "attendanceSites": "Joylashuvlar",
     "absenceTypes": "Yo'qlik turlari",
     "attendanceRequests": "So‘rovlar",
-    "blanks": "Blankalar"
+    "blanks": "Blankalar",
+    "councilMinutes": "Kengash xulosasi"
   },
   "roles": {
     "hr_manager": "HR menejeri",
@@ -1243,7 +1244,10 @@
     "blanka.fayl_makro": "Makrosli fayllarni yuklab bo‘lmaydi.",
     "blanka.fayl_katta": "Fayl hajmi ruxsat etilganidan katta.",
     "blanka.fayl_soni": "Bu maydonga boshqa fayl qo‘shib bo‘lmaydi.",
-    "blanka.fayl_bosh": "Fayl bo‘sh."
+    "blanka.fayl_bosh": "Fayl bo‘sh.",
+    "kengash.qaror_majburiy": "Kengash qarorini tanlang.",
+    "kengash.qaror_notogri": "Qaror maydonlari noto‘g‘ri to‘ldirilgan.",
+    "kengash.azolar_notogri": "Kengash a’zolari ro‘yxati noto‘g‘ri."
   },
   "language": {
     "en": "English",
@@ -4506,6 +4510,69 @@
       "notFoundText": "Bu filtrlarga mos xodim yo‘q.",
       "emptyTitle": "Hamma hujjatlar to‘liq",
       "emptyText": "Ishlayotgan xodimlarda yetishmayotgan narsa yo‘q."
+    }
+  },
+  "council": {
+    "title": "Kengash xulosasi",
+    "printButton": "Chop etish / PDF",
+    "day": "Kengash kuni",
+    "dayChip": "{{date}} · {{count}} nafar",
+    "number": "Bayonnoma № {{number}}",
+    "progress": "{{total}} nomzoddan {{decided}} tasiga qaror yozildi",
+    "empty": "Bu kunga kengashga chaqirilgan nomzod yo‘q.",
+    "loadError": "Bayonnomani yuklab bo‘lmadi. Sahifani yangilang.",
+    "members": "Kengash a’zolari",
+    "presentCount": "Ishtirok etdi: {{count}} nafar",
+    "present": "Ishtirok",
+    "memberName": "F.I.Sh.",
+    "memberRole": "Lavozim",
+    "addMember": "A’zo qo‘shish",
+    "removeMember": "A’zoni olib tashlash",
+    "followUpTitle": "Kengashdan keyingi qadamlar",
+    "save": "Saqlash",
+    "saved": "Saqlandi",
+    "choose": "Tanlang",
+    "formNumber": "Anketa № {{number}}",
+    "leftFunnel": "Voronkadan chiqqan",
+    "noDecision": "Qaror yo‘q",
+    "decisionLabel": "Qaror",
+    "decisionRequired": "Qarorni tanlang",
+    "practicalLabel": "Amaliy sinov bahosi",
+    "salary": "Ish haqi",
+    "startDate": "Ishga chiqish sanasi",
+    "condition": "Alohida shart",
+    "conditionHint": "Sinov muddati, ustoz, o‘qitish, moddiy javobgarlik shartnomasi",
+    "conclusion": "Kengash xulosasi",
+    "decision": {
+      "Accept": "Qabul",
+      "Conditional": "Shartli qabul — surishtiruvdan keyin",
+      "Reserve": "Zaxira",
+      "Reject": "Rad"
+    },
+    "practical": {
+      "Passed": "O‘tdi",
+      "Failed": "O‘tmadi",
+      "NotRequired": "Talab qilinmaydi"
+    },
+    "followUp": {
+      "resultsDeliveredOn": "Nomzodlarga natija yetkazildi",
+      "offersGivenOn": "Qabul qilinganlarga taklif va hujjatlar ro‘yxati berildi",
+      "documentsHandedOn": "Hujjatlar buyruq uchun topshirildi",
+      "registryOn": "Reestrga kiritildi",
+      "reserveOn": "Zaxira bazaga kiritildi"
+    },
+    "print": {
+      "title": "HR-F04. ISHGA QABUL KENGASHI BAYONNOMASI",
+      "header": "MBF Company · Bayonnoma № {{number}} · Sana: {{date}} · Ishtirok etdi: {{present}} nafar a’zo (kvorum — tasdiqlangan tarkibning kamida 2/3 qismi)",
+      "membersTitle": "1. Kengash a’zolari",
+      "candidatesTitle": "2. Ko‘rib chiqilgan nomzodlar",
+      "conditionsTitle": "3. Alohida shartlar",
+      "name": "F.I.Sh.",
+      "signature": "Imzo",
+      "candidate": "Nomzod F.I.Sh.",
+      "position": "Lavozim / bo‘lim",
+      "form": "Anketa №",
+      "signatures": "Rais: ________________   Kotib (HR-1): ________________"
     }
   }
 }

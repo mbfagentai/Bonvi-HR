@@ -1,4 +1,5 @@
 using Bonvi.Application.Recruiting.Candidates;
+using Bonvi.Application.Recruiting.Council;
 using Bonvi.Application.Recruiting.Forms;
 using Bonvi.Application.Recruiting.Referrals;
 using Bonvi.Application.Recruiting.Stages;
@@ -67,6 +68,10 @@ internal static class RecruitingRegistration
         services.AddScoped<UpdateCandidateCommandHandler>();
         services.AddScoped<ReassignCandidateCommandHandler>();
         services.AddScoped<RecordCandidateStageCommandHandler>();
+        services.AddScoped<GetCouncilMeetingQueryHandler>();
+        services.AddScoped<ListCouncilDaysQueryHandler>();
+        services.AddScoped<SaveCouncilMeetingCommandHandler>();
+        services.AddScoped<SaveCouncilDecisionCommandHandler>();
         services.AddScoped<EditCandidateStageEntryCommandHandler>();
         services.AddScoped<CloseCandidateCommandHandler>();
         services.AddScoped<ReturnCandidateToFunnelCommandHandler>();

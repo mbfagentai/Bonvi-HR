@@ -274,6 +274,10 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     public DbSet<VacancyRequest> VacancyRequests => Set<VacancyRequest>();
 
+    public DbSet<CouncilMeeting> CouncilMeetings => Set<CouncilMeeting>();
+
+    public DbSet<CouncilDecision> CouncilDecisions => Set<CouncilDecision>();
+
     /// <summary>Nomzodlar (<c>candidates</c>).</summary>
     public DbSet<Candidate> Candidates => Set<Candidate>();
 

@@ -1,3 +1,4 @@
+using Bonvi.Application.Recruiting.Council;
 using Bonvi.Application.Recruiting.Dtos;
 using Bonvi.Domain.Recruiting;
 
@@ -133,6 +134,19 @@ public interface IRecruitingReadModel
     Task<IReadOnlyList<InterviewNoticeDto>> ListPendingInterviewNoticesAsync(
         int limit,
         DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Candidates invited for this day or already on this sitting's minutes, by name.
+    /// </summary>
+    Task<IReadOnlyList<CouncilCandidateDto>> ListCouncilCandidatesAsync(
+        DateOnly date,
+        Guid? meetingId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Days from <paramref name="since"/> on with invitations or a saved sitting.</summary>
+    Task<IReadOnlyList<CouncilDayDto>> ListCouncilDaysAsync(
+        DateOnly since,
         CancellationToken cancellationToken = default);
 
     /// <summary>
