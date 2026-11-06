@@ -141,7 +141,7 @@ public static class PassPairing
 
         // 1-qadam — yo'nalish o'tishning o'zida turibdi; `Unknown` hozircha shundayligicha.
         var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
-        var kept = CollapseBounces(ordered);
+        var kept = FirstAndLastOfUnknownDay(CollapseBounces(ordered));
         var directed = InferDirections(kept);
 
         BreakWindow? window = plan is { BreakWindowStartAt: { } windowFrom, BreakWindowEndAt: { } windowTo }
@@ -265,7 +265,7 @@ public static class PassPairing
         ArgumentNullException.ThrowIfNull(passes);
 
         var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
-        var directed = InferDirections(CollapseBounces(ordered));
+        var directed = InferDirections(FirstAndLastOfUnknownDay(CollapseBounces(ordered)));
 
         return directed.Count > 0 && directed[^1].Direction == PassDirection.In;
     }
@@ -341,6 +341,21 @@ public static class PassPairing
     }
 
     /// <summary>
+    /// On a day made only of readings with no direction, the first one is the entry and the last one the exit.
+    /// </summary>
+    /// <remarks>
+    /// Owner, 2026-11-06. A shared terminal cannot tell in from out, so taking turns let one extra reading in the
+    /// morning turn the evening exit into an entry: «08:28, 09:45, 17:38» read as 77 minutes and no exit. The readings
+    /// in between stay in the log as not counted, so a real trip out in the day is no longer subtracted. A day that also
+    /// holds a known direction (a manual mark, a directed terminal) still takes turns: that mix is the open question of
+    /// <see cref="CollapseBounces"/>.
+    /// </remarks>
+    private static List<PassReading> FirstAndLastOfUnknownDay(List<PassReading> kept)
+        => kept.Count > 2 && kept.All(pass => pass.Direction == PassDirection.Unknown)
+            ? [kept[0], kept[^1]]
+            : kept;
+
+    /// <summary>
     /// Hisob-kitobda ishlatiladigan o'tishlar — <see cref="Pair"/> ning 2-qadamidan o'tganlari (SPEC-qolda-belgi §B).
     /// </summary>
     /// <remarks>
@@ -353,7 +368,7 @@ public static class PassPairing
         ArgumentNullException.ThrowIfNull(passes);
 
         var ordered = passes.OrderBy(pass => pass.OccurredAt).ThenBy(pass => pass.Id).ToList();
-        return CollapseBounces(ordered).Select(pass => pass.Id).ToHashSet();
+        return FirstAndLastOfUnknownDay(CollapseBounces(ordered)).Select(pass => pass.Id).ToHashSet();
     }
 
     /// <summary>
@@ -375,7 +390,7 @@ public static class PassPairing
         var result = ordered.ToDictionary(pass => pass.Id, pass => pass.Direction);
         var expected = PassDirection.In;
 
-        foreach (var pass in CollapseBounces(ordered))
+        foreach (var pass in FirstAndLastOfUnknownDay(CollapseBounces(ordered)))
         {
             var direction = pass.Direction == PassDirection.Unknown ? expected : pass.Direction;
             expected = direction == PassDirection.In ? PassDirection.Out : PassDirection.In;

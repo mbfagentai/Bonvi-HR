@@ -1534,3 +1534,4 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-06] Should a council member link by phone, one-time link or both? → Phone contact only; a wrong number is fixed in the roster → the owner asked for the simplest way, and a link that can be forwarded could impersonate a member.
 - [2026-11-06] When do members see each other's conclusions, now there is no closing time? → Never in the Mini App, only HR on the panel → the owner accepted "hidden", and without a close there is no moment to reveal.
 - [2026-11-06] Who manages the council roster? → `settings.manage` → a roster entry grants a voice in someone's name; the owner said superadmin.
+- [2026-11-06] Direction on a terminal that gives none (Propan-Rispetto) → owner: the day's first reading is the entry, the last is the exit, those between are not counted; a day mixed with a known direction still takes turns → one extra morning reading turned the evening exit into an entry for 12 people on 2026-11-02..05.

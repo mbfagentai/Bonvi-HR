@@ -326,9 +326,9 @@ public sealed class AttendanceDayBuilderTests
 
         kun.Facts.Status.ShouldBe(AttendanceDayStatus.NoSchedule);
         kun.Facts.FirstInAt.ShouldBe(At(Monday, "09:00"));
-        kun.Facts.LastOutAt.ShouldBe(At(Monday, "13:00"));
+        kun.Facts.LastOutAt.ShouldBe(At(Monday, "14:00"));
         AttendanceRules.IsNoScheduleAutoExit(Monday, kun.Facts.LastOutAt).ShouldBeFalse();
-        kun.Facts.WorkedMinutes.ShouldBe(240);
+        kun.Facts.WorkedMinutes.ShouldBe(300);
         kun.Facts.OvertimeMinutes.ShouldBe(0);
     }
 
