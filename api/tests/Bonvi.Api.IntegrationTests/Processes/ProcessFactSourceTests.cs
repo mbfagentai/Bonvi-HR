@@ -243,7 +243,7 @@ public sealed class ProcessFactSourceTests : IClassFixture<BonviApiFactory>
                 context.CouncilDecisions.Add(decision);
             }
 
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await BlankAsync(ProcessBlanks.F04, BlankSubject.None, CouncilAnswers((inBoth, "accept")), sign: ["secretary", "chair"]);
