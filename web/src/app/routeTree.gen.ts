@@ -32,6 +32,7 @@ import { Route as AppSozlamalarRouteImport } from './routes/_app/sozlamalar'
 import { Route as AppVakansiyaSorovlariRouteImport } from './routes/_app/vakansiya-sorovlari'
 import { Route as AppVakansiyalarRouteImport } from './routes/_app/vakansiyalar'
 import { Route as AnketaKorinishRouteImport } from './routes/anketa_.korinish'
+import { Route as TgKengashRouteImport } from './routes/tg.kengash'
 import { Route as AppBlankalarIndexRouteImport } from './routes/_app/blankalar/index'
 import { Route as AppBlankalarSubmissionIdRouteImport } from './routes/_app/blankalar/$submissionId'
 import { Route as AppMalumotnomalarBolimlarRouteImport } from './routes/_app/malumotnomalar/bolimlar'
@@ -173,6 +174,11 @@ const AppVakansiyalarRoute = AppVakansiyalarRouteImport.update({
 const AnketaKorinishRoute = AnketaKorinishRouteImport.update({
   id: '/anketa_/korinish',
   path: '/anketa/korinish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgKengashRoute = TgKengashRouteImport.update({
+  id: '/tg/kengash',
+  path: '/tg/kengash',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppBlankalarIndexRoute = AppBlankalarIndexRouteImport.update({
@@ -358,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/anketa/korinish': typeof AnketaKorinishRoute
+  '/tg/kengash': typeof TgKengashRoute
   '/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
   '/malumotnomalar/hujjat-turlari': typeof AppMalumotnomalarHujjatTurlariRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/vakansiyalar': typeof AppVakansiyalarRoute
   '/anketa/korinish': typeof AnketaKorinishRoute
+  '/tg/kengash': typeof TgKengashRoute
   '/': typeof AppIndexRoute
   '/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -463,6 +471,7 @@ export interface FileRoutesById {
   '/_app/vakansiya-sorovlari': typeof AppVakansiyaSorovlariRoute
   '/_app/vakansiyalar': typeof AppVakansiyalarRoute
   '/anketa_/korinish': typeof AnketaKorinishRoute
+  '/tg/kengash': typeof TgKengashRoute
   '/_app/': typeof AppIndexRoute
   '/_app/blankalar/$submissionId': typeof AppBlankalarSubmissionIdRoute
   '/_app/malumotnomalar/bolimlar': typeof AppMalumotnomalarBolimlarRoute
@@ -518,6 +527,7 @@ export interface FileRouteTypes {
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
     | '/anketa/korinish'
+    | '/tg/kengash'
     | '/blankalar/$submissionId'
     | '/malumotnomalar/bolimlar'
     | '/malumotnomalar/hujjat-turlari'
@@ -569,6 +579,7 @@ export interface FileRouteTypes {
     | '/vakansiya-sorovlari'
     | '/vakansiyalar'
     | '/anketa/korinish'
+    | '/tg/kengash'
     | '/'
     | '/blankalar/$submissionId'
     | '/malumotnomalar/bolimlar'
@@ -622,6 +633,7 @@ export interface FileRouteTypes {
     | '/_app/vakansiya-sorovlari'
     | '/_app/vakansiyalar'
     | '/anketa_/korinish'
+    | '/tg/kengash'
     | '/_app/'
     | '/_app/blankalar/$submissionId'
     | '/_app/malumotnomalar/bolimlar'
@@ -658,6 +670,7 @@ export interface RootRouteChildren {
   AnketaRoute: typeof AnketaRoute
   KirishRoute: typeof KirishRoute
   AnketaKorinishRoute: typeof AnketaKorinishRoute
+  TgKengashRoute: typeof TgKengashRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -821,6 +834,13 @@ declare module '@tanstack/react-router' {
       path: '/anketa/korinish'
       fullPath: '/anketa/korinish'
       preLoaderRoute: typeof AnketaKorinishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg/kengash': {
+      id: '/tg/kengash'
+      path: '/tg/kengash'
+      fullPath: '/tg/kengash'
+      preLoaderRoute: typeof TgKengashRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/blankalar/': {
@@ -1129,6 +1149,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnketaRoute: AnketaRoute,
   KirishRoute: KirishRoute,
   AnketaKorinishRoute: AnketaKorinishRoute,
+  TgKengashRoute: TgKengashRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

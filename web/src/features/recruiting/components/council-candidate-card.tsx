@@ -13,6 +13,7 @@ import {
 } from '../api/council-api'
 import { useSaveCouncilDecision } from '../api/council-queries'
 import { recruitingErrorCode } from '../lib/recruiting-error'
+import { CouncilOpinions } from './council-opinions'
 
 const DECISION_TONE = { Accept: 'success', Conditional: 'warning', Reserve: 'neutral', Reject: 'danger' } as const
 
@@ -97,6 +98,8 @@ export function CouncilCandidateCard({
             </div>
           </div>
 
+          <CouncilOpinions row={row} />
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select
               label={t('council.decisionLabel')}
@@ -130,7 +133,7 @@ export function CouncilCandidateCard({
             onChange={(event) => edit(setCondition)(event.target.value)}
           />
           <TextArea
-            label={t('council.conclusion')}
+            label={t('council.finalConclusion')}
             rows={2}
             value={conclusion}
             maxLength={4000}

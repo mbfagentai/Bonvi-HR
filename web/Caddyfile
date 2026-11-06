@@ -138,7 +138,6 @@
 
 	header {
 		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 
@@ -184,7 +183,14 @@
 	# `form-action 'self'` rozilik formasidan keyingi AI mijoziga (claude.ai)
 	# yo'naltirishni to'sib qo'yardi — ulanish hech qachon tugamasdi.
 	# (Anketa saytida `/oauth/*` yo'q — u yerda 404, CSP bilan.)
-	@spaCsp not path /oauth/*
+	#
+	# `/tg/*` CHIQARILGAN: Telegram Mini App. Telegram Web uni iframe'da ochadi va sahifa Telegram'ning
+	# skriptini yuklaydi, shu sababli u o'z CSP'sini oladi: faqat shu ikki farq (SPEC-kengash-guruhi §5).
+	@framed not path /tg/*
+	header @framed X-Frame-Options DENY
+	@telegramApp path /tg/*
+	header @telegramApp Content-Security-Policy "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors https://web.telegram.org"
+	@spaCsp not path /oauth/* /tg/*
 	header @spaCsp Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; frame-src 'self' https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 }
 

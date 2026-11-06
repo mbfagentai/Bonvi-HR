@@ -318,6 +318,7 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Production
       Bot__ApiBaseUrl: http://api:8080
+      Bot__CouncilWebAppUrl: ${BOT__COUNCILWEBAPPURL:-https://hr.bonvi.uz/tg/kengash}
 
       # Bot API ga aynan shu hisob bilan kiradi — quyidagi
       # `Bootstrap__Bot*` bilan BIR XIL bo'lishi shart, aks holda

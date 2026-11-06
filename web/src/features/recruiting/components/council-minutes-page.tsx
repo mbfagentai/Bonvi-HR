@@ -11,6 +11,8 @@ import type { CouncilCandidate } from '../api/council-api'
 import { useCouncilDays, useCouncilMeeting } from '../api/council-queries'
 import { defaultCouncilDay, tashkentToday } from '../lib/council-days'
 import { CouncilCandidateCard } from './council-candidate-card'
+import { SETTINGS_MANAGE } from '@/features/settings/api/settings-api'
+import { CouncilGroupCard } from './council-group-card'
 import { CouncilMembersCard } from './council-members-card'
 import { CouncilCandidateSheet, CouncilPrintSheet } from './council-print-sheet'
 
@@ -75,6 +77,8 @@ export function CouncilMinutesPage() {
           ))}
         </div>
       </div>
+
+      {hasPermission(SETTINGS_MANAGE) && <CouncilGroupCard />}
 
       {date !== null && <CouncilDayView key={date} date={date} canManage={hasPermission(RECRUITING_MANAGE)} />}
     </div>

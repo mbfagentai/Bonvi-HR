@@ -33,7 +33,47 @@ export interface CouncilCandidate {
   startDate: string | null
   condition: string | null
   conclusion: string | null
+  opinions: CouncilOpinion[] | null
 }
+
+/** A member's own conclusion from Telegram. */
+export interface CouncilOpinion {
+  memberId: string
+  memberName: string
+  decision: CouncilDecision
+  comment: string | null
+  at: string
+}
+
+export interface CouncilGroupMember {
+  id: string
+  fullName: string
+  phone: string
+  isActive: boolean
+  linked: boolean
+  linkedAt: string | null
+}
+
+export interface CouncilGroup {
+  groupBound: boolean
+  groupTitle: string | null
+  miniAppName: string | null
+  botUsername: string | null
+  members: CouncilGroupMember[]
+}
+
+const GROUP = '/api/recruiting/council-group'
+
+export const fetchCouncilGroup = () => api.get<CouncilGroup>(GROUP).then((response) => response.data)
+export const issueCouncilBindCode = () =>
+  api.post<{ command: string; expiresAt: string }>(`${GROUP}/bind-code`).then((response) => response.data)
+export const saveCouncilMiniApp = (name: string) => api.put(`${GROUP}/mini-app`, { name }).then(() => undefined)
+export const addCouncilGroupMember = (body: { fullName: string; phone: string }) =>
+  api.post(`${GROUP}/members`, body).then(() => undefined)
+export const updateCouncilGroupMember = (id: string, body: { fullName: string; phone: string; isActive: boolean }) =>
+  api.put(`${GROUP}/members/${id}`, body).then(() => undefined)
+export const unlinkCouncilGroupMember = (id: string) =>
+  api.post(`${GROUP}/members/${id}/unlink`).then(() => undefined)
 
 export interface CouncilMeeting {
   date: string

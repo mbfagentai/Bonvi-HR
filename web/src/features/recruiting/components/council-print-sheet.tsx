@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import { useLocale } from '@/shared/i18n/use-locale'
 import type { CouncilCandidate, CouncilMeeting } from '../api/council-api'
+import { groupOpinions } from './council-opinions'
 
 const FOLLOW_UP_KEYS = ['resultsDeliveredOn', 'offersGivenOn', 'documentsHandedOn', 'registryOn', 'reserveOn'] as const
 
@@ -136,7 +137,8 @@ export function CouncilPrintSheet({ meeting }: { meeting: CouncilMeeting }) {
  * numbers are written by hand until HRMentor serves HR-F01 and HR-F03 for this page.
  */
 export function CouncilCandidateSheet({ meeting, row }: { meeting: CouncilMeeting; row: CouncilCandidate }) {
-  const { t, date, money } = useLocale()
+  const { t, date, dateTime, money } = useLocale()
+  const groups = groupOpinions(row.opinions ?? [])
   const lines: ReadonlyArray<readonly [string, ReactNode]> = [
     [t('council.print.candidate'), row.fullName],
     [t('council.print.position'), row.position],
@@ -150,7 +152,7 @@ export function CouncilCandidateSheet({ meeting, row }: { meeting: CouncilMeetin
       : []),
     [t('council.startDate'), row.startDate !== null && date(row.startDate)],
     [t('council.condition'), row.condition],
-    [t('council.conclusion'), row.conclusion],
+    [t('council.finalConclusion'), row.conclusion],
   ]
 
   return createPortal(
@@ -167,6 +169,24 @@ export function CouncilCandidateSheet({ meeting, row }: { meeting: CouncilMeetin
           ))}
         </tbody>
       </table>
+      {groups.length > 0 && (
+        <>
+          <h2 className="mt-4 font-bold">{t('council.opinions.title', { count: groups.length })}</h2>
+          <table className="mt-1 w-full border-collapse">
+            <tbody>
+              {groups.map((items) => (
+                <tr key={items[0]!.memberId} className="break-inside-avoid">
+                  <th className={`${HEAD} w-1/3`}>{items[0]!.memberName}</th>
+                  <td className={`${CELL} whitespace-pre-line`}>
+                    <strong>{t(`council.decision.${items[0]!.decision}`)}</strong> · {dateTime(items[0]!.at)}
+                    {items[0]!.comment !== null && `\n${items[0]!.comment}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
       <p className="mt-10 break-inside-avoid">{t('council.print.signatures')}</p>
     </div>,
     document.body,

@@ -1247,7 +1247,14 @@
     "blanka.fayl_bosh": "The file is empty.",
     "kengash.qaror_majburiy": "Choose the council's decision.",
     "kengash.qaror_notogri": "The decision fields are filled in incorrectly.",
-    "kengash.azolar_notogri": "The list of council members is invalid."
+    "kengash.azolar_notogri": "The list of council members is invalid.",
+    "kengash.azo_topilmadi": "Council member not found.",
+    "kengash.telefon_band": "Another member has this phone number.",
+    "kengash.azo_notogri": "Wrong name or phone.",
+    "kengash.xulosa_notogri": "Invalid conclusion: a conditional decision needs a comment.",
+    "kengash.nomzod_topilmadi": "This candidate is not invited to the council.",
+    "kengash.kod_notogri": "The group's binding code is wrong or expired.",
+    "kengash.miniapp_notogri": "Wrong Mini App name: 3–30 Latin letters, digits or _."
   },
   "language": {
     "en": "English",
@@ -4578,6 +4585,56 @@
       "oneHeader": "Extract from HR-F04 minutes No. {{number}} · Date: {{date}}",
       "form": "Form No.",
       "signatures": "Chair: ________________   Secretary (HR-1): ________________"
+    },
+    "finalConclusion": "Final conclusion (chief)",
+    "app": {
+      "title": "Candidates invited to the council",
+      "openInTelegram": "This page opens only inside Telegram.",
+      "reopen": "Close this page and press the button in the group again.",
+      "loadError": "Could not load. Try again.",
+      "linkHint": "We don't know you yet. Send your number to the bot once, then you get straight in.",
+      "linkButton": "Go to the bot",
+      "empty": "No invited candidates yet.",
+      "given": "Conclusion given",
+      "back": "Back",
+      "notInvited": "This candidate is not invited to the council.",
+      "birthDate": "Date of birth",
+      "phone": "Phone",
+      "address": "Address",
+      "speciality": "Speciality",
+      "invitedFor": "Council: {{at}}",
+      "openForm": "Form № {{number}} (PDF)",
+      "yours": "Your conclusion",
+      "again": "New conclusion",
+      "comment": "Comment",
+      "commentRequired": "A conditional decision needs a comment.",
+      "saved": "Your conclusion was saved.",
+      "send": "Send conclusion",
+      "earlier": "Your earlier conclusions"
+    },
+    "opinions": {
+      "title": "Members' conclusions ({{count}})"
+    },
+    "group": {
+      "title": "Telegram: council members",
+      "subtitle": "People on this list open a candidate from the group's button and give their conclusion.",
+      "bound": "Group bound: {{title}}",
+      "notBound": "No group bound",
+      "bind": "Bind the group",
+      "bindHint": "Send this command to the council group. Valid for 30 minutes.",
+      "copy": "Copy",
+      "miniApp": "Mini App short name",
+      "miniAppHint": "The /newapp name in BotFather. Empty: buttons open through the bot's chat.",
+      "name": "Full name",
+      "phone": "Phone",
+      "phoneHint": "The member's number in Telegram",
+      "add": "Add",
+      "linked": "Linked",
+      "notLinked": "Not in yet",
+      "inactive": "Inactive",
+      "unlink": "Unlink Telegram",
+      "deactivate": "Turn off",
+      "activate": "Turn on"
     }
   }
 }

@@ -190,6 +190,7 @@ services:
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
       Bot__Token: ${TELEGRAM__BOTTOKEN:-}
       Bot__ApiBaseUrl: http://api:8080
+      Bot__CouncilWebAppUrl: ${BOT__COUNCILWEBAPPURL:-https://hr.bonvi.uz/tg/kengash}
       # Bot API ga aynan shu hisob bilan kiradi — `Bootstrap__Bot*` bilan
       # BIR XIL bo'lishi shart, aks holda kirish 401 bilan rad etiladi.
       Bot__Login: ${BOOTSTRAP__BOTLOGIN:-}
