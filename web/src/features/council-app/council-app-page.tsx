@@ -46,7 +46,13 @@ function Launched({ initData, target, openLink }: { initData: string; target: st
   const { t } = useLocale()
   const client = useMemo(() => councilAppClient(initData), [initData])
   const [open, setOpen] = useState(target)
-  const me = useQuery({ queryKey: ['council-app', 'me'], queryFn: client.me, retry: false })
+  const me = useQuery({
+    queryKey: ['council-app', 'me'],
+    queryFn: client.me,
+    retry: false,
+    // Telegram Desktop keeps this window open while the member links in the bot's chat: it moves on by itself.
+    refetchInterval: (query) => (query.state.data?.recognized === false ? 5000 : false),
+  })
 
   if (me.isPending) {
     return <Skeleton className="h-40 w-full rounded-2xl" />
