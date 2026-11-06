@@ -1,4 +1,4 @@
-import type { CandidateQuestionnaire, CandidateSource } from '@/features/recruiting/api/recruiting-api'
+import { toQuestionnaire, type CandidateQuestionnaire, type CandidateSource } from '@/features/recruiting/api/recruiting-api'
 import type { CouncilDecision } from '@/features/recruiting/api/council-api'
 
 const BASE: string = import.meta.env['VITE_API_URL'] ?? 'http://localhost:7080'
@@ -65,7 +65,12 @@ export function councilAppClient(initData: string) {
   return {
     me: async () => (await (await request('/me')).json()) as CouncilAppMe,
     list: async () => (await (await request('/candidates')).json()) as CouncilAppRow[],
-    candidate: async (id: string) => (await (await request(`/candidates/${id}`)).json()) as CouncilAppCandidate,
+    candidate: async (id: string) => {
+      const raw = (await (await request(`/candidates/${id}`)).json()) as CouncilAppCandidate
+
+      // The card expects what the panel's client gives it: the API's enum names differ, e.g. `Advanced` and `advanced`.
+      return { ...raw, questionnaire: toQuestionnaire(raw.questionnaire) }
+    },
     photo: async (id: string) => (await request(`/candidates/${id}/photo`)).blob(),
     pdf: async (id: string, formId: string) => (await request(`/candidates/${id}/forms/${formId}/pdf`)).blob(),
     saveOpinion: async (id: string, body: { decision: CouncilDecision; comment: string | null }) => {

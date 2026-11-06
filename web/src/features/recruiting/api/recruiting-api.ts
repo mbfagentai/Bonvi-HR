@@ -978,7 +978,7 @@ function toCandidateNote(raw: unknown): CandidateNote {
  * Anketa. `null` — nomzodda anketa YO'Q (HR qo'lda kiritgan yoki bot
  * ishga tushgunicha yozilgan yozuv) va bu odatiy hol.
  */
-function toQuestionnaire(raw: unknown): CandidateQuestionnaire | null {
+export function toQuestionnaire(raw: unknown): CandidateQuestionnaire | null {
   if (raw === null || raw === undefined || typeof raw !== 'object') return null
   const box = raw as Record<string, unknown>
 
