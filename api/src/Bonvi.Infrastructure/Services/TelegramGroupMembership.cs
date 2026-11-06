@@ -14,7 +14,7 @@ namespace Bonvi.Infrastructure.Services;
 public sealed partial class TelegramGroupMembership : ITelegramGroupMembership
 {
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(1);
-    private static readonly Uri TelegramApi = new("https://api.telegram.org/");
+    private const string TelegramApi = "https://api.telegram.org/bot";
 
     private readonly HttpClient _http;
     private readonly IMemoryCache _cache;
@@ -51,11 +51,11 @@ public sealed partial class TelegramGroupMembership : ITelegramGroupMembership
 
     private async Task<TelegramGroupStatus> AskAsync(string botToken, long chatId, long userId, CancellationToken cancellationToken)
     {
-        var path = string.Create(CultureInfo.InvariantCulture, $"bot{botToken}/getChatMember?chat_id={chatId}&user_id={userId}");
+        var address = new Uri(string.Create(CultureInfo.InvariantCulture, $"{TelegramApi}{botToken}/getChatMember?chat_id={chatId}&user_id={userId}"));
 
         try
         {
-            using var response = await _http.GetAsync(new Uri(TelegramApi, path), cancellationToken).ConfigureAwait(false);
+            using var response = await _http.GetAsync(address, cancellationToken).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {
@@ -71,10 +71,9 @@ public sealed partial class TelegramGroupMembership : ITelegramGroupMembership
                 ? TelegramGroupStatus.NotMember
                 : TelegramGroupStatus.Unavailable;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException
-            && !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            // Only the type: a request's message could carry the address, and the token is in it.
+            // Anything here must not break a member's screen. Only the type is logged: a message could carry the token.
             LogFailed(ex.GetType().Name);
 
             return TelegramGroupStatus.Unavailable;
