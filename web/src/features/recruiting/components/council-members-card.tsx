@@ -40,7 +40,10 @@ export function CouncilMembersCard({ meeting, canManage }: { meeting: CouncilMee
 
         <div className="space-y-2">
           {members.map((member, index) => (
-            <div key={index} className="flex flex-wrap items-center gap-2">
+            <div
+              key={index}
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]"
+            >
               <Checkbox
                 checked={member.present}
                 disabled={!canManage}
@@ -48,21 +51,21 @@ export function CouncilMembersCard({ meeting, canManage }: { meeting: CouncilMee
                 onChange={(checked) => change(index, { present: checked })}
               />
               <Input
-                className="min-w-40 flex-1"
                 value={member.fullName}
                 disabled={!canManage}
                 placeholder={t('council.memberName')}
                 aria-label={t('council.memberName')}
                 onChange={(event) => change(index, { fullName: event.target.value })}
               />
-              <Input
-                className="min-w-32 flex-1"
-                value={member.role ?? ''}
-                disabled={!canManage}
-                placeholder={t('council.memberRole')}
-                aria-label={t('council.memberRole')}
-                onChange={(event) => change(index, { role: event.target.value })}
-              />
+              <div className="col-start-2 row-start-2 sm:col-auto sm:row-auto">
+                <Input
+                  value={member.role ?? ''}
+                  disabled={!canManage}
+                  placeholder={t('council.memberRole')}
+                  aria-label={t('council.memberRole')}
+                  onChange={(event) => change(index, { role: event.target.value })}
+                />
+              </div>
               {canManage && (
                 <Button
                   type="button"
