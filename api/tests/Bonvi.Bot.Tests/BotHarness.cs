@@ -258,6 +258,9 @@ public sealed class BotHarness : IDisposable
     /// <summary>Oxirgi xabar.</summary>
     public SentMessage Last => Sent[^1];
 
+    /// <summary>A raw update, for chats other than the test's private one.</summary>
+    public Task HandleAsync(TelegramUpdate update) => _worker.HandleAsync(update, CancellationToken.None);
+
     /// <summary>Nomzod matn yozdi.</summary>
     public Task TextAsync(string text) => SendAsync(new TelegramMessage(1, new TelegramChat(ChatId), text, null));
 

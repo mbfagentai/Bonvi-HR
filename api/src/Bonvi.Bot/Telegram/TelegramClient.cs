@@ -120,7 +120,7 @@ public sealed partial class TelegramClient
 
             // Faqat kerakli turlar: qolganlari (kanal xabarlari, tahrirlar)
             // botga aloqasi yo'q va ularni o'qish bekor ish bo'lardi.
-            allowed_updates = new[] { "message", "callback_query" },
+            allowed_updates = new[] { "message", "callback_query", "my_chat_member" },
         };
 
         // ⚠️ `null` — CHAQIRUV YIQILDI, «yangilik yo'q» EMAS. Ikkisini

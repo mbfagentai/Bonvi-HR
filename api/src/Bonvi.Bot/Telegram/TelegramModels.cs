@@ -47,7 +47,12 @@ public enum TelegramDelivery
 public sealed record TelegramUpdate(
     [property: JsonPropertyName("update_id")] long UpdateId,
     [property: JsonPropertyName("message")] TelegramMessage? Message,
-    [property: JsonPropertyName("callback_query")] TelegramCallbackQuery? CallbackQuery);
+    [property: JsonPropertyName("callback_query")] TelegramCallbackQuery? CallbackQuery,
+    [property: JsonPropertyName("my_chat_member")] TelegramChatMemberUpdate? MyChatMember = null);
+
+/// <summary>The bot's own membership changed: it was added to a chat or removed from one.</summary>
+public sealed record TelegramChatMemberUpdate(
+    [property: JsonPropertyName("chat")] TelegramChat Chat);
 
 public sealed record TelegramMessage(
     [property: JsonPropertyName("message_id")] long MessageId,
@@ -57,9 +62,10 @@ public sealed record TelegramMessage(
     [property: JsonPropertyName("photo")] IReadOnlyList<TelegramPhotoSize>? Photo = null,
     [property: JsonPropertyName("from")] TelegramUser? From = null);
 
-/// <summary>The sender. Only the username is read: it can match a name written on the online form.</summary>
+/// <summary>The sender. The username can match a name written on the online form, the id identifies a council member.</summary>
 public sealed record TelegramUser(
-    [property: JsonPropertyName("username")] string? Username);
+    [property: JsonPropertyName("username")] string? Username,
+    [property: JsonPropertyName("id")] long? Id = null);
 
 /// <summary>
 /// Yuborilgan rasmning BITTA o'lchamdagi ko'rinishi.
@@ -134,7 +140,13 @@ public static class TelegramPhotos
 }
 
 public sealed record TelegramChat(
-    [property: JsonPropertyName("id")] long Id);
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("type")] string? Type = null,
+    [property: JsonPropertyName("title")] string? Title = null)
+{
+    /// <summary>A one-to-one chat. Telegram always sends the type; group ids are negative when it is absent.</summary>
+    public bool IsPrivate => Type is null ? Id > 0 : Type == "private";
+}
 
 /// <summary>
 /// «Raqamni yuborish» tugmasi bilan kelgan kontakt.

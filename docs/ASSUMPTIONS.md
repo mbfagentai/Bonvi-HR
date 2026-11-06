@@ -1531,3 +1531,6 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-05] Council members' names in code → no, HR types them once and each sitting copies the previous one → the repo has a public mirror
 - [2026-11-06] Where does the process read the council decision while HRMentor does not serve HR-F04? → `council_decisions` holds `cand.inF04` and `cand.f04Decision`, a signed HR-F04 outranks it → HR writes one decision in one place.
 - [2026-11-06] One minutes or a sheet per candidate? → Both: HR-F04 stays one minutes per council day, and each decided candidate gets a printable extract for the personal file → the owner expects a sheet per person, the blank has one table.
+- [2026-11-06] Should a council member link by phone, one-time link or both? → Phone contact only; a wrong number is fixed in the roster → the owner asked for the simplest way, and a link that can be forwarded could impersonate a member.
+- [2026-11-06] When do members see each other's conclusions, now there is no closing time? → Never in the Mini App, only HR on the panel → the owner accepted "hidden", and without a close there is no moment to reveal.
+- [2026-11-06] Who manages the council roster? → `settings.manage` → a roster entry grants a voice in someone's name; the owner said superadmin.

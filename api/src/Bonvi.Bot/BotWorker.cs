@@ -807,6 +807,30 @@ public sealed partial class BotWorker : BackgroundService
     /// </remarks>
     internal async Task HandleAsync(TelegramUpdate update, CancellationToken cancellationToken)
     {
+        if (update.MyChatMember is { } membership)
+        {
+            if (!membership.Chat.IsPrivate)
+            {
+                await HandleGroupAsync(membership.Chat, null, cancellationToken).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        // Conversations are per chat, so in a group everybody would share one questionnaire and
+        // a candidate could be matched to the group's id. Nothing of that runs outside a private chat.
+        if (update.CallbackQuery is { Message.Chat: { IsPrivate: false } } groupCallback)
+        {
+            await _telegram.AnswerCallbackAsync(groupCallback.Id, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (update.Message is { Chat.IsPrivate: false } groupMessage)
+        {
+            await HandleGroupAsync(groupMessage.Chat, groupMessage, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (update.CallbackQuery is { } callback)
         {
             await HandleCallbackAsync(callback, cancellationToken).ConfigureAwait(false);
@@ -818,6 +842,10 @@ public sealed partial class BotWorker : BackgroundService
             await HandleMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>A group gets no answer. The council group binding is added here (SPEC-kengash-guruhi §2).</summary>
+    private static Task HandleGroupAsync(TelegramChat chat, TelegramMessage? message, CancellationToken cancellationToken)
+        => Task.CompletedTask;
 
     private async Task HandleCallbackAsync(TelegramCallbackQuery callback, CancellationToken cancellationToken)
     {
