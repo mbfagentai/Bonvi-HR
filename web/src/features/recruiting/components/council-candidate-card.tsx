@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Check } from 'lucide-react'
+import { Check, Printer } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
@@ -22,11 +22,13 @@ export function CouncilCandidateCard({
   row,
   canManage,
   canSeeSalary,
+  onPrint,
 }: {
   date: string
   row: CouncilCandidate
   canManage: boolean
   canSeeSalary: boolean
+  onPrint: (row: CouncilCandidate) => void
 }) {
   const { t } = useLocale()
   const errorMessage = useErrorMessage()
@@ -145,6 +147,12 @@ export function CouncilCandidateCard({
                   <Check className="size-4" />
                   {t('council.saved')}
                 </span>
+              )}
+              {row.decided && !dirty && (
+                <Button type="button" variant="secondary" size="sm" onClick={() => onPrint(row)}>
+                  <Printer />
+                  {t('council.printOne')}
+                </Button>
               )}
               <Button type="submit" size="sm" disabled={save.isPending}>
                 {t('council.save')}

@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { useLocale } from '@/shared/i18n/use-locale'
-import type { CouncilMeeting } from '../api/council-api'
+import type { CouncilCandidate, CouncilMeeting } from '../api/council-api'
 
 const FOLLOW_UP_KEYS = ['resultsDeliveredOn', 'offersGivenOn', 'documentsHandedOn', 'registryOn', 'reserveOn'] as const
 
@@ -61,9 +62,11 @@ export function CouncilPrintSheet({ meeting }: { meeting: CouncilMeeting }) {
             <th className={HEAD}>№</th>
             <th className={HEAD}>{t('council.print.candidate')}</th>
             <th className={HEAD}>{t('council.print.position')}</th>
+            <th className={HEAD}>{t('council.print.request')}</th>
             <th className={HEAD}>{t('council.print.form')}</th>
             <th className={HEAD}>{t('council.decisionLabel')}</th>
             <th className={HEAD}>{t('council.practicalLabel')}</th>
+            <th className={HEAD}>{t('council.print.check')}</th>
             {meeting.canSeeSalary && <th className={HEAD}>{t('council.salary')}</th>}
             <th className={HEAD}>{t('council.startDate')}</th>
           </tr>
@@ -74,12 +77,14 @@ export function CouncilPrintSheet({ meeting }: { meeting: CouncilMeeting }) {
               <td className={CELL}>{index + 1}</td>
               <td className={CELL}>{row.fullName}</td>
               <td className={CELL}>{row.position}</td>
+              <td className={CELL} />
               <td className={CELL}>{row.formNumber}</td>
               <td className={CELL}>
                 {row.decision !== null && <strong>{t(`council.decision.${row.decision}`)}</strong>}
                 {row.conclusion !== null && <div>{row.conclusion}</div>}
               </td>
               <td className={CELL}>{row.practical !== null && t(`council.practical.${row.practical}`)}</td>
+              <td className={CELL} />
               {meeting.canSeeSalary && (
                 <td className={CELL}>{row.offeredSalary !== null && money(row.offeredSalary)}</td>
               )}
@@ -121,6 +126,48 @@ export function CouncilPrintSheet({ meeting }: { meeting: CouncilMeeting }) {
       </table>
 
       <p className="mt-6 break-inside-avoid">{t('council.print.signatures')}</p>
+    </div>,
+    document.body,
+  )
+}
+
+/**
+ * One candidate's conclusion for the personal file: the same decision as the minutes' row. The request and check
+ * numbers are written by hand until HRMentor serves HR-F01 and HR-F03 for this page.
+ */
+export function CouncilCandidateSheet({ meeting, row }: { meeting: CouncilMeeting; row: CouncilCandidate }) {
+  const { t, date, money } = useLocale()
+  const lines: ReadonlyArray<readonly [string, ReactNode]> = [
+    [t('council.print.candidate'), row.fullName],
+    [t('council.print.position'), row.position],
+    [t('council.print.request'), null],
+    [t('council.print.form'), row.formNumber],
+    [t('council.decisionLabel'), row.decision !== null && <strong>{t(`council.decision.${row.decision}`)}</strong>],
+    [t('council.practicalLabel'), row.practical !== null && t(`council.practical.${row.practical}`)],
+    [t('council.print.check'), null],
+    ...(meeting.canSeeSalary
+      ? ([[t('council.salary'), row.offeredSalary !== null && money(row.offeredSalary)]] as const)
+      : []),
+    [t('council.startDate'), row.startDate !== null && date(row.startDate)],
+    [t('council.condition'), row.condition],
+    [t('council.conclusion'), row.conclusion],
+  ]
+
+  return createPortal(
+    <div className="council-print hidden bg-white text-sm leading-snug text-black print:block">
+      <h1 className="text-base font-bold">{t('council.print.oneTitle')}</h1>
+      <p className="mt-1">{t('council.print.oneHeader', { number: meeting.number ?? '____', date: date(meeting.date) })}</p>
+      <table className="mt-4 w-full border-collapse">
+        <tbody>
+          {lines.map(([label, value]) => (
+            <tr key={label} className="break-inside-avoid">
+              <th className={`${HEAD} w-1/3`}>{label}</th>
+              <td className={`${CELL} whitespace-pre-line`}>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-10 break-inside-avoid">{t('council.print.signatures')}</p>
     </div>,
     document.body,
   )

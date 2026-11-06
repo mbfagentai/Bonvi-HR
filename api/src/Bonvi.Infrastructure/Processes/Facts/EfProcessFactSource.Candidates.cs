@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Bonvi.Infrastructure.Processes.Facts;
 
 /// <summary>
-/// <c>cand.*</c> — six queries: candidates, bound stage entries, forms, hire events, candidate
-/// blanks (F03, F05), HR-F04 councils.
+/// <c>cand.*</c> — seven queries: candidates, bound stage entries, forms, hire events, candidate
+/// blanks (F03, F05), HR-F04 councils, decisions on the council minutes page.
 /// </summary>
 /// <remarks>
 /// Every candidate fact belongs to ONE application: only rows on/after its <c>appliedAt</c> count
@@ -97,11 +97,19 @@ public sealed partial class EfProcessFactSource
             .ConfigureAwait(false);
         var councilRows = CouncilRows(councils, foundIds);
 
+        // The minutes page (`/kengash-xulosasi`, debt D7 in SPEC-hujjat-manbai) holds the decision until HRMentor serves HR-F04.
+        var pageDecisions = await _context.CouncilDecisions.AsNoTracking()
+            .Where(row => foundIds.Contains(row.CandidateId))
+            .Select(row => new PageDecisionRow(row.CandidateId, row.Id, row.Decision, row.CreatedAt, row.UpdatedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var stagesByCandidate = stageEntries.ToLookup(row => row.CandidateId);
         var formsByCandidate = forms.ToLookup(row => row.CandidateId);
         var hiresByCandidate = hires.ToLookup(row => row.CandidateId);
         var blanksByCandidate = candidateBlanks.ToLookup(row => row.CandidateId!.Value);
         var councilsByCandidate = councilRows.ToLookup(row => row.CandidateId);
+        var pageDecisionsByCandidate = pageDecisions.ToLookup(row => row.CandidateId);
 
         foreach (var (subject, appliedAt) in applications)
         {
@@ -146,18 +154,28 @@ public sealed partial class EfProcessFactSource
                 .OrderByDescending(row => row.Blank.CreatedAt)
                 .ThenByDescending(row => row.Blank.Id)
                 .FirstOrDefault();
-            facts[ProcessFacts.CandInF04] = listed is null
-                ? FactValue.NotHeld
-                : Holds(listed.Blank.CreatedAt, listed.Decision, listed.Blank.Id);
+            var pageDecision = pageDecisionsByCandidate[id]
+                .Where(row => row.CreatedAt >= appliedAt)
+                .OrderByDescending(row => row.CreatedAt)
+                .FirstOrDefault();
+            facts[ProcessFacts.CandInF04] = (listed, pageDecision) switch
+            {
+                ({ } blank, _) => Holds(blank.Blank.CreatedAt, blank.Decision, blank.Blank.Id),
+                (null, { } page) => Holds(page.CreatedAt, page.Value, page.Id),
+                _ => FactValue.NotHeld,
+            };
 
             var decided = councilsOfApplication
                 .Where(row => row.Blank.Status == BlankSubmissionStatus.Approved)
                 .OrderByDescending(row => row.Blank.CompletedAt)
                 .ThenByDescending(row => row.Blank.Id)
                 .FirstOrDefault();
-            facts[ProcessFacts.CandF04Decision] = decided is null
-                ? FactValue.NotHeld
-                : Holds(decided.Blank.CompletedAt, decided.Decision, decided.Blank.Id);
+            facts[ProcessFacts.CandF04Decision] = (decided, pageDecision) switch
+            {
+                ({ } blank, _) => Holds(blank.Blank.CompletedAt, blank.Decision, blank.Blank.Id),
+                (null, { } page) => Holds(page.UpdatedAt ?? page.CreatedAt, page.Value, page.Id),
+                _ => FactValue.NotHeld,
+            };
 
             // ── HR-F03 / HR-F05 (candidate-subject blanks) ──
             var ofApplication = blanksByCandidate[id].Where(row => row.CreatedAt >= appliedAt).ToList();
@@ -217,4 +235,14 @@ public sealed partial class EfProcessFactSource
     private sealed record HireRow(Guid CandidateId, Guid EmploymentId, Guid EmployeeId, DateTimeOffset RecordedAt);
 
     private sealed record CouncilRow(Guid CandidateId, BlankFactRow Blank, string? Decision);
+    /// <summary>A decision saved on the minutes page; <see cref="Value"/> is the fact's value.</summary>
+    private sealed record PageDecisionRow(
+        Guid CandidateId,
+        Guid Id,
+        CouncilDecisionKind Decision,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset? UpdatedAt)
+    {
+        public string Value => Decision.ToString().ToLowerInvariant();
+    }
 }

@@ -1529,3 +1529,5 @@ Format: `- [sana] <savol> → <qaror> → <sabab>`
 - [2026-11-05] Does a council decision change the candidate's status → no, it writes the day's «Кенгаш» stage entry; rejecting and hiring stay HR's own actions → matches every other stage
 - [2026-11-05] Paper columns «So'rov № (F01)» and «Surishtiruv (F03)» on the minutes → left out → no link from a candidate to a vacancy request exists, and F03 comes after the council
 - [2026-11-05] Council members' names in code → no, HR types them once and each sitting copies the previous one → the repo has a public mirror
+- [2026-11-06] Where does the process read the council decision while HRMentor does not serve HR-F04? → `council_decisions` holds `cand.inF04` and `cand.f04Decision`, a signed HR-F04 outranks it → HR writes one decision in one place.
+- [2026-11-06] One minutes or a sheet per candidate? → Both: HR-F04 stays one minutes per council day, and each decided candidate gets a printable extract for the personal file → the owner expects a sheet per person, the blank has one table.

@@ -4513,6 +4513,7 @@
     }
   },
   "council": {
+    "printOne": "Xulosani chop etish",
     "title": "Kengash xulosasi",
     "printButton": "Chop etish / PDF",
     "day": "Kengash kuni",
@@ -4571,6 +4572,10 @@
       "signature": "Imzo",
       "candidate": "Nomzod F.I.Sh.",
       "position": "Lavozim / bo‘lim",
+      "request": "So‘rov № (F01)",
+      "check": "Surishtiruv (F03)",
+      "oneTitle": "KENGASH XULOSASI",
+      "oneHeader": "HR-F04 bayonnomasidan ko‘chirma № {{number}} · Sana: {{date}}",
       "form": "Anketa №",
       "signatures": "Rais: ________________   Kotib (HR-1): ________________"
     }

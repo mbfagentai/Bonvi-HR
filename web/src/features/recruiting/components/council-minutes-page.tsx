@@ -1,15 +1,18 @@
 import { getRouteApi } from '@tanstack/react-router'
 import { Gavel, Printer, Users } from 'lucide-react'
+import { useState } from 'react'
+import { flushSync } from 'react-dom'
 
 import { useAuth } from '@/features/auth'
 import { useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
 import { Alert, Button, DateField, EmptyState, IconTile, PageHeader, Skeleton } from '@/shared/ui'
+import type { CouncilCandidate } from '../api/council-api'
 import { useCouncilDays, useCouncilMeeting } from '../api/council-queries'
 import { defaultCouncilDay, tashkentToday } from '../lib/council-days'
 import { CouncilCandidateCard } from './council-candidate-card'
 import { CouncilMembersCard } from './council-members-card'
-import { CouncilPrintSheet } from './council-print-sheet'
+import { CouncilCandidateSheet, CouncilPrintSheet } from './council-print-sheet'
 
 const route = getRouteApi('/_app/kengash-xulosasi')
 
@@ -81,6 +84,14 @@ export function CouncilMinutesPage() {
 function CouncilDayView({ date, canManage }: { date: string; canManage: boolean }) {
   const { t } = useLocale()
   const meeting = useCouncilMeeting(date)
+  const [printing, setPrinting] = useState<CouncilCandidate | null>(null)
+
+  // The sheet must be in the document before the browser snapshots it for the print dialog.
+  const printOne = (row: CouncilCandidate) => {
+    flushSync(() => setPrinting(row))
+    window.print()
+    setPrinting(null)
+  }
 
   if (meeting.isPending) {
     return <Skeleton className="h-64 w-full rounded-2xl" />
@@ -112,11 +123,12 @@ function CouncilDayView({ date, canManage }: { date: string; canManage: boolean 
             row={row}
             canManage={canManage}
             canSeeSalary={data.canSeeSalary}
+            onPrint={printOne}
           />
         ))
       )}
 
-      <CouncilPrintSheet meeting={data} />
+      {printing === null ? <CouncilPrintSheet meeting={data} /> : <CouncilCandidateSheet meeting={data} row={printing} />}
     </div>
   )
 }

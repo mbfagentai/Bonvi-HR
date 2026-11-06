@@ -220,6 +220,47 @@ public sealed class ProcessFactSourceTests : IClassFixture<BonviApiFactory>
         facts.ForCandidate(new(absent), ProcessFacts.CandInF04).Holds.ShouldBeFalse();
     }
 
+    /// <summary>The minutes page holds the decision while HRMentor does not serve HR-F04; a signed blank outranks it.</summary>
+    [Fact]
+    public async Task Council_decision_from_the_minutes_page()
+    {
+        await EnsureStandInTemplatesAsync();
+        var vacancy = await VacancyAsync();
+        var onPage = await CandidateAsync(vacancy);
+        var inBoth = await CandidateAsync(vacancy);
+        var neither = await CandidateAsync(vacancy);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var meeting = CouncilMeeting.Create(new DateOnly(2031, 3, 4), 9301, "[]", "{}");
+            context.CouncilMeetings.Add(meeting);
+
+            foreach (var candidate in new[] { onPage, inBoth })
+            {
+                var decision = CouncilDecision.Create(meeting.Id, candidate);
+                decision.Update(CouncilDecisionKind.Conditional, null, null, null, null, null, null);
+                context.CouncilDecisions.Add(decision);
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        await BlankAsync(ProcessBlanks.F04, BlankSubject.None, CouncilAnswers((inBoth, "accept")), sign: ["secretary", "chair"]);
+
+        var facts = await LoadAsync(new ProcessFactQuery { Candidates = [new(onPage), new(inBoth), new(neither)] });
+
+        facts.ForCandidate(new(onPage), ProcessFacts.CandInF04).Holds.ShouldBeTrue();
+        var fromPage = facts.ForCandidate(new(onPage), ProcessFacts.CandF04Decision);
+        fromPage.Holds.ShouldBeTrue();
+        fromPage.Value.ShouldBe("conditional");
+
+        facts.ForCandidate(new(inBoth), ProcessFacts.CandF04Decision).Value.ShouldBe("accept", "the signed blank outranks the page");
+
+        facts.ForCandidate(new(neither), ProcessFacts.CandInF04).Holds.ShouldBeFalse();
+        facts.ForCandidate(new(neither), ProcessFacts.CandF04Decision).Holds.ShouldBeFalse();
+    }
+
     /// <summary>HR-F03 / HR-F05 (HRMentor stand-ins), candidate subject.</summary>
     [Fact]
     public async Task Candidate_check_and_offer_blanks()

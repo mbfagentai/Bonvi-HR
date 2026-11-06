@@ -4513,6 +4513,7 @@
     }
   },
   "council": {
+    "printOne": "Print conclusion",
     "title": "Council minutes",
     "printButton": "Print / PDF",
     "day": "Council day",
@@ -4571,6 +4572,10 @@
       "signature": "Signature",
       "candidate": "Candidate",
       "position": "Position / department",
+      "request": "Request No. (F01)",
+      "check": "Reference check (F03)",
+      "oneTitle": "COUNCIL CONCLUSION",
+      "oneHeader": "Extract from HR-F04 minutes No. {{number}} · Date: {{date}}",
       "form": "Form No.",
       "signatures": "Chair: ________________   Secretary (HR-1): ________________"
     }
