@@ -273,6 +273,12 @@ public sealed class BotHarness : IDisposable
     /// <summary>Telegram methods called besides sending, with their bodies.</summary>
     public List<(string Method, string Body)> TelegramCalls { get; } = [];
 
+    /// <summary>Whether the server fails to record a sent message.</summary>
+    public bool CouncilMarkFails { get; set; }
+
+    /// <summary>Whether Telegram answers an edit with «message is not modified».</summary>
+    public bool EditNotModified { get; set; }
+
     /// <summary>Whether Telegram refuses an edit, as when the message was deleted.</summary>
     public bool EditRefused { get; set; }
 
@@ -374,6 +380,17 @@ public sealed class BotHarness : IDisposable
         if (path.EndsWith("/editMessageText", StringComparison.Ordinal))
         {
             TelegramCalls.Add(("editMessageText", body));
+
+            if (EditNotModified)
+            {
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent(
+                        """{"ok":false,"error_code":400,"description":"Bad Request: message is not modified: specified new message content and reply markup are exactly the same"}""",
+                        Encoding.UTF8,
+                        "application/json"),
+                };
+            }
 
             return EditRefused
                 ? new HttpResponseMessage(HttpStatusCode.BadRequest)
@@ -577,6 +594,13 @@ public sealed class BotHarness : IDisposable
         }
 
         if (path == "/api/recruiting/council-bot/digest-sent")
+        {
+            CouncilCalls.Add(body);
+
+            return new HttpResponseMessage(CouncilMarkFails ? HttpStatusCode.InternalServerError : HttpStatusCode.NoContent);
+        }
+
+        if (path == "/api/recruiting/council-bot/migrate")
         {
             CouncilCalls.Add(body);
 

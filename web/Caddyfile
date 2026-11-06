@@ -126,6 +126,7 @@
 			request>headers>Authorization delete
 			request>headers>Cookie delete
 			request>headers>X-Api-Key delete
+			request>headers>X-Telegram-Init-Data delete
 			request>headers>X-Bonvi-Device-Token delete
 			request>headers>X-Bonvi-Signature delete
 			request>headers>X-Bonvi-Terminal-Serial delete

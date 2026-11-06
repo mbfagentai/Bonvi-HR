@@ -344,7 +344,7 @@ public sealed class RateLimitingOptions
     /// VEB-panel byudjetini yeb, ekranda 429 olardi.
     /// </para>
     /// </remarks>
-    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent", "/mcp"];
+    public IList<string> ExcludedPaths { get; } = ["/health", "/api/attendance/ingest", "/api/attendance/agent", "/mcp", "/api/council-app"];
 }
 
 /// <summary>Bir vaqtdagi so'rovlar soni va navbat — oynasiz cheklov sozlamalari.</summary>

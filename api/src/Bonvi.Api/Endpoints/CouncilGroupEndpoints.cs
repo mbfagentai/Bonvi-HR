@@ -14,6 +14,8 @@ public sealed record SaveCouncilMiniAppRequest(string? Name);
 
 public sealed record BindCouncilGroupRequest(string? Code, long ChatId, string? Title);
 
+public sealed record MigrateCouncilGroupRequest(long FromChatId, long ToChatId);
+
 public sealed record LinkCouncilMemberRequest(long TelegramUserId, string? Phone);
 
 public sealed record MarkCouncilDigestSentRequest(DateOnly Date, long ChatId, long MessageId, string? Signature);
@@ -110,6 +112,12 @@ public static class CouncilGroupEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        group.MapPost("/migrate", async (MigrateCouncilGroupRequest request, MigrateCouncilGroupCommandHandler handler, CancellationToken cancellationToken) =>
+                (await handler.HandleAsync(new MigrateCouncilGroupCommand(request.FromChatId, request.ToChatId), cancellationToken).ConfigureAwait(false)).ToHttpResult())
+            .WithName("MigrateCouncilGroup")
+            .WithSummary("Telegram turned a group into a supergroup, which changes its id, bot only. Another group's move changes nothing")
+            .Produces(StatusCodes.Status204NoContent);
+
         group.MapPost("/link", async (LinkCouncilMemberRequest request, LinkCouncilMemberCommandHandler handler, CancellationToken cancellationToken) =>
                 (await handler.HandleAsync(new LinkCouncilMemberCommand(request.TelegramUserId, request.Phone), cancellationToken).ConfigureAwait(false)).ToHttpResult())
             .WithName("LinkCouncilMember")
@@ -168,6 +176,7 @@ public static class CouncilGroupEndpoints
                     return Results.Forbid();
                 default:
                     context.Items[MemberItem] = identity.Member!.Id;
+                    context.Items[HttpAuditActorSource.CouncilMemberNameItem] = identity.Member.FullName;
                     return await next(invocation).ConfigureAwait(false);
             }
         });

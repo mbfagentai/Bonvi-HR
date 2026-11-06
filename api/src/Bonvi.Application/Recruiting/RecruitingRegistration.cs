@@ -79,6 +79,7 @@ internal static class RecruitingRegistration
         services.AddScoped<IssueCouncilBindCodeCommandHandler>();
         services.AddScoped<SaveCouncilMiniAppCommandHandler>();
         services.AddScoped<BindCouncilGroupCommandHandler>();
+        services.AddScoped<MigrateCouncilGroupCommandHandler>();
         services.AddScoped<LinkCouncilMemberCommandHandler>();
         services.AddScoped<GetCouncilBotStateQueryHandler>();
         services.AddScoped<MarkCouncilDigestSentCommandHandler>();

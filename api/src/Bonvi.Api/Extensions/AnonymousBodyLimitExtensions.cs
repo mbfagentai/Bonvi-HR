@@ -37,6 +37,9 @@ public static class AnonymousBodyLimitExtensions
         "/api/auth/refresh",
         "/api/auth/logout",
         "/api/employee-auth",
+
+        // JSON is bound before the endpoint filter checks the launch data, so it is read without a login.
+        "/api/council-app",
     ];
 
     /// <summary>Konveyerga chegarani qo'shadi — istisno ushlagichidan keyin, tana o'qilishidan oldin.</summary>

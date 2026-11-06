@@ -60,7 +60,9 @@ public sealed record TelegramMessage(
     [property: JsonPropertyName("text")] string? Text,
     [property: JsonPropertyName("contact")] TelegramContact? Contact,
     [property: JsonPropertyName("photo")] IReadOnlyList<TelegramPhotoSize>? Photo = null,
-    [property: JsonPropertyName("from")] TelegramUser? From = null);
+    [property: JsonPropertyName("from")] TelegramUser? From = null,
+    [property: JsonPropertyName("migrate_from_chat_id")] long? MigrateFromChatId = null,
+    [property: JsonPropertyName("migrate_to_chat_id")] long? MigrateToChatId = null);
 
 /// <summary>The sender. The username can match a name written on the online form, the id identifies a council member.</summary>
 public sealed record TelegramUser(

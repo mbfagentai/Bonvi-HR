@@ -28,7 +28,7 @@ public sealed record CouncilDigestRow(Guid CandidateId, string Name, DateTimeOff
 public sealed record CouncilDigest(DateOnly Date, bool IsToday, long? MessageId, string Signature, IReadOnlyList<CouncilDigestRow> Rows);
 
 /// <summary>The council group's state, read every round.</summary>
-public sealed record CouncilBotState(long? ChatId, string? MiniAppName, string? BotUsername, CouncilDigest? Digest);
+public sealed record CouncilBotState(long? ChatId, string? MiniAppName, string? BotUsername, CouncilDigest? Digest, bool BindOpen = false);
 
 /// <summary>Outcome of a member sharing their contact.</summary>
 public sealed record CouncilLinkResult(bool Linked, string? FullName);
@@ -757,6 +757,16 @@ public sealed partial class BonviClient : IDisposable
                 () => new HttpRequestMessage(HttpMethod.Post, new Uri("api/recruiting/council-bot/bind", UriKind.Relative))
                 {
                     Content = JsonContent.Create(new { code, chatId, title }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Reports a group's new id after it became a supergroup; the server ignores other groups.</summary>
+    public async Task<bool> MigrateCouncilGroupAsync(long fromChatId, long toChatId, CancellationToken cancellationToken)
+        => await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri("api/recruiting/council-bot/migrate", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { fromChatId, toChatId }, options: RequestJson),
                 },
                 cancellationToken)
             .ConfigureAwait(false);

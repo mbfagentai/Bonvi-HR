@@ -87,6 +87,9 @@ public static class AuditCatalog
         SystemSettingKeys.AttendanceEmploymentChangesCheckedAt,
         SystemSettingKeys.AttendanceFrozenThrough,
         SystemSettingKeys.ProcessesReconcileWatermark,
+
+        // A live code that binds the council group: nobody should read it from the journal.
+        SystemSettingKeys.BotCouncilBindCode,
     };
 
     /// <summary>

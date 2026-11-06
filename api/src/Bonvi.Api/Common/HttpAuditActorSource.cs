@@ -31,6 +31,9 @@ namespace Bonvi.Api.Common;
 /// </remarks>
 public sealed class HttpAuditActorSource : IAuditActorSource
 {
+    /// <summary>Set by the Mini App's filter: the council member's name for the journal.</summary>
+    public const string CouncilMemberNameItem = "CouncilMemberName";
+
     private static readonly AuditPrincipal OnlineForm =
         new(AuditActorKind.Anonymous, Name: OnlineFormEndpointMetadata.ActorName);
 
@@ -86,6 +89,12 @@ public sealed class HttpAuditActorSource : IAuditActorSource
             if (http.User.FindFirstValue(ApiKeyClaims.KeyName) is { Length: > 0 } keyName)
             {
                 return new AuditPrincipal(AuditActorKind.Anonymous, Name: $"Tashqi API: {keyName}");
+            }
+
+            // A council member in the Mini App: no JWT, identified by Telegram's signed launch data.
+            if (http.Items[CouncilMemberNameItem] is string memberName)
+            {
+                return new AuditPrincipal(AuditActorKind.Anonymous, Name: $"Kengash a'zosi: {memberName}");
             }
 
             return AuditPrincipal.Anonymous;

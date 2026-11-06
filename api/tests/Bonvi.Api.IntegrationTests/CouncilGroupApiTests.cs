@@ -69,7 +69,7 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
             javob.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         }
 
-        foreach (var yol in new[] { "bind", "link", "digest-sent" })
+        foreach (var yol in new[] { "bind", "migrate", "link", "digest-sent" })
         {
             using var javob = await hr.PostAsJsonAsync(
                 new Uri($"{BotApi}/{yol}", UriKind.Relative),
@@ -300,6 +300,26 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
 
         var holat = await bot.GetFromJsonAsync<JsonElement>(new Uri($"{BotApi}/state", UriKind.Relative), Ct);
         holat.GetProperty("chatId").GetInt64().ShouldBe(-100500);
+        holat.GetProperty("bindOpen").GetBoolean().ShouldBeFalse();
+
+        // Another group's move changes nothing, the bound group's move follows it
+        using (var javob = await bot.PostAsJsonAsync(new Uri($"{BotApi}/migrate", UriKind.Relative), new { fromChatId = -1, toChatId = -100700 }, Ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await bot.GetFromJsonAsync<JsonElement>(new Uri($"{BotApi}/state", UriKind.Relative), Ct)).GetProperty("chatId").GetInt64().ShouldBe(-100500);
+
+        using (var javob = await bot.PostAsJsonAsync(new Uri($"{BotApi}/migrate", UriKind.Relative), new { fromChatId = -100500, toChatId = -100700 }, Ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await bot.GetFromJsonAsync<JsonElement>(new Uri($"{BotApi}/state", UriKind.Relative), Ct)).GetProperty("chatId").GetInt64().ShouldBe(-100700);
+
+        using var yangiKod = await admin.PostAsync(new Uri($"{Roster}/bind-code", UriKind.Relative), null, Ct);
+        yangiKod.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await bot.GetFromJsonAsync<JsonElement>(new Uri($"{BotApi}/state", UriKind.Relative), Ct)).GetProperty("bindOpen").GetBoolean().ShouldBeTrue();
 
         var panel = await admin.GetFromJsonAsync<JsonElement>(new Uri(Roster, UriKind.Relative), Ct);
         panel.GetProperty("groupBound").GetBoolean().ShouldBeTrue();

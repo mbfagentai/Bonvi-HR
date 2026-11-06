@@ -12,7 +12,8 @@ personal conclusion on each candidate from a Mini App.
 ## 2. Binding the group
 Settings holder opens «Kengash a'zolari» on `/kengash-xulosasi`, presses «Guruhni ulash» and pastes
 the shown `/kengash_ulash@<bot> <code>` into the group. The code is single-use and lives 30 minutes.
-A new binding replaces the old one. The bot confirms in the group.
+A new binding replaces the old one, and while a code is live the bot does not leave a new group. The bot
+confirms in the group. When Telegram turns the group into a supergroup, its new id follows automatically.
 
 ## 3. Members
 `council_members`: full name, phone, Telegram user id, linked-at, active. Managed by `settings.manage`.
@@ -52,11 +53,14 @@ conditional, reserve, reject), comment, created-at. Rows are never changed.
 - The final decision is the chief's; HR enters it in the existing `council_decisions` form. Opinions never set it.
 
 ## 7. Owner's one-time steps after deploy
-1. BotFather: `/setjoingroups` off, keep privacy on, `/newapp` for the bot with short name `kengash` and URL
+1. BotFather: keep privacy on, `/newapp` for the bot with short name `kengash` and URL
    `https://hr.bonvi.uz/tg/kengash`; enter the short name in the settings on `/kengash-xulosasi`.
 2. Add members with their Telegram phone numbers.
 3. Bind the group.
+4. BotFather: `/setjoingroups` off. Binding another group later needs it on again, because the bot must be added first.
 Until step 1 the buttons go through the private chat (§4), which needs nothing from BotFather.
+The Mini App checks signatures with the token in the system settings. A bot running only on the `.env` fallback
+token leaves every Mini App call at 401, so the token must be in the settings.
 
 ## 8. Not in scope
 Quorum or vote counting, opinions in HR-F04 on HRMentor, members' attendance filled from the roster.

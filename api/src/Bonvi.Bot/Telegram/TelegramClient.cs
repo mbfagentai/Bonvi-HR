@@ -609,6 +609,12 @@ public sealed partial class TelegramClient
                 return (payload.Result, TelegramDelivery.Delivered);
             }
 
+            // The message already reads like this, so what the caller wanted is true.
+            if (method == "editMessageText" && payload?.Description?.Contains("message is not modified", StringComparison.Ordinal) == true)
+            {
+                return (default, TelegramDelivery.Delivered);
+            }
+
             LogRejected(method, payload?.Description ?? "sababsiz");
 
             // 4xx (429 dan tashqari) — Telegram aniq «yo'q» dedi; 429 va 5xx —

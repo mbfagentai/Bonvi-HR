@@ -42,7 +42,12 @@ public sealed record CouncilDigestDto(
     IReadOnlyList<CouncilDigestRowDto> Rows);
 
 /// <summary>What the bot needs each round.</summary>
-public sealed record CouncilBotStateDto(long? ChatId, string? MiniAppName, string? BotUsername, CouncilDigestDto? Digest);
+/// <param name="ChatId">The bound group.</param>
+/// <param name="MiniAppName">The Mini App's short name.</param>
+/// <param name="BotUsername">The bot's username.</param>
+/// <param name="Digest">The message due.</param>
+/// <param name="BindOpen">A binding code is live, so a new group may be waiting for it and the bot must not leave.</param>
+public sealed record CouncilBotStateDto(long? ChatId, string? MiniAppName, string? BotUsername, CouncilDigestDto? Digest, bool BindOpen);
 
 /// <summary>Outcome of a member sharing their contact.</summary>
 public sealed record CouncilLinkResultDto(bool Linked, string? FullName);
@@ -156,6 +161,16 @@ internal static class CouncilSettings
     }
 
     public static string? OrNull(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>The code and its expiry, when one was issued.</summary>
+    public static (string Code, long Expires)? BindCode(SystemSettings settings)
+    {
+        var stored = settings.Hidden(SystemSettingKeys.BotCouncilBindCode).Split('|');
+
+        return stored.Length == 2 && long.TryParse(stored[1], NumberStyles.None, CultureInfo.InvariantCulture, out var expires)
+            ? (stored[0], expires)
+            : null;
+    }
 
     public static long? ChatId(SystemSettings settings)
         => long.TryParse(settings.Hidden(SystemSettingKeys.BotCouncilChatId), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var id)
@@ -400,13 +415,11 @@ public sealed class BindCouncilGroupCommandHandler
         ArgumentNullException.ThrowIfNull(command);
 
         var settings = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-        var stored = settings.Hidden(SystemSettingKeys.BotCouncilBindCode).Split('|');
 
-        if (stored.Length != 2
+        if (CouncilSettings.BindCode(settings) is not { } stored
             || string.IsNullOrEmpty(command.Code)
-            || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(stored[0]), Encoding.UTF8.GetBytes(command.Code))
-            || !long.TryParse(stored[1], NumberStyles.None, CultureInfo.InvariantCulture, out var expires)
-            || _clock.UtcNow.ToUnixTimeSeconds() > expires
+            || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(stored.Code), Encoding.UTF8.GetBytes(command.Code))
+            || _clock.UtcNow.ToUnixTimeSeconds() > stored.Expires
             || command.ChatId >= 0)
         {
             return RecruitingErrors.CouncilBindCodeInvalid;
@@ -427,6 +440,47 @@ public sealed class BindCouncilGroupCommandHandler
             {
                 return written;
             }
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success();
+    }
+}
+
+/// <summary>A group became a supergroup and has a new id.</summary>
+public sealed record MigrateCouncilGroupCommand(long FromChatId, long ToChatId);
+
+public sealed class MigrateCouncilGroupCommandHandler
+{
+    private readonly ISystemSettingRepository _settings;
+    private readonly SystemSettingsReader _reader;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public MigrateCouncilGroupCommandHandler(ISystemSettingRepository settings, SystemSettingsReader reader, IUnitOfWork unitOfWork)
+    {
+        _settings = settings;
+        _reader = reader;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result> HandleAsync(MigrateCouncilGroupCommand command, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var settings = await _reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+        if (CouncilSettings.ChatId(settings) != command.FromChatId || command.ToChatId >= 0)
+        {
+            return Result.Success();
+        }
+
+        var written = await CouncilSettings
+            .WriteAsync(_settings, SystemSettingKeys.BotCouncilChatId, command.ToChatId.ToString(CultureInfo.InvariantCulture), cancellationToken)
+            .ConfigureAwait(false);
+        if (written.IsFailure)
+        {
+            return written;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -518,7 +572,8 @@ public sealed class GetCouncilBotStateQueryHandler
             chatId,
             CouncilSettings.OrNull(settings.Hidden(SystemSettingKeys.BotCouncilMiniAppName)),
             CouncilSettings.OrNull(settings.Hidden(SystemSettingKeys.BotUsername)),
-            digest);
+            digest,
+            CouncilSettings.BindCode(settings) is { } code && _clock.UtcNow.ToUnixTimeSeconds() <= code.Expires);
     }
 
     private async Task<CouncilDigestDto?> FindDueAsync(long chatId, CancellationToken cancellationToken)

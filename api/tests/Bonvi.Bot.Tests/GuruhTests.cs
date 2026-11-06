@@ -108,6 +108,81 @@ public sealed class GuruhTests
         chiqish.Body.ShouldContain("-999");
     }
 
+    [Fact]
+    public async Task Kod_ochiq_bolsa_yangi_guruhdan_chiqib_ketmaydi()
+    {
+        using var bot = new BotHarness { CouncilState = "{\"chatId\":" + Guruh + "}" };
+        await bot.NoticesAsync();
+
+        // The code was issued after the last round, so only a fresh read knows it.
+        bot.CouncilState = "{\"chatId\":" + Guruh + ",\"bindOpen\":true}";
+        await bot.HandleAsync(new TelegramUpdate(1, null, null, new TelegramChatMemberUpdate(new TelegramChat(-999, "group"))));
+
+        bot.TelegramCalls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Server_javob_bermasa_guruhdan_chiqib_ketmaydi()
+    {
+        using var bot = new BotHarness { CouncilState = "{\"chatId\":" + Guruh + "}" };
+        await bot.NoticesAsync();
+
+        bot.CouncilState = "not json";
+        await bot.HandleAsync(new TelegramUpdate(1, null, null, new TelegramChatMemberUpdate(new TelegramChat(-999, "group"))));
+
+        bot.TelegramCalls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Superguruhga_otsa_chiqib_ketmaydi_va_yangi_raqam_saqlanadi()
+    {
+        const long Yangi = -100999;
+        using var bot = new BotHarness { CouncilState = "{\"chatId\":" + Guruh + "}" };
+        await bot.NoticesAsync();
+
+        await bot.HandleAsync(new TelegramUpdate(1, new TelegramMessage(1, new TelegramChat(Yangi, "supergroup"), null, null, MigrateFromChatId: Guruh), null));
+
+        bot.TelegramCalls.ShouldBeEmpty();
+        var sorov = bot.CouncilCalls.ShouldHaveSingleItem();
+        sorov.ShouldContain(Guruh.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        sorov.ShouldContain(Yangi.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        // The same news from the old chat's side, and a following message in the new chat, change nothing else.
+        await bot.HandleAsync(new TelegramUpdate(2, new TelegramMessage(2, new TelegramChat(Guruh, "group"), null, null, MigrateToChatId: Yangi), null));
+        await bot.HandleAsync(new TelegramUpdate(3, new TelegramMessage(3, new TelegramChat(Yangi, "supergroup"), "salom", null), null));
+
+        bot.TelegramCalls.ShouldBeEmpty();
+        bot.Sent.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Belgi_saqlanmasa_ikkinchi_xabar_ketmaydi_belgi_qayta_yuboriladi()
+    {
+        using var bot = new BotHarness { CouncilState = Holat(null, null, BittaNomzod), CouncilMarkFails = true };
+
+        await bot.NoticesAsync();
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Guruh]);
+        bot.CouncilCalls.Count.ShouldBe(2);
+
+        bot.CouncilMarkFails = false;
+        await bot.NoticesAsync();
+        bot.CouncilCalls.Count.ShouldBe(3);
+        bot.SendAttempts.ShouldBe([Guruh]);
+    }
+
+    [Fact]
+    public async Task Ozgarmagan_tahrir_yangi_xabar_ochmaydi()
+    {
+        using var bot = new BotHarness { CouncilState = Holat(null, 55, BittaNomzod), EditNotModified = true };
+
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBeEmpty();
+        bot.CouncilCalls.ShouldHaveSingleItem();
+    }
+
     private static readonly Guid Nomzod = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
 
     private static string Holat(string? miniApp = null, long? xabar = null, string royxat = "[]")

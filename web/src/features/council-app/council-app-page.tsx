@@ -21,9 +21,10 @@ export function CouncilAppPage() {
   const [launch, setLaunch] = useState<{ initData: string; target: string | null; openLink: (url: string) => void } | null | 'none'>(null)
 
   useEffect(() => {
-    // The bot's council texts are in Cyrillic, and so is everything else these members read in the group.
-    void i18n.changeLanguage('uz-Cyrl')
     void loadTelegram().then((app) => {
+      // The bot's council texts are in Cyrillic. Only inside Telegram: elsewhere this browser may be a panel user's.
+      if (app !== null && app.initData !== '') void i18n.changeLanguage('uz-Cyrl')
+
       setLaunch(
         app !== null && app.initData !== ''
           ? { initData: app.initData, target: targetCandidate(app), openLink: (url) => app.openTelegramLink(url) }
@@ -260,7 +261,10 @@ function OpinionForm({ client, candidate }: { client: CouncilAppClient; candidat
     onSuccess: async () => {
       setDecision('')
       setComment('')
-      await queries.invalidateQueries({ queryKey: ['council-app'] })
+      await Promise.all([
+        queries.invalidateQueries({ queryKey: ['council-app', 'list'] }),
+        queries.invalidateQueries({ queryKey: ['council-app', 'candidate', candidate.id] }),
+      ])
     },
   })
 

@@ -299,6 +299,9 @@ public sealed partial class BotWorker : BackgroundService
 
     private DateTimeOffset _councilRetryAt = DateTimeOffset.MinValue;
 
+    /// <summary>A message Telegram took but the server has not recorded.</summary>
+    private (DateOnly Date, long Chat, long MessageId, string Signature)? _councilPendingMark;
+
     private readonly TelegramClient _telegram;
     private readonly TelegramToken _token;
     private readonly BonviClient _bonvi;
@@ -871,6 +874,24 @@ public sealed partial class BotWorker : BackgroundService
     /// </summary>
     private async Task HandleGroupAsync(TelegramChat chat, TelegramMessage? message, CancellationToken cancellationToken)
     {
+        // A group turned into a supergroup gets a new id; Telegram tells both the old chat and the new.
+        var moved = message switch
+        {
+            { MigrateFromChatId: { } from } => (From: from, To: chat.Id),
+            { MigrateToChatId: { } to } => (From: chat.Id, To: to),
+            _ => ((long From, long To)?)null,
+        };
+
+        if (moved is { } move)
+        {
+            if (await _bonvi.MigrateCouncilGroupAsync(move.From, move.To, cancellationToken).ConfigureAwait(false) && _councilChatId == move.From)
+            {
+                _councilChatId = move.To;
+            }
+
+            return;
+        }
+
         if (BindCode(message?.Text) is { } code)
         {
             var bound = await _bonvi.BindCouncilGroupAsync(code, chat.Id, chat.Title, cancellationToken).ConfigureAwait(false);
@@ -887,7 +908,22 @@ public sealed partial class BotWorker : BackgroundService
             return;
         }
 
-        if (_councilChatId is { } council && council != chat.Id)
+        if (_councilChatId == chat.Id)
+        {
+            return;
+        }
+
+        // Read fresh, not from the last round: a code issued a moment ago means this may be the new group.
+        var state = await _bonvi.GetCouncilStateAsync(cancellationToken).ConfigureAwait(false);
+
+        if (state is null)
+        {
+            return;
+        }
+
+        _councilChatId = state.ChatId;
+
+        if (state is { ChatId: { } council, BindOpen: false } && council != chat.Id)
         {
             await _telegram.LeaveChatAsync(chat.Id, cancellationToken).ConfigureAwait(false);
         }
@@ -999,6 +1035,17 @@ public sealed partial class BotWorker : BackgroundService
     /// </summary>
     private async Task SendCouncilDigestAsync(CancellationToken cancellationToken)
     {
+        // The message is out but the server does not know yet: posting now would make a second one.
+        if (_councilPendingMark is { } pending)
+        {
+            if (await _bonvi.MarkCouncilDigestSentAsync(pending.Date, pending.Chat, pending.MessageId, pending.Signature, cancellationToken).ConfigureAwait(false))
+            {
+                _councilPendingMark = null;
+            }
+
+            return;
+        }
+
         var state = await _bonvi.GetCouncilStateAsync(cancellationToken).ConfigureAwait(false);
 
         if (state is null)
@@ -1047,7 +1094,10 @@ public sealed partial class BotWorker : BackgroundService
             messageId = posted;
         }
 
-        await _bonvi.MarkCouncilDigestSentAsync(digest.Date, chat, messageId.Value, digest.Signature, cancellationToken).ConfigureAwait(false);
+        if (!await _bonvi.MarkCouncilDigestSentAsync(digest.Date, chat, messageId.Value, digest.Signature, cancellationToken).ConfigureAwait(false))
+        {
+            _councilPendingMark = (digest.Date, chat, messageId.Value, digest.Signature);
+        }
     }
 
     /// <summary>One row per candidate and one for everybody. Telegram allows 100 buttons, «all» reaches the rest.</summary>
