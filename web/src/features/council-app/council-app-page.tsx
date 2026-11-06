@@ -62,7 +62,7 @@ function Launched({ initData, target, openLink }: { initData: string; target: st
         <CardContent className="space-y-3 p-5 text-center">
           <p className="text-[var(--fg)]">{t('council.app.linkHint')}</p>
           {me.data.botUsername !== null && (
-            <Button type="button" onClick={() => openLink(`https://t.me/${me.data.botUsername}?start=kengash`)}>
+            <Button type="button" variant="primary" onClick={() => openLink(`https://t.me/${me.data.botUsername}?start=kengash`)}>
               {t('council.app.linkButton')}
             </Button>
           )}
@@ -310,7 +310,7 @@ function OpinionForm({ client, candidate }: { client: CouncilAppClient; candidat
           )}
           {save.isSuccess && <Alert tone="success">{t('council.app.saved')}</Alert>}
 
-          <Button type="submit" className="w-full" disabled={save.isPending}>
+          <Button type="submit" variant="primary" className="w-full" disabled={save.isPending}>
             {t('council.app.send')}
           </Button>
         </form>

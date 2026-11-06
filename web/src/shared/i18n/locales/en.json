@@ -4634,7 +4634,8 @@
       "inactive": "Inactive",
       "unlink": "Unlink Telegram",
       "deactivate": "Turn off",
-      "activate": "Turn on"
+      "activate": "Turn on",
+      "members": "Members"
     }
   }
 }

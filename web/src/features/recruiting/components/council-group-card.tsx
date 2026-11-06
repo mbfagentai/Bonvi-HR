@@ -32,7 +32,8 @@ export function CouncilGroupCard() {
         <BindGroup bound={group.data.groupBound} title={group.data.groupTitle} />
         <MiniAppName key={group.data.miniAppName ?? ''} saved={group.data.miniAppName ?? ''} />
 
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-[var(--border)] pt-5">
+          <h3 className="text-subhead font-semibold text-[var(--fg)]">{t('council.group.members')}</h3>
           {group.data.members.map((member) => (
             <MemberRow key={member.id} member={member} />
           ))}
@@ -85,19 +86,24 @@ function MiniAppName({ saved }: { saved: string }) {
   const save = useMutation({ mutationFn: () => saveCouncilMiniApp(name.trim()) })
 
   return (
-    <div className="flex items-end gap-2">
-      <TextField
-        className="flex-1"
-        label={t('council.group.miniApp')}
-        hint={t('council.group.miniAppHint')}
-        value={name}
-        maxLength={30}
-        error={save.isError ? errorMessage(recruitingErrorCode(save.error)) : undefined}
-        onChange={(event) => setName(event.target.value)}
-      />
-      <Button type="button" size="sm" variant="secondary" disabled={save.isPending || name.trim() === saved} onClick={() => save.mutate()}>
-        {t('council.save')}
-      </Button>
+    <div className="space-y-2">
+      <div className="flex items-end gap-2 sm:max-w-lg">
+        <TextField
+          className="min-w-0 flex-1"
+          label={t('council.group.miniApp')}
+          value={name}
+          maxLength={30}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Button type="button" size="lg" disabled={save.isPending || name.trim() === saved} onClick={() => save.mutate()}>
+          {t('council.save')}
+        </Button>
+      </div>
+      {save.isError ? (
+        <p className="text-footnote text-ios-red">{errorMessage(recruitingErrorCode(save.error))}</p>
+      ) : (
+        <p className="text-footnote text-[var(--fg-tertiary)]">{t('council.group.miniAppHint')}</p>
+      )}
     </div>
   )
 }
@@ -153,19 +159,22 @@ function AddMember() {
   }
 
   return (
-    <form className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={submit}>
-      <TextField label={t('council.group.name')} value={fullName} maxLength={200} onChange={(event) => setFullName(event.target.value)} />
-      <TextField
-        label={t('council.group.phone')}
-        hint={t('council.group.phoneHint')}
-        value={phone}
-        onChange={(event) => setPhone(event.target.value)}
-      />
-      <Button type="submit" size="sm" disabled={add.isPending || fullName.trim() === '' || phone.trim() === ''}>
-        <Plus />
-        {t('council.group.add')}
-      </Button>
-      {add.isError && <Alert tone="danger" className="sm:col-span-3">{errorMessage(recruitingErrorCode(add.error))}</Alert>}
+    <form className="space-y-2 pt-2" onSubmit={submit}>
+      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <TextField label={t('council.group.name')} value={fullName} maxLength={200} onChange={(event) => setFullName(event.target.value)} />
+        <TextField
+          label={t('council.group.phone')}
+          inputMode="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        />
+        <Button type="submit" variant="primary" size="lg" disabled={add.isPending || fullName.trim() === '' || phone.trim() === ''}>
+          <Plus />
+          {t('council.group.add')}
+        </Button>
+      </div>
+      <p className="text-footnote text-[var(--fg-tertiary)]">{t('council.group.phoneHint')}</p>
+      {add.isError && <Alert tone="danger">{errorMessage(recruitingErrorCode(add.error))}</Alert>}
     </form>
   )
 }

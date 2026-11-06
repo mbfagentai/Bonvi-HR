@@ -4634,7 +4634,8 @@
       "inactive": "Неактивен",
       "unlink": "Отвязать Telegram",
       "deactivate": "Отключить",
-      "activate": "Включить"
+      "activate": "Включить",
+      "members": "Члены совета"
     }
   }
 }
