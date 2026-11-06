@@ -24,8 +24,6 @@ public sealed class DavomatQamroviMigrationTests
 
     private const string BeforeProcesses = "20261103111355_Blankalar";
 
-    private const string ThisMigration = "20261105045537_DavomatQamrovi";
-
     /// <summary>Named, not «latest»: a later migration adding a table mustn't move this count.</summary>
     private const string ThisMigration = "20261105045537_DavomatQamrovi";
 
