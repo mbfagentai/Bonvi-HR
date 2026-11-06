@@ -5804,15 +5804,28 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("linked_at");
 
+                    b.Property<bool>("NameConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("name_confirmed");
+
                     b.Property<string>("Phone")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("phone");
 
+                    b.Property<string>("TelegramName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("telegram_name");
+
                     b.Property<long?>("TelegramUserId")
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_user_id");
+
+                    b.Property<string>("TelegramUsername")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("telegram_username");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

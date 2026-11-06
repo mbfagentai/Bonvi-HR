@@ -23,7 +23,7 @@ public sealed record MarkCouncilDigestSentRequest(DateOnly Date, long ChatId, lo
 public sealed record SaveCouncilOpinionRequest(CouncilDecisionKind? Decision, string? Comment);
 
 /// <summary>What the Mini App shows first: is this person known, and where to link if not.</summary>
-public sealed record CouncilAppMeResponse(bool Recognized, string? FullName, string? BotUsername);
+public sealed record CouncilAppMeResponse(bool Recognized, bool Unavailable, string? FullName);
 
 /// <summary>The council group in Telegram (docs/SPEC-kengash-guruhi.md).</summary>
 public static class CouncilGroupEndpoints
@@ -140,25 +140,21 @@ public static class CouncilGroupEndpoints
             .AllowAnonymous()
             .RequireRateLimiting(RateLimitPolicies.CouncilApp);
 
-        open.MapGet("/me", async (
-                HttpContext context,
-                CouncilMemberIdentifier identifier,
-                GetCouncilGroupQueryHandler group,
-                CancellationToken cancellationToken) =>
+        open.MapGet("/me", async (HttpContext context, CouncilMemberIdentifier identifier, CancellationToken cancellationToken) =>
             {
-                var identity = await identifier.IdentifyAsync(context.Request.Headers[InitDataHeader], cancellationToken).ConfigureAwait(false);
+                var identity = await identifier
+                    .IdentifyAsync(context.Request.Headers[InitDataHeader], register: true, cancellationToken)
+                    .ConfigureAwait(false);
 
-                if (identity.Access == CouncilAppAccess.Invalid)
-                {
-                    return Results.Unauthorized();
-                }
-
-                var settings = await group.HandleAsync(new GetCouncilGroupQuery(), cancellationToken).ConfigureAwait(false);
-
-                return Results.Ok(new CouncilAppMeResponse(identity.Member is not null, identity.Member?.FullName, settings.Value.BotUsername));
+                return identity.Access == CouncilAppAccess.Invalid
+                    ? Results.Unauthorized()
+                    : Results.Ok(new CouncilAppMeResponse(
+                        identity.Member is not null,
+                        identity.Access == CouncilAppAccess.Unavailable,
+                        identity.Member?.FullName));
             })
             .WithName("GetCouncilAppMe")
-            .WithSummary("Is the person who opened the Mini App a linked member")
+            .WithSummary("Is the person who opened the Mini App in the council's group; a first visit gives them a row on the roster")
             .Produces<CouncilAppMeResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
@@ -166,13 +162,16 @@ public static class CouncilGroupEndpoints
         {
             var context = invocation.HttpContext;
             var identifier = context.RequestServices.GetRequiredService<CouncilMemberIdentifier>();
-            var identity = await identifier.IdentifyAsync(context.Request.Headers[InitDataHeader], context.RequestAborted).ConfigureAwait(false);
+            var identity = await identifier
+                .IdentifyAsync(context.Request.Headers[InitDataHeader], cancellationToken: context.RequestAborted)
+                .ConfigureAwait(false);
 
             switch (identity.Access)
             {
                 case CouncilAppAccess.Invalid:
                     return Results.Unauthorized();
                 case CouncilAppAccess.Unknown:
+                case CouncilAppAccess.Unavailable:
                     return Results.Forbid();
                 default:
                     context.Items[MemberItem] = identity.Member!.Id;

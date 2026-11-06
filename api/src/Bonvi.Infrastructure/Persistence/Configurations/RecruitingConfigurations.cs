@@ -164,9 +164,10 @@ public sealed class CouncilMemberConfiguration : IEntityTypeConfiguration<Counci
 
         builder.Property(member => member.FullName).HasMaxLength(CouncilMember.MaxNameLength).IsRequired();
         builder.Property(member => member.Phone)
-            .HasConversion(phone => phone.Value, value => PhoneNumber.FromTrusted(value))
-            .HasMaxLength(20)
-            .IsRequired();
+            .HasConversion(phone => phone!.Value, value => PhoneNumber.FromTrusted(value))
+            .HasMaxLength(20);
+        builder.Property(member => member.TelegramName).HasMaxLength(CouncilMember.MaxTelegramNameLength);
+        builder.Property(member => member.TelegramUsername).HasMaxLength(CouncilMember.MaxTelegramNameLength);
 
         builder.HasIndex(member => member.Phone).IsUnique();
         builder.HasIndex(member => member.TelegramUserId).IsUnique();

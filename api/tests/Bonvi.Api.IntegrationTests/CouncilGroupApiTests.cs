@@ -1,3 +1,4 @@
+using Bonvi.Application.Recruiting.Council;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -102,6 +103,7 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
         }
 
         var begona = Interlocked.Increment(ref _telegramId);
+        _factory.TelegramGroup.Set(begona, TelegramGroupStatus.NotMember);
         (await SorovAsync<JsonElement>(mijoz, begona, "/me")).GetProperty("recognized").GetBoolean().ShouldBeFalse();
 
         using var taqiq = new HttpRequestMessage(HttpMethod.Get, new Uri($"{App}/candidates", UriKind.Relative));
@@ -119,46 +121,95 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
-    public async Task Azo_bogoqlanadi_faol_emas_bolsa_kirolmaydi_raqam_almashsa_uziladi()
+    public async Task Guruhdagi_odam_startsiz_kiradi_panelda_ozi_paydo_boladi_ismi_yoziladi()
     {
         await TokenQoyAsync();
         using var admin = await MijozAsync("settings.manage");
-        using var bot = await BotMijozAsync();
         using var mijoz = _factory.CreateClient();
+        var telegram = Interlocked.Increment(ref _telegramId);
 
-        var telefon = TasodifiyTelefon();
-        var (azoId, telegram) = await AzoAsync(admin, bot, "Шеф Тестов", telefon);
-
+        // Nothing but opening the app: no Start, no phone, no row before this
         var men = await SorovAsync<JsonElement>(mijoz, telegram, "/me");
         men.GetProperty("recognized").GetBoolean().ShouldBeTrue();
-        men.GetProperty("fullName").GetString().ShouldBe("Шеф Тестов");
+        men.GetProperty("fullName").GetString().ShouldBe($"Born {telegram}");
 
+        (await SorovAsync<JsonElement>(mijoz, telegram, "/candidates")).ValueKind.ShouldBe(JsonValueKind.Array);
+
+        var qator = await QatorAsync(admin, $"Born {telegram}");
+        qator.GetProperty("telegramUsername").GetString().ShouldBe($"born{telegram}");
+        qator.GetProperty("nameConfirmed").GetBoolean().ShouldBeFalse();
+        qator.GetProperty("phone").ValueKind.ShouldBe(JsonValueKind.Null);
+        var id = qator.GetProperty("id").GetGuid();
+
+        // Second visit, no second row
+        await SorovAsync<JsonElement>(mijoz, telegram, "/me");
         var royxat = await admin.GetFromJsonAsync<JsonElement>(new Uri(Roster, UriKind.Relative), Ct);
-        var qator = royxat.GetProperty("members").EnumerateArray().Single(row => row.GetProperty("id").GetGuid() == azoId);
-        qator.GetProperty("linked").GetBoolean().ShouldBeTrue();
+        royxat.GetProperty("members").EnumerateArray().Count(row => row.GetProperty("id").GetGuid() == id).ShouldBe(1);
 
-        // Bir xil Telegram boshqa a'zoga o'tsa, oldingisidan uziladi
-        var boshqaTelefon = TasodifiyTelefon();
-        using (var javob = await admin.PostAsJsonAsync(new Uri($"{Roster}/members", UriKind.Relative), new { fullName = "Иккинчи", phone = boshqaTelefon }, Ct))
+        // The admin only writes the real name; a phone is not asked for
+        var ism = $"Каримов Шеф {telegram}";
+        using (var javob = await admin.PutAsJsonAsync(
+            new Uri($"{Roster}/members/{id}", UriKind.Relative), new { fullName = ism, isActive = true }, Ct))
         {
             javob.StatusCode.ShouldBe(HttpStatusCode.OK, await javob.Content.ReadAsStringAsync(Ct));
         }
+
+        (await QatorAsync(admin, ism)).GetProperty("nameConfirmed").GetBoolean().ShouldBeTrue();
+        (await SorovAsync<JsonElement>(mijoz, telegram, "/me")).GetProperty("fullName").GetString().ShouldBe(ism);
+    }
+
+    [Fact]
+    public async Task Guruhdan_chiqqan_va_ochirilgan_odam_kirolmaydi()
+    {
+        await TokenQoyAsync();
+        using var admin = await MijozAsync("settings.manage");
+        using var mijoz = _factory.CreateClient();
+        var telegram = Interlocked.Increment(ref _telegramId);
+
+        await SorovAsync<JsonElement>(mijoz, telegram, "/me");
+        var id = (await QatorAsync(admin, $"Born {telegram}")).GetProperty("id").GetGuid();
+
+        _factory.TelegramGroup.Set(telegram, TelegramGroupStatus.NotMember);
+        (await SorovAsync<JsonElement>(mijoz, telegram, "/me")).GetProperty("recognized").GetBoolean().ShouldBeFalse();
+        (await HolatAsync(mijoz, telegram, "/candidates")).ShouldBe(HttpStatusCode.Forbidden);
+
+        _factory.TelegramGroup.Set(telegram, TelegramGroupStatus.Member);
+        (await HolatAsync(mijoz, telegram, "/candidates")).ShouldBe(HttpStatusCode.OK);
 
         using (var javob = await admin.PutAsJsonAsync(
-            new Uri($"{Roster}/members/{azoId}", UriKind.Relative), new { fullName = "Шеф Тестов", phone = telefon, isActive = false }, Ct))
+            new Uri($"{Roster}/members/{id}", UriKind.Relative), new { fullName = "Ўчирилган", isActive = false }, Ct))
         {
             javob.StatusCode.ShouldBe(HttpStatusCode.OK, await javob.Content.ReadAsStringAsync(Ct));
         }
 
+        // Still in the group, but turned off: no access and no second row
         (await SorovAsync<JsonElement>(mijoz, telegram, "/me")).GetProperty("recognized").GetBoolean().ShouldBeFalse();
+        (await HolatAsync(mijoz, telegram, "/candidates")).ShouldBe(HttpStatusCode.Forbidden);
+        (await admin.GetFromJsonAsync<JsonElement>(new Uri(Roster, UriKind.Relative), Ct))
+            .GetProperty("members").EnumerateArray().ShouldNotContain(row => row.GetProperty("fullName").GetString() == $"Born {telegram}");
+    }
 
-        using (var javob = await admin.PutAsJsonAsync(
-            new Uri($"{Roster}/members/{azoId}", UriKind.Relative), new { fullName = "Шеф Тестов", phone = TasodifiyTelefon(), isActive = true }, Ct))
-        {
-            javob.StatusCode.ShouldBe(HttpStatusCode.OK, await javob.Content.ReadAsStringAsync(Ct));
-        }
+    [Fact]
+    public async Task Telegram_javob_bermasa_tanish_kiradi_yangisi_kutadi()
+    {
+        await TokenQoyAsync();
+        using var admin = await MijozAsync("settings.manage");
+        using var mijoz = _factory.CreateClient();
+        var tanish = Interlocked.Increment(ref _telegramId);
+        var yangi = Interlocked.Increment(ref _telegramId);
 
-        (await SorovAsync<JsonElement>(mijoz, telegram, "/me")).GetProperty("recognized").GetBoolean().ShouldBeFalse();
+        await SorovAsync<JsonElement>(mijoz, tanish, "/me");
+        _factory.TelegramGroup.Set(tanish, TelegramGroupStatus.Unavailable);
+        _factory.TelegramGroup.Set(yangi, TelegramGroupStatus.Unavailable);
+
+        (await SorovAsync<JsonElement>(mijoz, tanish, "/me")).GetProperty("recognized").GetBoolean().ShouldBeTrue();
+        (await HolatAsync(mijoz, tanish, "/candidates")).ShouldBe(HttpStatusCode.OK);
+
+        var javob = await SorovAsync<JsonElement>(mijoz, yangi, "/me");
+        javob.GetProperty("recognized").GetBoolean().ShouldBeFalse();
+        javob.GetProperty("unavailable").GetBoolean().ShouldBeTrue();
+        (await admin.GetFromJsonAsync<JsonElement>(new Uri(Roster, UriKind.Relative), Ct))
+            .GetProperty("members").EnumerateArray().ShouldNotContain(row => row.GetProperty("fullName").GetString() == $"Born {yangi}");
     }
 
     [Fact]
@@ -331,7 +382,9 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
         var maydonlar = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
             ["auth_date"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
-            ["user"] = "{\"id\":" + telegramId.ToString(CultureInfo.InvariantCulture) + "}",
+            ["user"] = "{\"id\":" + telegramId.ToString(CultureInfo.InvariantCulture)
+                + ",\"first_name\":\"Born\",\"last_name\":\"" + telegramId.ToString(CultureInfo.InvariantCulture)
+                + "\",\"username\":\"born" + telegramId.ToString(CultureInfo.InvariantCulture) + "\"}",
         };
         var tekshiruv = string.Join('\n', maydonlar.Select(pair => pair.Key + "=" + pair.Value));
         var sir = HMACSHA256.HashData(Encoding.UTF8.GetBytes("WebAppData"), Encoding.UTF8.GetBytes(token));
@@ -348,6 +401,22 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
         javob.StatusCode.ShouldBe(HttpStatusCode.OK, await javob.Content.ReadAsStringAsync(Ct));
 
         return (await javob.Content.ReadFromJsonAsync<T>(Ct))!;
+    }
+
+    private static async Task<HttpStatusCode> HolatAsync(HttpClient mijoz, long telegramId, string yol)
+    {
+        using var sorov = new HttpRequestMessage(HttpMethod.Get, new Uri(App + yol, UriKind.Relative));
+        sorov.Headers.Add(Header, Imzo(BotToken, telegramId));
+        using var javob = await mijoz.SendAsync(sorov, Ct);
+
+        return javob.StatusCode;
+    }
+
+    private static async Task<JsonElement> QatorAsync(HttpClient admin, string ism)
+    {
+        var royxat = await admin.GetFromJsonAsync<JsonElement>(new Uri(Roster, UriKind.Relative), Ct);
+
+        return royxat.GetProperty("members").EnumerateArray().Single(row => row.GetProperty("fullName").GetString() == ism);
     }
 
     private static async Task<HttpResponseMessage> XulosaYuborAsync(HttpClient mijoz, long telegramId, Guid nomzod, object tana)
@@ -389,11 +458,27 @@ public sealed class CouncilGroupApiTests : IClassFixture<BonviApiFactory>
     private async Task TokenQoyAsync()
     {
         using var admin = await MijozAsync("settings.manage");
-        using var javob = await admin.PutAsJsonAsync(
+        using var bot = await BotMijozAsync();
+
+        using (var javob = await admin.PutAsJsonAsync(
             new Uri("/api/settings", UriKind.Relative),
             new { items = new[] { new { key = SystemSettingKeys.BotToken, value = BotToken } } },
-            Ct);
-        javob.IsSuccessStatusCode.ShouldBeTrue(await javob.Content.ReadAsStringAsync(Ct));
+            Ct))
+        {
+            javob.IsSuccessStatusCode.ShouldBeTrue(await javob.Content.ReadAsStringAsync(Ct));
+        }
+
+        using (var javob = await bot.PutAsJsonAsync(new Uri("/api/settings/bot/username", UriKind.Relative), new { username = "Bonvi_HR_bot" }, Ct))
+        {
+            javob.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        // Access needs a bound group; which one does not matter here, the fake answers for everybody
+        using var kod = await admin.PostAsync(new Uri($"{Roster}/bind-code", UriKind.Relative), null, Ct);
+        var buyruq = (await kod.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("command").GetString()!;
+        using var ulash = await bot.PostAsJsonAsync(
+            new Uri($"{BotApi}/bind", UriKind.Relative), new { code = buyruq.Split(' ')[1], chatId = -100900, title = "Кенгаш" }, Ct);
+        ulash.StatusCode.ShouldBe(HttpStatusCode.NoContent, await ulash.Content.ReadAsStringAsync(Ct));
     }
 
     private static async Task<Guid> ChaqirilganNomzodAsync(HttpClient mijoz, DateOnly sana)

@@ -35,12 +35,17 @@ public sealed class CouncilDigestTimingTests
             .Returns(qatorlar);
     }
 
-    private async Task<CouncilBotStateDto> HolatAsync(long? chat = Chat)
+    private async Task<CouncilBotStateDto> HolatAsync(long? chat = Chat, string? miniApp = null)
     {
         var yozuvlar = new List<SystemSetting>();
         if (chat is { } id)
         {
             yozuvlar.Add(SystemSetting.CreateServerValue(SystemSettingKeys.BotCouncilChatId, id.ToString(global::System.Globalization.CultureInfo.InvariantCulture)).Value);
+        }
+
+        if (miniApp is not null)
+        {
+            yozuvlar.Add(SystemSetting.CreateServerValue(SystemSettingKeys.BotCouncilMiniAppName, miniApp).Value);
         }
 
         _settings.GetAllAsync(Arg.Any<CancellationToken>()).Returns(yozuvlar);
@@ -114,6 +119,22 @@ public sealed class CouncilDigestTimingTests
         var holat = await HolatAsync();
         holat.Digest!.MessageId.ShouldBe(55);
         holat.Digest.Rows.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Mini_app_nomi_ozgarsa_tugmalar_yangilanadi()
+    {
+        var qator = Qator(Guid.NewGuid(), Ertaga);
+        Soat(11);
+        Chaqirilgan(Bugun);
+        Chaqirilgan(Ertaga, qator);
+        var imzo = (await HolatAsync()).Digest!.Signature;
+        _group.FindDigestAsync(Ertaga, Arg.Any<CancellationToken>()).Returns(CouncilDigest.Create(Ertaga, Chat, 55, imzo));
+
+        var holat = await HolatAsync(miniApp: "yangi");
+
+        holat.MiniAppName.ShouldBe("yangi");
+        holat.Digest!.MessageId.ShouldBe(55);
     }
 
     [Fact]

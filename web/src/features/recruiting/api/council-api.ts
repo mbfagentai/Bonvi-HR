@@ -48,10 +48,13 @@ export interface CouncilOpinion {
 export interface CouncilGroupMember {
   id: string
   fullName: string
-  phone: string
+  phone: string | null
   isActive: boolean
   linked: boolean
   linkedAt: string | null
+  telegramName: string | null
+  telegramUsername: string | null
+  nameConfirmed: boolean
 }
 
 export interface CouncilGroup {
@@ -68,12 +71,8 @@ export const fetchCouncilGroup = () => api.get<CouncilGroup>(GROUP).then((respon
 export const issueCouncilBindCode = () =>
   api.post<{ command: string; expiresAt: string }>(`${GROUP}/bind-code`).then((response) => response.data)
 export const saveCouncilMiniApp = (name: string) => api.put(`${GROUP}/mini-app`, { name }).then(() => undefined)
-export const addCouncilGroupMember = (body: { fullName: string; phone: string }) =>
-  api.post(`${GROUP}/members`, body).then(() => undefined)
-export const updateCouncilGroupMember = (id: string, body: { fullName: string; phone: string; isActive: boolean }) =>
+export const updateCouncilGroupMember = (id: string, body: { fullName: string; phone: string | null; isActive: boolean }) =>
   api.put(`${GROUP}/members/${id}`, body).then(() => undefined)
-export const unlinkCouncilGroupMember = (id: string) =>
-  api.post(`${GROUP}/members/${id}/unlink`).then(() => undefined)
 
 export interface CouncilMeeting {
   date: string

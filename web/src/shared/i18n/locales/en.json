@@ -4592,8 +4592,6 @@
       "openInTelegram": "This page opens only inside Telegram.",
       "reopen": "Close this page and press the button in the group again.",
       "loadError": "Could not load. Try again.",
-      "linkHint": "We don't know you yet. Send your number to the bot once, then you get straight in.",
-      "linkButton": "Go to the bot",
       "empty": "No invited candidates yet.",
       "given": "Conclusion given",
       "back": "Back",
@@ -4610,32 +4608,30 @@
       "commentRequired": "A conditional decision needs a comment.",
       "saved": "Your conclusion was saved.",
       "send": "Send conclusion",
-      "earlier": "Your earlier conclusions"
+      "earlier": "Your earlier conclusions",
+      "notInGroup": "This page is for members of the council group only. You are not in the group yet, or were turned off.",
+      "unavailable": "Could not check right now. The page will try again by itself."
     },
     "opinions": {
       "title": "Members' conclusions ({{count}})"
     },
     "group": {
       "title": "Telegram: council members",
-      "subtitle": "People on this list open a candidate from the group's button and give their conclusion.",
+      "subtitle": "Everyone in the council group opens a candidate from a button and gives their own conclusion.",
       "bound": "Group bound: {{title}}",
       "notBound": "No group bound",
       "bind": "Bind the group",
-      "bindHint": "Send this command to the council group. Valid for 30 minutes.",
+      "bindHint": "First make the bot an admin of the group, then send this command there. Valid for 30 minutes.",
       "copy": "Copy",
       "miniApp": "Mini App short name",
       "miniAppHint": "The /newapp name in BotFather. Empty: buttons open through the bot's chat.",
       "name": "Full name",
-      "phone": "Phone",
-      "phoneHint": "The member's number in Telegram",
-      "add": "Add",
-      "linked": "Linked",
-      "notLinked": "Not in yet",
       "inactive": "Inactive",
-      "unlink": "Unlink Telegram",
       "deactivate": "Turn off",
       "activate": "Turn on",
-      "members": "Members"
+      "members": "Members",
+      "membersHint": "Whoever first presses a button in the group appears here by themselves. Write their real name.",
+      "nameNeeded": "Write the name"
     }
   }
 }

@@ -34,6 +34,16 @@ public sealed class TelegramInitDataTests
         => TelegramInitData.ReadUserId(Sign(Token, Fields(Now)), Token, Now).ShouldBe(77);
 
     [Fact]
+    public void Ism_va_username_oqiladi_ismsiz_bolsa_raqam_turadi()
+    {
+        var user = TelegramInitData.ReadUser(Sign(Token, Fields(Now, """{"id":77,"first_name":"Born","last_name":"to Win","username":"born"}""")), Token, Now)!;
+        user.FullName.ShouldBe("Born to Win");
+        user.Username.ShouldBe("born");
+
+        TelegramInitData.ReadUser(Sign(Token, Fields(Now, """{"id":77}""")), Token, Now)!.FullName.ShouldBe("77");
+    }
+
+    [Fact]
     public void Boshqa_token_bilan_imzolangani_rad_etiladi()
         => TelegramInitData.ReadUserId(Sign("999:other", Fields(Now)), Token, Now).ShouldBeNull();
 

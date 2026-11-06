@@ -17,7 +17,16 @@ using Bonvi.Domain.ValueObjects;
 namespace Bonvi.Application.Recruiting.Council;
 
 /// <summary>A member on the panel's roster.</summary>
-public sealed record CouncilGroupMemberDto(Guid Id, string FullName, string Phone, bool IsActive, bool Linked, DateTimeOffset? LinkedAt);
+public sealed record CouncilGroupMemberDto(
+    Guid Id,
+    string FullName,
+    string? Phone,
+    bool IsActive,
+    bool Linked,
+    DateTimeOffset? LinkedAt,
+    string? TelegramName,
+    string? TelegramUsername,
+    bool NameConfirmed);
 
 /// <summary>The panel's view: the bound group, the Mini App's name and the roster.</summary>
 public sealed record CouncilGroupDto(
@@ -91,11 +100,30 @@ public enum CouncilAppAccess
     /// <summary>The launch data is not genuine.</summary>
     Invalid = 1,
 
-    /// <summary>A genuine Telegram user who is not linked to an active member.</summary>
+    /// <summary>A genuine Telegram user who is not in the council's group, or was turned off.</summary>
     Unknown = 2,
 
-    /// <summary>An active member.</summary>
+    /// <summary>An active member in the group.</summary>
     Member = 3,
+
+    /// <summary>Telegram could not say, and this person has no row yet.</summary>
+    Unavailable = 4,
+}
+
+/// <summary>What Telegram says about one person in the council's group.</summary>
+public enum TelegramGroupStatus
+{
+    Member = 1,
+    NotMember = 2,
+
+    /// <summary>Telegram did not answer or refused the bot.</summary>
+    Unavailable = 3,
+}
+
+/// <summary>Asks Telegram whether a person is in a group.</summary>
+public interface ITelegramGroupMembership
+{
+    Task<TelegramGroupStatus> CheckAsync(string botToken, long chatId, long userId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>The result of checking the launch data.</summary>
@@ -106,30 +134,75 @@ public sealed class CouncilMemberIdentifier
 {
     private readonly SystemSettingsReader _settings;
     private readonly ICouncilGroupRepository _group;
+    private readonly ITelegramGroupMembership _membership;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
-    public CouncilMemberIdentifier(SystemSettingsReader settings, ICouncilGroupRepository group, IClock clock)
+    public CouncilMemberIdentifier(
+        SystemSettingsReader settings,
+        ICouncilGroupRepository group,
+        ITelegramGroupMembership membership,
+        IUnitOfWork unitOfWork,
+        IClock clock)
     {
         _settings = settings;
         _group = group;
+        _membership = membership;
+        _unitOfWork = unitOfWork;
         _clock = clock;
     }
 
-    public async Task<CouncilAppIdentity> IdentifyAsync(string? initData, CancellationToken cancellationToken = default)
+    /// <param name="initData">The launch data.</param>
+    /// <param name="register">Give a group member their row. Only the first screen does: it runs once and alone.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    public async Task<CouncilAppIdentity> IdentifyAsync(string? initData, bool register = false, CancellationToken cancellationToken = default)
     {
         var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
-        var userId = TelegramInitData.ReadUserId(initData, settings.Secret(SystemSettingKeys.BotToken), _clock.UtcNow);
+        var token = settings.Secret(SystemSettingKeys.BotToken);
 
-        if (userId is not { } telegramUserId)
+        if (TelegramInitData.ReadUser(initData, token, _clock.UtcNow) is not { } user)
         {
             return new CouncilAppIdentity(CouncilAppAccess.Invalid, null);
         }
 
-        var member = await _group.FindMemberByTelegramAsync(telegramUserId, cancellationToken).ConfigureAwait(false);
+        var member = await _group.FindMemberByTelegramAsync(user.Id, cancellationToken).ConfigureAwait(false);
 
-        return member is { IsActive: true }
-            ? new CouncilAppIdentity(CouncilAppAccess.Member, member)
-            : new CouncilAppIdentity(CouncilAppAccess.Unknown, null);
+        if (member is { IsActive: false } || CouncilSettings.ChatId(settings) is not { } chat)
+        {
+            return new CouncilAppIdentity(CouncilAppAccess.Unknown, null);
+        }
+
+        var status = await _membership.CheckAsync(token!, chat, user.Id, cancellationToken).ConfigureAwait(false);
+
+        switch (status)
+        {
+            case TelegramGroupStatus.NotMember:
+                return new CouncilAppIdentity(CouncilAppAccess.Unknown, null);
+
+            // A Telegram hiccup must not stop a sitting for people already known.
+            case TelegramGroupStatus.Unavailable:
+                return member is null
+                    ? new CouncilAppIdentity(CouncilAppAccess.Unavailable, null)
+                    : new CouncilAppIdentity(CouncilAppAccess.Member, member);
+        }
+
+        if (member is null)
+        {
+            if (!register)
+            {
+                return new CouncilAppIdentity(CouncilAppAccess.Unknown, null);
+            }
+
+            member = CouncilMember.FromTelegram(user.Id, user.FullName, user.Username, _clock.UtcNow);
+            _group.AddMember(member);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else if (member.RefreshProfile(user.FullName, user.Username))
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return new CouncilAppIdentity(CouncilAppAccess.Member, member);
     }
 }
 
@@ -204,10 +277,13 @@ public sealed class GetCouncilGroupQueryHandler
             [.. members.Select(member => new CouncilGroupMemberDto(
                 member.Id,
                 member.FullName,
-                member.Phone.Value,
+                member.Phone?.Value,
                 member.IsActive,
                 member.TelegramUserId is not null,
-                member.LinkedAt))]);
+                member.LinkedAt,
+                member.TelegramName,
+                member.TelegramUsername,
+                member.NameConfirmed))]);
     }
 }
 
@@ -230,14 +306,17 @@ public sealed class SaveCouncilMemberCommandHandler
         ArgumentNullException.ThrowIfNull(command);
 
         var name = command.FullName?.Trim();
-        var phone = PhoneNumber.Create(command.Phone);
 
-        if (string.IsNullOrEmpty(name) || name.Length > CouncilMember.MaxNameLength || phone.IsFailure)
+        // A member who came from the group has no phone and needs none; a new row by hand does.
+        var noPhone = string.IsNullOrWhiteSpace(command.Phone) && command.Id is not null;
+        var phone = noPhone ? null : PhoneNumber.Create(command.Phone);
+
+        if (string.IsNullOrEmpty(name) || name.Length > CouncilMember.MaxNameLength || phone is { IsFailure: true })
         {
             return RecruitingErrors.CouncilMemberInvalid;
         }
 
-        var holder = await _group.FindMemberByPhoneAsync(phone.Value, cancellationToken).ConfigureAwait(false);
+        var holder = phone is null ? null : await _group.FindMemberByPhoneAsync(phone.Value, cancellationToken).ConfigureAwait(false);
 
         if (holder is not null && holder.Id != command.Id)
         {
@@ -254,11 +333,11 @@ public sealed class SaveCouncilMemberCommandHandler
             }
 
             member = found;
-            member.Update(name, phone.Value, command.IsActive);
+            member.Update(name, phone?.Value, command.IsActive);
         }
         else
         {
-            member = CouncilMember.Create(name, phone.Value);
+            member = CouncilMember.Create(name, phone!.Value);
             _group.AddMember(member);
         }
 
@@ -566,17 +645,18 @@ public sealed class GetCouncilBotStateQueryHandler
         var settings = await _settings.ReadAsync(cancellationToken).ConfigureAwait(false);
         var chatId = CouncilSettings.ChatId(settings);
 
-        var digest = chatId is { } chat ? await FindDueAsync(chat, cancellationToken).ConfigureAwait(false) : null;
+        var miniApp = CouncilSettings.OrNull(settings.Hidden(SystemSettingKeys.BotCouncilMiniAppName));
+        var digest = chatId is { } chat ? await FindDueAsync(chat, miniApp, cancellationToken).ConfigureAwait(false) : null;
 
         return new CouncilBotStateDto(
             chatId,
-            CouncilSettings.OrNull(settings.Hidden(SystemSettingKeys.BotCouncilMiniAppName)),
+            miniApp,
             CouncilSettings.OrNull(settings.Hidden(SystemSettingKeys.BotUsername)),
             digest,
             CouncilSettings.BindCode(settings) is { } code && _clock.UtcNow.ToUnixTimeSeconds() <= code.Expires);
     }
 
-    private async Task<CouncilDigestDto?> FindDueAsync(long chatId, CancellationToken cancellationToken)
+    private async Task<CouncilDigestDto?> FindDueAsync(long chatId, string? miniApp, CancellationToken cancellationToken)
     {
         var local = _clock.UtcNow.ToOffset(BonviTime.TashkentOffset);
         var today = DateOnly.FromDateTime(local.DateTime);
@@ -588,24 +668,28 @@ public sealed class GetCouncilBotStateQueryHandler
             var rows = await CouncilInvitations.ListOpenAsync(_readModel, day, cancellationToken).ConfigureAwait(false);
             var existing = await _group.FindDigestAsync(day, cancellationToken).ConfigureAwait(false);
             var sameChat = existing?.ChatId == chatId;
+            var signature = Signature(rows, miniApp);
 
             var isDue = sameChat
-                ? existing!.Signature != Signature(rows)
+                ? existing!.Signature != signature
                 : mayPost && rows.Count > 0;
 
             if (isDue)
             {
-                return new CouncilDigestDto(day, day == today, sameChat ? existing!.MessageId : null, Signature(rows), rows);
+                return new CouncilDigestDto(day, day == today, sameChat ? existing!.MessageId : null, signature, rows);
             }
         }
 
         return null;
     }
 
-    /// <summary>By the minute, as the buttons show: Telegram refuses an edit that changes nothing visible.</summary>
-    private static string Signature(IReadOnlyList<CouncilDigestRowDto> rows)
+    /// <summary>
+    /// By the minute, as the buttons show: Telegram refuses an edit that changes nothing visible. The Mini App's
+    /// name is in it because the buttons link there: a new name must reach a message already posted.
+    /// </summary>
+    private static string Signature(IReadOnlyList<CouncilDigestRowDto> rows, string? miniApp)
     {
-        var text = string.Join('\n', rows.Select(row => row.CandidateId.ToString("N") + (row.At.ToUnixTimeSeconds() / 60).ToString(CultureInfo.InvariantCulture)));
+        var text = (miniApp ?? string.Empty) + '\n' + string.Join('\n', rows.Select(row => row.CandidateId.ToString("N") + (row.At.ToUnixTimeSeconds() / 60).ToString(CultureInfo.InvariantCulture)));
 
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..CouncilDigest.MaxSignatureLength];
     }

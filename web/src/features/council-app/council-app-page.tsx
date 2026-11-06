@@ -18,7 +18,7 @@ const DECISION_TONE = { Accept: 'success', Conditional: 'warning', Reserve: 'neu
 export function CouncilAppPage() {
   const { t } = useLocale()
   const { i18n } = useTranslation()
-  const [launch, setLaunch] = useState<{ initData: string; target: string | null; openLink: (url: string) => void } | null | 'none'>(null)
+  const [launch, setLaunch] = useState<{ initData: string; target: string | null } | null | 'none'>(null)
 
   useEffect(() => {
     void loadTelegram().then((app) => {
@@ -27,7 +27,7 @@ export function CouncilAppPage() {
 
       setLaunch(
         app !== null && app.initData !== ''
-          ? { initData: app.initData, target: targetCandidate(app), openLink: (url) => app.openTelegramLink(url) }
+          ? { initData: app.initData, target: targetCandidate(app) }
           : 'none',
       )
     })
@@ -42,7 +42,7 @@ export function CouncilAppPage() {
   )
 }
 
-function Launched({ initData, target, openLink }: { initData: string; target: string | null; openLink: (url: string) => void }) {
+function Launched({ initData, target }: { initData: string; target: string | null }) {
   const { t } = useLocale()
   const client = useMemo(() => councilAppClient(initData), [initData])
   const [open, setOpen] = useState(target)
@@ -50,8 +50,8 @@ function Launched({ initData, target, openLink }: { initData: string; target: st
     queryKey: ['council-app', 'me'],
     queryFn: client.me,
     retry: false,
-    // Telegram Desktop keeps this window open while the member links in the bot's chat: it moves on by itself.
-    refetchInterval: (query) => (query.state.data?.recognized === false ? 5000 : false),
+    // Someone added to the group a moment ago gets in without reopening the window.
+    refetchInterval: (query) => (query.state.data?.recognized === false ? 10000 : false),
   })
 
   if (me.isPending) {
@@ -63,18 +63,7 @@ function Launched({ initData, target, openLink }: { initData: string; target: st
   }
 
   if (!me.data.recognized) {
-    return (
-      <Card>
-        <CardContent className="space-y-3 p-5 text-center">
-          <p className="text-[var(--fg)]">{t('council.app.linkHint')}</p>
-          {me.data.botUsername !== null && (
-            <Button type="button" variant="primary" onClick={() => openLink(`https://t.me/${me.data.botUsername}?start=kengash`)}>
-              {t('council.app.linkButton')}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    )
+    return <Alert tone="warning">{t(me.data.unavailable ? 'council.app.unavailable' : 'council.app.notInGroup')}</Alert>
   }
 
   return open === null ? <CandidateList client={client} onOpen={setOpen} /> : <CandidateView client={client} id={open} onBack={() => setOpen(null)} />

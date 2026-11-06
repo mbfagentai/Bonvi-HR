@@ -5,8 +5,8 @@ const BASE: string = import.meta.env['VITE_API_URL'] ?? 'http://localhost:7080'
 
 export interface CouncilAppMe {
   recognized: boolean
+  unavailable: boolean
   fullName: string | null
-  botUsername: string | null
 }
 
 export interface CouncilAppRow {

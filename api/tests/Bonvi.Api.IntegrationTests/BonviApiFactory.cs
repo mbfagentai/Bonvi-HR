@@ -1,3 +1,7 @@
+using System.Collections.Concurrent;
+using Bonvi.Application.Recruiting.Council;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -24,8 +28,22 @@ namespace Bonvi.Api.IntegrationTests;
 /// PostgreSQL'dan foydalanadi. <c>./bonvi test</c> ulanishni avtomatik uzatadi.
 /// </para>
 /// </remarks>
+/// <summary>The council's Telegram group in tests: everyone is in it unless told otherwise.</summary>
+public sealed class FakeTelegramGroup : ITelegramGroupMembership
+{
+    private readonly ConcurrentDictionary<long, TelegramGroupStatus> _people = new();
+
+    public void Set(long userId, TelegramGroupStatus status) => _people[userId] = status;
+
+    public Task<TelegramGroupStatus> CheckAsync(string botToken, long chatId, long userId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_people.GetValueOrDefault(userId, TelegramGroupStatus.Member));
+}
+
 public sealed class BonviApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    /// <summary>Who is in the council's group, for this host.</summary>
+    public FakeTelegramGroup TelegramGroup { get; } = new();
+
     /// <summary>Compose'dagi PostgreSQL. <c>./bonvi test</c> buni muhitdan beradi.</summary>
     private static readonly string AdminConnectionString =
         Environment.GetEnvironmentVariable("TEST_POSTGRES")
@@ -107,6 +125,9 @@ public sealed class BonviApiFactory : WebApplicationFactory<Program>, IAsyncLife
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.UseEnvironment("Testing");
+
+        // No test talks to Telegram: who is in the council's group is decided here.
+        builder.ConfigureTestServices(services => services.AddSingleton<ITelegramGroupMembership>(TelegramGroup));
 
         // UseSetting — xost konfiguratsiyasiga yozadi va appsettings.json'dan
         // USTUN turadi. ConfigureAppConfiguration bilan qo'shilgan manba esa

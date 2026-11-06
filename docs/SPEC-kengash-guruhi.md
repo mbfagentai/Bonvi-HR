@@ -16,13 +16,17 @@ A new binding replaces the old one, and while a code is live the bot does not le
 confirms in the group. When Telegram turns the group into a supergroup, its new id follows automatically.
 
 ## 3. Members
-`council_members`: full name, phone, Telegram user id, linked-at, active. Managed by `settings.manage`.
-The roster is the only source of access, not group membership.
+Owner, 2026-11-06: only the group's members are the council, and nobody presses Start. Access is being in the
+bound group, checked with Telegram's `getChatMember` (the bot is an admin there, answers cached one minute).
+Telegram gives a bot no way to find a person by phone or to list a group, so nothing can be entered beforehand.
 
-A member links once: the Mini App (or the group's first-time hint) opens `t.me/<bot>?start=kengash`, the
-bot asks for the contact with one button, `contact.user_id` must equal the sender, and the phone must match an
-active member. There is no separate link token: if Telegram holds another number, the admin corrects the
-phone in the roster. Unlinking is one button.
+`council_members`: full name, Telegram id, Telegram name and username, name-confirmed, active. The first open of the
+Mini App by a group member creates the row with the Telegram name. A settings holder (`settings.manage`) writes the
+real name or turns the row off. Leaving the group closes access within a minute. If Telegram does not answer, known
+members keep working and new ones wait.
+
+The earlier phone flow (`/start kengash`, `POST /members`) still exists and is unused: such a member needs to be in
+the group as well.
 
 ## 4. Day-before message
 One message per council day at 10:00 Tashkent the day before. Its text has the date and the count; each
@@ -30,12 +34,13 @@ candidate is one button «Surname Name · HH:mm», plus «All candidates». Over
 reached through «All candidates». Candidates added or removed later edit the same message, without a new
 post. A digest for tomorrow, or for today if it was missed, is only first posted 10:00–20:00.
 
-Button target: `t.me/<bot>/<miniApp>?startapp=<id>` when `bot.council.miniAppName` is set, otherwise
-`t.me/<bot>?start=km_<id>`, where the bot replies in private with a `web_app` button.
+Button target: `t.me/<bot>/<miniApp>?startapp=<id>`, opening over the chat with no Start. `bot.council.miniAppName`
+defaults to `kengash`; a changed name edits the posted message. Blanked by hand, buttons fall back to
+`t.me/<bot>?start=km_<id>`, where the bot replies in private with a `web_app` button, which needs Start.
 
 ## 5. Mini App (`/tg/kengash`, outside `_app`)
 Auth is the signed `initData` in `X-Telegram-Init-Data`: HMAC per Telegram, `auth_date` at most 24 h old, Telegram
-id must belong to an active member. Anything else is 401/403, and every read and write is scoped by that.
+id must be in the bound group and not turned off. Anything else is 401/403, and every read and write is scoped by that.
 
 - List: candidates invited from 14 days ago on, with whether I gave a conclusion.
 - Candidate: photo, name, vacancy, invitation time, contact details, questionnaire, HR-F02 PDF, read only.
@@ -53,14 +58,11 @@ conditional, reserve, reject), comment, created-at. Rows are never changed.
 - The final decision is the chief's; HR enters it in the existing `council_decisions` form. Opinions never set it.
 
 ## 7. Owner's one-time steps after deploy
-1. BotFather: keep privacy on, `/newapp` for the bot with short name `kengash` and URL
-   `https://hr.bonvi.uz/tg/kengash`; enter the short name in the settings on `/kengash-xulosasi`.
-2. Add members with their Telegram phone numbers.
-3. Bind the group.
-4. BotFather: `/setjoingroups` off. Binding another group later needs it on again, because the bot must be added first.
-Until step 1 the buttons go through the private chat (§4), which needs nothing from BotFather.
-The Mini App checks signatures with the token in the system settings. A bot running only on the `.env` fallback
-token leaves every Mini App call at 401, so the token must be in the settings.
+1. Make the bot an admin of the council group; it needs no rights switched on.
+2. Bind the group (§2).
+3. BotFather: `/setjoingroups` off. Binding another group later needs it on again, because the bot must be added first.
+4. Write the real names as members appear on the roster.
+The Mini App checks signatures with the token in the system settings, so the token must be there, not only in `.env`.
 
 ## 8. Not in scope
 Quorum or vote counting, opinions in HR-F04 on HRMentor, members' attendance filled from the roster.

@@ -3,12 +3,17 @@ using Bonvi.Domain.ValueObjects;
 
 namespace Bonvi.Domain.Recruiting;
 
-/// <summary>A person allowed to give conclusions from the Mini App. Group membership grants nothing.</summary>
+/// <summary>
+/// A person who gives conclusions from the Mini App. Access comes from being in the council's Telegram
+/// group: the row appears on the first open, and an admin writes the real name or turns it off.
+/// </summary>
 public sealed class CouncilMember : AggregateRoot, IAuditable
 {
     public const int MaxNameLength = 200;
 
-    private CouncilMember(Guid id, string fullName, PhoneNumber phone)
+    public const int MaxTelegramNameLength = 200;
+
+    private CouncilMember(Guid id, string fullName, PhoneNumber? phone)
         : base(id)
     {
         FullName = fullName;
@@ -20,8 +25,17 @@ public sealed class CouncilMember : AggregateRoot, IAuditable
 
     public string FullName { get; private set; } = string.Empty;
 
-    /// <summary>Matched against the contact a member shares with the bot.</summary>
-    public PhoneNumber Phone { get; private set; } = null!;
+    /// <summary>Only for a member added by hand; one who came from the group has none.</summary>
+    public PhoneNumber? Phone { get; private set; }
+
+    /// <summary>The name on the Telegram profile, shown to the admin so they know who this is.</summary>
+    public string? TelegramName { get; private set; }
+
+    /// <summary>The Telegram username without «@», when there is one.</summary>
+    public string? TelegramUsername { get; private set; }
+
+    /// <summary>An admin wrote or accepted <see cref="FullName"/>; until then it is just the Telegram name.</summary>
+    public bool NameConfirmed { get; private set; }
 
     /// <summary>Set once the member shared their contact; identifies them in the Mini App from then on.</summary>
     public long? TelegramUserId { get; private set; }
@@ -35,19 +49,63 @@ public sealed class CouncilMember : AggregateRoot, IAuditable
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 
-    public static CouncilMember Create(string fullName, PhoneNumber phone) => new(NewId(), fullName, phone);
+    public static CouncilMember Create(string fullName, PhoneNumber phone)
+        => new(NewId(), fullName, phone) { NameConfirmed = true };
 
-    /// <summary>Another number is another person's Telegram, so a changed phone drops the link.</summary>
-    public void Update(string fullName, PhoneNumber phone, bool isActive)
+    /// <summary>Someone from the council's group opened the Mini App for the first time.</summary>
+    public static CouncilMember FromTelegram(long telegramUserId, string telegramName, string? username, DateTimeOffset at)
+    {
+        var name = Fit(telegramName);
+        var member = new CouncilMember(NewId(), name, null) { TelegramName = name, TelegramUsername = Fit(username) };
+        member.Link(telegramUserId, at);
+
+        return member;
+    }
+
+    /// <summary>A profile can change; the name written by an admin stays.</summary>
+    public bool RefreshProfile(string telegramName, string? username)
+    {
+        var name = Fit(telegramName);
+        var user = Fit(username);
+
+        if (TelegramName == name && TelegramUsername == user)
+        {
+            return false;
+        }
+
+        TelegramName = name;
+        TelegramUsername = user;
+
+        if (!NameConfirmed)
+        {
+            FullName = name;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// An admin named this person. Another number is another person's Telegram, so a changed phone
+    /// drops the link; no phone leaves the current one alone.
+    /// </summary>
+    public void Update(string fullName, PhoneNumber? phone, bool isActive)
     {
         FullName = fullName;
         IsActive = isActive;
+        NameConfirmed = true;
 
-        if (Phone != phone)
+        if (phone is not null && Phone != phone)
         {
             Phone = phone;
             Unlink();
         }
+    }
+
+    private static string Fit(string? value)
+    {
+        var text = value?.Trim() ?? string.Empty;
+
+        return text.Length > MaxTelegramNameLength ? text[..MaxTelegramNameLength] : text;
     }
 
     public void Link(long telegramUserId, DateTimeOffset at)

@@ -463,8 +463,11 @@ public static class SystemSettingKeys
     /// <summary>The binding code in force, as <c>code|expiry</c>; empty when none.</summary>
     public const string BotCouncilBindCode = "bot.council.bindCode";
 
-    /// <summary>The Mini App's short name in BotFather. Empty: buttons go through the private chat.</summary>
+    /// <summary>The Mini App's short name in BotFather. Blanked by hand: buttons go through the private chat, which needs Start.</summary>
     public const string BotCouncilMiniAppName = "bot.council.miniAppName";
+
+    /// <summary>The name the owner registered, so members need no Start from the first message on.</summary>
+    public const string DefaultBotCouncilMiniAppName = "kengash";
 
     /// <summary>
     /// Suhbat taklifidagi manzil — qisqa satr («Qo'qon», «Toshkent, Chilonzor»).
@@ -1053,7 +1056,7 @@ public static class SystemSettingKeys
         new(BotCouncilChatId, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
         new(BotCouncilChatTitle, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
         new(BotCouncilBindCode, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
-        new(BotCouncilMiniAppName, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
+        new(BotCouncilMiniAppName, SystemSettingKind.Hidden, DefaultBotCouncilMiniAppName, MaxLength: MaxKeyLength),
         new(BotLogo, SystemSettingKind.Photo, string.Empty, MaxLength: MaxKeyLength),
         new(BotSocialInstagram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),

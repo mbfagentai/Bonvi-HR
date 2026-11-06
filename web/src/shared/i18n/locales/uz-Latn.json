@@ -4592,8 +4592,6 @@
       "openInTelegram": "Bu sahifa faqat Telegram ichida ochiladi.",
       "reopen": "Sahifani yoping va guruhdagi tugmani qayta bosing.",
       "loadError": "Yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "linkHint": "Sizni hali tanimadik. Bir marta botda raqamingizni yuboring, keyin to'g'ridan-to'g'ri kirasiz.",
-      "linkButton": "Botga o'tish",
       "empty": "Hozircha chaqirilgan nomzod yo'q.",
       "given": "Xulosa berilgan",
       "back": "Orqaga",
@@ -4610,32 +4608,30 @@
       "commentRequired": "Shartli qarorda izoh yozing.",
       "saved": "Xulosangiz saqlandi.",
       "send": "Xulosani yuborish",
-      "earlier": "Oldingi xulosalaringiz"
+      "earlier": "Oldingi xulosalaringiz",
+      "notInGroup": "Bu sahifa faqat kengash guruhi a'zolari uchun. Sizni hali guruhda ko'rmadik yoki o'chirilgansiz.",
+      "unavailable": "Hozir tekshirib bo'lmadi. Birozdan keyin o'zi qayta urinadi."
     },
     "opinions": {
       "title": "A'zolar xulosalari ({{count}})"
     },
     "group": {
       "title": "Telegram: kengash a'zolari",
-      "subtitle": "Ro'yxatdagilar guruhdagi tugma orqali nomzodni ko'rib, o'z xulosasini beradi.",
+      "subtitle": "Kengash guruhidagi har bir odam tugma orqali nomzodni ko'rib, o'z xulosasini beradi.",
       "bound": "Guruh ulangan: {{title}}",
       "notBound": "Guruh ulanmagan",
       "bind": "Guruhni ulash",
-      "bindHint": "Shu buyruqni kengash guruhiga yuboring. 30 daqiqa amal qiladi.",
+      "bindHint": "Avval botni guruhda admin qiling, keyin shu buyruqni guruhga yuboring. 30 daqiqa amal qiladi.",
       "copy": "Nusxa olish",
       "miniApp": "Mini App qisqa nomi",
       "miniAppHint": "BotFather'dagi /newapp nomi. Bo'sh bo'lsa, tugmalar bot chati orqali ochiladi.",
       "name": "F.I.Sh.",
-      "phone": "Telefon",
-      "phoneHint": "A'zoning Telegram'dagi raqami",
-      "add": "Qo'shish",
-      "linked": "Bog'langan",
-      "notLinked": "Hali kirmagan",
       "inactive": "Faol emas",
-      "unlink": "Telegram bog'lanishini uzish",
       "deactivate": "O'chirish",
       "activate": "Yoqish",
-      "members": "A'zolar"
+      "members": "A'zolar",
+      "membersHint": "Guruhdagi tugmani birinchi marta bosgan odam bu yerga o'zi tushadi. Haqiqiy F.I.Sh.ni yozib qo'ying.",
+      "nameNeeded": "Ismni yozing"
     }
   }
 }

@@ -14,6 +14,7 @@ using Bonvi.Application.Me;
 using Bonvi.Application.Notifications.Abstractions;
 using Bonvi.Application.PublicApi.Abstractions;
 using Bonvi.Application.Recruiting.Abstractions;
+using Bonvi.Application.Recruiting.Council;
 using Bonvi.Application.Recruiting.Forms;
 using Bonvi.Application.Recruiting.Forms.Dynamic;
 using Bonvi.Application.Reports.Abstractions;
@@ -363,6 +364,11 @@ public static class DependencyInjection
         services.AddScoped<ICouncilMeetingRepository, CouncilMeetingRepository>();
         services.AddScoped<ICouncilDecisionRepository, CouncilDecisionRepository>();
         services.AddScoped<ICouncilGroupRepository, CouncilGroupRepository>();
+
+        // No HTTP logging on this client: the bot's token is in the address.
+        services
+            .AddHttpClient<ITelegramGroupMembership, TelegramGroupMembership>(client => client.Timeout = TimeSpan.FromSeconds(5))
+            .RemoveAllLoggers();
         services.AddScoped<ICandidateRepository, CandidateRepository>();
         services.AddScoped<ICandidateFormRepository, CandidateFormRepository>();
 

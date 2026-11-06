@@ -1,15 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Link2Off, Plus } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Copy } from 'lucide-react'
+import { useState } from 'react'
 
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { Alert, Badge, Button, Card, CardContent, CardHeader, TextField } from '@/shared/ui'
 import {
-  addCouncilGroupMember,
   fetchCouncilGroup,
   issueCouncilBindCode,
   saveCouncilMiniApp,
-  unlinkCouncilGroupMember,
   updateCouncilGroupMember,
   type CouncilGroupMember,
 } from '../api/council-api'
@@ -34,10 +32,10 @@ export function CouncilGroupCard() {
 
         <div className="space-y-2 border-t border-[var(--border)] pt-5">
           <h3 className="text-subhead font-semibold text-[var(--fg)]">{t('council.group.members')}</h3>
+          <p className="text-footnote text-[var(--fg-tertiary)]">{t('council.group.membersHint')}</p>
           {group.data.members.map((member) => (
             <MemberRow key={member.id} member={member} />
           ))}
-          <AddMember />
         </div>
       </CardContent>
     </Card>
@@ -110,71 +108,42 @@ function MiniAppName({ saved }: { saved: string }) {
 
 function MemberRow({ member }: { member: CouncilGroupMember }) {
   const { t } = useLocale()
-  const unlink = useMutation({ mutationFn: () => unlinkCouncilGroupMember(member.id) })
-  const toggle = useMutation({
-    mutationFn: () => updateCouncilGroupMember(member.id, { fullName: member.fullName, phone: member.phone, isActive: !member.isActive }),
-  })
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] p-3 text-sm">
-      <span className="min-w-0 flex-1">
-        <span className="block font-medium text-[var(--fg)]">{member.fullName}</span>
-        <span className="block text-[var(--fg-secondary)]">{member.phone}</span>
-      </span>
-      {!member.isActive ? (
-        <Badge tone="neutral">{t('council.group.inactive')}</Badge>
-      ) : (
-        <Badge tone={member.linked ? 'success' : 'warning'}>{t(member.linked ? 'council.group.linked' : 'council.group.notLinked')}</Badge>
-      )}
-      {member.linked && (
-        <Button type="button" size="sm" variant="secondary" aria-label={t('council.group.unlink')} disabled={unlink.isPending} onClick={() => unlink.mutate()}>
-          <Link2Off />
-        </Button>
-      )}
-      <Button type="button" size="sm" variant="secondary" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
-        {t(member.isActive ? 'council.group.deactivate' : 'council.group.activate')}
-      </Button>
-    </div>
-  )
-}
-
-function AddMember() {
-  const { t } = useLocale()
   const errorMessage = useErrorMessage()
-  const queries = useQueryClient()
-  const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const add = useMutation({
-    mutationFn: () => addCouncilGroupMember({ fullName: fullName.trim(), phone: phone.trim() }),
-    onSuccess: async () => {
-      setFullName('')
-      setPhone('')
-      await queries.invalidateQueries({ queryKey: QUERY_KEY })
-    },
+  const [name, setName] = useState(member.fullName)
+  const save = useMutation({
+    mutationFn: (isActive: boolean) => updateCouncilGroupMember(member.id, { fullName: name.trim(), phone: member.phone, isActive }),
   })
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    add.mutate()
-  }
+  const telegram = [member.telegramName, member.telegramUsername !== null && member.telegramUsername !== '' ? `@${member.telegramUsername}` : null]
+    .filter(Boolean)
+    .join(' · ')
+  const changed = name.trim() !== member.fullName
 
   return (
-    <form className="space-y-2 pt-2" onSubmit={submit}>
-      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <TextField label={t('council.group.name')} value={fullName} maxLength={200} onChange={(event) => setFullName(event.target.value)} />
+    <div className="space-y-2 rounded-xl border border-[var(--border)] p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
         <TextField
-          label={t('council.group.phone')}
-          inputMode="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          className="min-w-48 flex-1"
+          aria-label={t('council.group.name')}
+          value={name}
+          maxLength={200}
+          onChange={(event) => setName(event.target.value)}
         />
-        <Button type="submit" variant="primary" size="lg" disabled={add.isPending || fullName.trim() === '' || phone.trim() === ''}>
-          <Plus />
-          {t('council.group.add')}
+        {changed && (
+          <Button type="button" size="lg" variant="primary" disabled={save.isPending || name.trim() === ''} onClick={() => save.mutate(member.isActive)}>
+            {t('council.save')}
+          </Button>
+        )}
+        {!member.isActive ? (
+          <Badge tone="neutral">{t('council.group.inactive')}</Badge>
+        ) : (
+          !member.nameConfirmed && <Badge tone="warning">{t('council.group.nameNeeded')}</Badge>
+        )}
+        <Button type="button" size="lg" disabled={save.isPending} onClick={() => save.mutate(!member.isActive)}>
+          {t(member.isActive ? 'council.group.deactivate' : 'council.group.activate')}
         </Button>
       </div>
-      <p className="text-footnote text-[var(--fg-tertiary)]">{t('council.group.phoneHint')}</p>
-      {add.isError && <Alert tone="danger">{errorMessage(recruitingErrorCode(add.error))}</Alert>}
-    </form>
+      {telegram !== '' && <p className="text-footnote text-[var(--fg-secondary)]">Telegram: {telegram}</p>}
+      {save.isError && <Alert tone="danger">{errorMessage(recruitingErrorCode(save.error))}</Alert>}
+    </div>
   )
 }
