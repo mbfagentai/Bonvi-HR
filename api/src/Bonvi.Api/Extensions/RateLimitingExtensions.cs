@@ -23,6 +23,9 @@ public static class RateLimitPolicies
     /// <summary>Kirish (login) — bitta IP uchun juda qat'iy.</summary>
     public const string Login = "login";
 
+    /// <summary>The council's Mini App, by client IP: members in one office open many cards and PDFs at a sitting.</summary>
+    public const string CouncilApp = "council-app";
+
     /// <summary>Oddiy API so'rovlari — foydalanuvchi yoki IP bo'yicha.</summary>
     public const string Api = "api";
 
@@ -481,6 +484,11 @@ public static class RateLimitingExtensions
                 RateLimitPartition.GetFixedWindowLimiter(
                     "anketa:" + ClientIp.PartitionKey(context),
                     _ => QatiyOyna(sozlama.Questionnaire)));
+
+            options.AddPolicy(RateLimitPolicies.CouncilApp, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    "kengash-app:" + ClientIp.PartitionKey(context),
+                    _ => new FixedWindowRateLimiterOptions { PermitLimit = 300, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
             options.AddPolicy(RateLimitPolicies.QuestionnaireSubmit, context =>
                 RateLimitPartition.GetFixedWindowLimiter(

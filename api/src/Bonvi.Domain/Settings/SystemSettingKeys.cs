@@ -454,6 +454,18 @@ public static class SystemSettingKeys
     /// </summary>
     public const string BotUsername = "bot.username";
 
+    /// <summary>The council's Telegram group: its chat id, written when the group is bound (SPEC-kengash-guruhi §2).</summary>
+    public const string BotCouncilChatId = "bot.council.chatId";
+
+    /// <summary>The bound group's name, only to show which group it is.</summary>
+    public const string BotCouncilChatTitle = "bot.council.chatTitle";
+
+    /// <summary>The binding code in force, as <c>code|expiry</c>; empty when none.</summary>
+    public const string BotCouncilBindCode = "bot.council.bindCode";
+
+    /// <summary>The Mini App's short name in BotFather. Empty: buttons go through the private chat.</summary>
+    public const string BotCouncilMiniAppName = "bot.council.miniAppName";
+
     /// <summary>
     /// Suhbat taklifidagi manzil — qisqa satr («Qo'qon», «Toshkent, Chilonzor»).
     /// </summary>
@@ -1038,6 +1050,10 @@ public static class SystemSettingKeys
         new(BotInterviewPhone, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
         new(BotInterviewAddress, SystemSettingKind.Text, string.Empty, MaxLength: MaxKeyLength),
         new(BotUsername, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
+        new(BotCouncilChatId, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
+        new(BotCouncilChatTitle, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
+        new(BotCouncilBindCode, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
+        new(BotCouncilMiniAppName, SystemSettingKind.Hidden, string.Empty, MaxLength: MaxKeyLength),
         new(BotLogo, SystemSettingKind.Photo, string.Empty, MaxLength: MaxKeyLength),
         new(BotSocialInstagram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),
         new(BotSocialTelegram, SystemSettingKind.Text, string.Empty, MaxLength: MaxUrlLength, Pattern: UrlPattern),

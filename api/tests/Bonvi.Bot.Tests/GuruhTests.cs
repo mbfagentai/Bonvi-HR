@@ -1,3 +1,5 @@
+using Bonvi.Bot.Bonvi;
+using Bonvi.Bot.Conversation;
 using Bonvi.Bot.Telegram;
 
 namespace Bonvi.Bot.Tests;
@@ -63,5 +65,186 @@ public sealed class GuruhTests
             null));
 
         bot.Sent.ShouldNotBeEmpty();
+    }
+
+    private static TelegramUpdate Ulash(string matn, long guruh = Guruh)
+        => new(1, new TelegramMessage(1, new TelegramChat(guruh, "supergroup", "Kengash"), matn, null), null);
+
+    [Fact]
+    public async Task Togri_kod_guruhni_ulaydi_va_tasdiqlaydi()
+    {
+        using var bot = new BotHarness { CouncilBindAccepted = true };
+
+        await bot.HandleAsync(Ulash("/kengash_ulash@Bonvi_HR_bot 12345678"));
+
+        bot.CouncilCalls.ShouldHaveSingleItem().ShouldContain("12345678");
+        bot.CouncilCalls[0].ShouldContain(Guruh.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        bot.Last.Text.ShouldBe(BotTexts.CouncilBound);
+    }
+
+    [Fact]
+    public async Task Notogri_kod_guruhni_ulamaydi()
+    {
+        using var bot = new BotHarness();
+
+        await bot.HandleAsync(Ulash("/kengash_ulash 111"));
+
+        bot.Last.Text.ShouldBe(BotTexts.CouncilBindFailed);
+    }
+
+    [Fact]
+    public async Task Boshqa_guruhdan_chiqib_ketadi_kengash_guruhida_jim_turadi()
+    {
+        using var bot = new BotHarness { CouncilState = "{\"chatId\":" + Guruh + "}" };
+        await bot.NoticesAsync();
+
+        await bot.HandleAsync(Xabar("/start"));
+        bot.TelegramCalls.ShouldBeEmpty();
+
+        await bot.HandleAsync(new TelegramUpdate(1, null, null, new TelegramChatMemberUpdate(new TelegramChat(-999, "group"))));
+
+        var chiqish = bot.TelegramCalls.ShouldHaveSingleItem();
+        chiqish.Method.ShouldBe("leaveChat");
+        chiqish.Body.ShouldContain("-999");
+    }
+
+    private static readonly Guid Nomzod = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+
+    private static string Holat(string? miniApp = null, long? xabar = null, string royxat = "[]")
+    {
+        var nom = miniApp is null ? "null" : "\"" + miniApp + "\"";
+        var raqam = xabar is null ? "null" : xabar.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        return "{\"chatId\":" + Guruh + ",\"botUsername\":\"Bonvi_HR_bot\",\"miniAppName\":" + nom
+            + ",\"digest\":{\"date\":\"2026-11-07\",\"isToday\":false,\"messageId\":" + raqam
+            + ",\"signature\":\"s1\",\"rows\":" + royxat + "}}";
+    }
+
+    private static string BittaNomzod => $$"""[{"candidateId":"{{Nomzod}}","name":"Каримов Азиз","at":"2026-11-07T05:00:00Z"}]""";
+
+    [Fact]
+    public async Task Jamlama_bitta_xabar_har_nomzodga_tugma_mini_app_bilan()
+    {
+        using var bot = new BotHarness { CouncilState = Holat("kengash", null, BittaNomzod) };
+
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Guruh]);
+        bot.Last.Text.ShouldContain("Эртага кенгаш — 7 ноябрь");
+        bot.CouncilCalls.ShouldHaveSingleItem().ShouldContain("s1");
+
+        var tugmalar = BotWorker.CouncilButtons(
+            new CouncilDigest(new DateOnly(2026, 11, 7), false, null, "s1", [new CouncilDigestRow(Nomzod, "Каримов Азиз", new DateTimeOffset(2026, 11, 7, 5, 0, 0, TimeSpan.Zero))]),
+            "Bonvi_HR_bot",
+            "kengash");
+
+        tugmalar.Count.ShouldBe(2);
+        tugmalar[0][0].Text.ShouldBe("Каримов Азиз · 10:00");
+        tugmalar[0][0].Url.ShouldBe($"https://t.me/Bonvi_HR_bot/kengash?startapp={Nomzod:N}");
+        tugmalar[1][0].Url.ShouldBe("https://t.me/Bonvi_HR_bot/kengash");
+    }
+
+    [Fact]
+    public void Mini_app_nomi_bolmasa_tugma_shaxsiy_chatga_olib_boradi()
+    {
+        var tugmalar = BotWorker.CouncilButtons(
+            new CouncilDigest(new DateOnly(2026, 11, 7), false, null, "s1", [new CouncilDigestRow(Nomzod, "Каримов Азиз", DateTimeOffset.UnixEpoch)]),
+            "Bonvi_HR_bot",
+            null);
+
+        tugmalar[0][0].Url.ShouldBe($"https://t.me/Bonvi_HR_bot?start=km_{Nomzod:N}");
+        tugmalar[1][0].Url.ShouldBe("https://t.me/Bonvi_HR_bot?start=km_all");
+    }
+
+    [Fact]
+    public async Task Royxat_ozgarsa_yangi_xabar_emas_tahrir()
+    {
+        using var bot = new BotHarness { CouncilState = Holat(null, 55, BittaNomzod) };
+
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBeEmpty();
+        bot.TelegramCalls.ShouldHaveSingleItem().Method.ShouldBe("editMessageText");
+        bot.CouncilCalls.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Xabar_ochirilgan_bolsa_qayta_yuboriladi()
+    {
+        using var bot = new BotHarness { CouncilState = Holat(null, 55, BittaNomzod), EditRefused = true };
+
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Guruh]);
+        bot.CouncilCalls.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Guruh_rad_etsa_har_aylanishda_urilmaydi()
+    {
+        using var bot = new BotHarness { CouncilState = Holat(null, null, BittaNomzod) };
+        bot.BlockedChats.Add(Guruh);
+
+        await bot.NoticesAsync();
+        await bot.NoticesAsync();
+
+        bot.SendAttempts.ShouldBe([Guruh]);
+        bot.CouncilCalls.ShouldBeEmpty();
+    }
+
+    private const long Azo = BotHarness.ChatId;
+
+    private static TelegramUpdate Shaxsiy(string? matn, TelegramContact? kontakt = null, long kim = Azo)
+        => new(1, new TelegramMessage(1, new TelegramChat(Azo, "private"), matn, kontakt, From: new TelegramUser("azo", kim)), null);
+
+    [Fact]
+    public async Task Azo_raqamini_yuborsa_taniladi_va_mini_app_tugmasi_chiqadi()
+    {
+        using var bot = new BotHarness { CouncilLinkAnswer = """{"linked":true,"fullName":"Shef"}""" };
+
+        await bot.HandleAsync(Shaxsiy("/start kengash"));
+        bot.Last.RequestsContact.ShouldBeTrue();
+        bot.MatchRequests.ShouldBeEmpty();
+        bot.LinkRequests.ShouldBeEmpty();
+
+        await bot.HandleAsync(Shaxsiy(null, new TelegramContact("+998901234567", Azo)));
+
+        bot.CouncilCalls.ShouldHaveSingleItem().ShouldContain("998901234567");
+        bot.Last.Text.ShouldBe(BotTexts.CouncilLinked("Shef"));
+        bot.State.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Birovning_raqami_qabul_qilinmaydi()
+    {
+        using var bot = new BotHarness();
+
+        await bot.HandleAsync(Shaxsiy("/start kengash"));
+        await bot.HandleAsync(Shaxsiy(null, new TelegramContact("+998901234567", 999)));
+
+        bot.CouncilCalls.ShouldBeEmpty();
+        bot.Last.Text.ShouldBe(BotTexts.CouncilContactNotOwn);
+    }
+
+    [Fact]
+    public async Task Royxatda_yoq_raqam_aytiladi()
+    {
+        using var bot = new BotHarness();
+
+        await bot.HandleAsync(Shaxsiy("/start kengash"));
+        await bot.HandleAsync(Shaxsiy(null, new TelegramContact("+998901234567", Azo)));
+
+        bot.Last.Text.ShouldBe(BotTexts.CouncilContactUnknown);
+    }
+
+    [Fact]
+    public async Task Nomzod_tugmasi_shaxsiy_chatda_ochish_tugmasini_beradi()
+    {
+        using var bot = new BotHarness();
+
+        await bot.HandleAsync(Shaxsiy($"/start km_{Nomzod:N}"));
+
+        bot.Last.Text.ShouldBe(BotTexts.CouncilOpenText);
+        bot.LinkRequests.ShouldBeEmpty();
     }
 }

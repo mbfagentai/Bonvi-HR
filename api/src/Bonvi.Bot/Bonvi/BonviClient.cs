@@ -21,6 +21,18 @@ public sealed record OpenVacancy(Guid Id, string Title);
 /// <param name="AsksDetail">Tanlanganda «kim tavsiya qildi / qaysi manba?» so'raladimi.</param>
 public sealed record ReferralChannel(Guid Id, string Name, bool AsksDetail);
 
+/// <summary>A candidate on the council group's message.</summary>
+public sealed record CouncilDigestRow(Guid CandidateId, string Name, DateTimeOffset At);
+
+/// <summary>The message due in the council group; with <see cref="MessageId"/> it replaces the posted one.</summary>
+public sealed record CouncilDigest(DateOnly Date, bool IsToday, long? MessageId, string Signature, IReadOnlyList<CouncilDigestRow> Rows);
+
+/// <summary>The council group's state, read every round.</summary>
+public sealed record CouncilBotState(long? ChatId, string? MiniAppName, string? BotUsername, CouncilDigest? Digest);
+
+/// <summary>Outcome of a member sharing their contact.</summary>
+public sealed record CouncilLinkResult(bool Linked, string? FullName);
+
 /// <summary>Botning tizimdan olinadigan sozlamalari.</summary>
 /// <remarks>
 /// Maydonlar <c>GET /api/settings/bot</c> javobidagi nomlar bilan
@@ -728,6 +740,43 @@ public sealed partial class BonviClient : IDisposable
                     new Uri("api/recruiting/candidates/telegram-match", UriKind.Relative))
                 {
                     Content = JsonContent.Create(new { chatId, username, phone }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>The council group's state; <c>null</c> when the server did not answer.</summary>
+    public async Task<CouncilBotState?> GetCouncilStateAsync(CancellationToken cancellationToken)
+        => await SendAsync<CouncilBotState>(
+                () => new HttpRequestMessage(HttpMethod.Get, new Uri("api/recruiting/council-bot/state", UriKind.Relative)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Binds the group the command was written in; <c>false</c> when the code is wrong or old.</summary>
+    public async Task<bool> BindCouncilGroupAsync(string code, long chatId, string? title, CancellationToken cancellationToken)
+        => await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri("api/recruiting/council-bot/bind", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { code, chatId, title }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Links a person who shared their own contact to the member holding that phone.</summary>
+    public async Task<CouncilLinkResult?> LinkCouncilMemberAsync(long telegramUserId, string phone, CancellationToken cancellationToken)
+        => await SendAsync<CouncilLinkResult>(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri("api/recruiting/council-bot/link", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { telegramUserId, phone }, options: RequestJson),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Records the message posted or edited for a council day.</summary>
+    public async Task<bool> MarkCouncilDigestSentAsync(DateOnly date, long chatId, long messageId, string signature, CancellationToken cancellationToken)
+        => await SendNoContentAsync(
+                () => new HttpRequestMessage(HttpMethod.Post, new Uri("api/recruiting/council-bot/digest-sent", UriKind.Relative))
+                {
+                    Content = JsonContent.Create(new { date, chatId, messageId, signature }, options: RequestJson),
                 },
                 cancellationToken)
             .ConfigureAwait(false);

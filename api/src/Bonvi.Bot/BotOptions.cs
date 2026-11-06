@@ -83,6 +83,9 @@ public sealed class BotOptions
     [Range(1, 60)]
     public int PollTimeoutSeconds { get; set; } = 30;
 
+    /// <summary>The council's Mini App page, for the <c>web_app</c> button in a private chat.</summary>
+    public string CouncilWebAppUrl { get; set; } = "https://hr.bonvi.uz/tg/kengash";
+
     /// <summary>
     /// Yarim qolgan suhbat qancha vaqtdan keyin unutiladi (daqiqa).
     /// </summary>

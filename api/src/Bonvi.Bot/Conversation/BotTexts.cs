@@ -900,6 +900,53 @@ public static class BotTexts
         };
     }
 
+    private static readonly string[] CouncilMonths =
+        ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+
+    /// <summary>The council group's message. Its members read Cyrillic, like the bot's default.</summary>
+    public static string CouncilDigest(DateOnly date, bool isToday, int count)
+    {
+        var day = $"{date.Day} {CouncilMonths[date.Month - 1]}";
+
+        return count == 0
+            ? $"📋 <b>{day} кенгаши</b>\n\nНомзодлар қолмади."
+            : $"📋 <b>{(isToday ? "Бугун" : "Эртага")} кенгаш — {day}</b>\nНомзодлар: {count} та\n\n"
+                + "Номзодни босинг: анкетаси очилади, хулосангизни ёзасиз.";
+    }
+
+    /// <summary>The button that opens every candidate.</summary>
+    public const string CouncilAllButton = "📋 Барча номзодлар";
+
+    /// <summary>The group was bound.</summary>
+    public const string CouncilBound = "✅ Гуруҳ кенгашга уланди. Бот бу ерга фақат кенгашдан бир кун олдин рўйхат ташлайди.";
+
+    /// <summary>The binding code was refused.</summary>
+    public const string CouncilBindFailed = "Код нотўғри ёки эскирган. Тизимдан янги код олинг.";
+
+    /// <summary>A member starts linking.</summary>
+    public const string CouncilAskContact = "Сизни кенгаш аъзоси сифатида таниш учун рақамингизни бир марта юборинг. Пастдаги тугмани босинг.";
+
+    /// <summary>The contact button.</summary>
+    public const string CouncilContactButton = "📱 Рақамни юбориш";
+
+    /// <summary>The contact was not the sender's own.</summary>
+    public const string CouncilContactNotOwn = "Ўз рақамингизни юборинг: пастдаги тугмани босинг.";
+
+    /// <summary>The phone is not on the roster.</summary>
+    public const string CouncilContactUnknown = "Бу рақам кенгаш аъзолари рўйхатида йўқ. Кадрлар бўлимига айтинг.";
+
+    /// <summary>The server did not answer.</summary>
+    public const string CouncilContactRetry = "Ҳозир текшириб бўлмади. Бироздан кейин қайта уриниб кўринг.";
+
+    /// <summary>Linked.</summary>
+    public static string CouncilLinked(string fullName) => $"✅ Танидик, {Escape(fullName)}. Энди номзодларни шу тугма орқали ёки гуруҳдан очасиз.";
+
+    /// <summary>Opening the Mini App from the private chat.</summary>
+    public const string CouncilOpenText = "Анкетани очиш учун тугмани босинг.";
+
+    /// <summary>The Mini App button in the private chat.</summary>
+    public const string CouncilOpenButton = "📋 Очиш";
+
     /// <summary>
     /// The day-before reminder of the interview: time, contact and place again, the map point
     /// follows as its own message.

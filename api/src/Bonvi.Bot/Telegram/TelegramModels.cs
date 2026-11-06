@@ -186,8 +186,12 @@ public sealed record TelegramCallbackQuery(
 /// <param name="Text">Tugmadagi yozuv.</param>
 /// <param name="CallbackData">Bosilganda botga keladigan belgi.</param>
 /// <param name="Url">Ochiladigan havola. Berilsa, tugma HAVOLA bo'ladi.</param>
-public sealed record InlineButton(string Text, string? CallbackData = null, string? Url = null)
+/// <param name="WebAppUrl">A Mini App page, opened with signed launch data.</param>
+public sealed record InlineButton(string Text, string? CallbackData = null, string? Url = null, string? WebAppUrl = null)
 {
+    /// <summary>Opens a Mini App with signed launch data. Telegram allows it only in a private chat.</summary>
+    public static InlineButton WebApp(string text, string url) => new(text, WebAppUrl: url);
+
     /// <summary>Havolali tugma.</summary>
     public static InlineButton Link(string text, string url) => new(text, Url: url);
 }

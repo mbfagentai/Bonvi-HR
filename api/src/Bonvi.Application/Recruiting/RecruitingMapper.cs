@@ -238,7 +238,7 @@ public sealed class RecruitingMapper
     /// «anketa bor, lekin javoblar yo'q» degan ma'no berardi, holbuki
     /// anketaning O'ZI yo'q (HR qo'lda kiritgan nomzod).
     /// </remarks>
-    private static CandidateQuestionnaireDto? ToDto(CandidateQuestionnaire? questionnaire)
+    internal static CandidateQuestionnaireDto? ToDto(CandidateQuestionnaire? questionnaire)
         => questionnaire is null
             ? null
             : new CandidateQuestionnaireDto(

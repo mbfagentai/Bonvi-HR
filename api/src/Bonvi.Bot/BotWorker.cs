@@ -75,6 +75,9 @@ public sealed partial class BotWorker : BackgroundService
     [LoggerMessage(EventId = 3292, Level = LogLevel.Warning, Message = "Interview map point not sent: {Vacancy}")]
     private partial void LogLocationNotSent(string vacancy);
 
+    [LoggerMessage(EventId = 3294, Level = LogLevel.Warning, Message = "Telegram refused the council group's message: is the bot still in the group?")]
+    private partial void LogCouncilDigestRefused();
+
     [LoggerMessage(EventId = 3293, Level = LogLevel.Warning, Message = "Interview message went without a map point: bot.location is empty or unreadable")]
     private partial void LogNoMapPoint();
 
@@ -277,6 +280,24 @@ public sealed partial class BotWorker : BackgroundService
     /// butun arizani yo'qotishga teng.
     /// </remarks>
     private const int MaxAddressLength = 500;
+
+    /// <summary>The command that binds a group.</summary>
+    private const string CouncilBindCommand = "/kengash_ulash";
+
+    /// <summary><c>/start</c> argument: link me as a council member.</summary>
+    private const string CouncilLinkStart = "kengash";
+
+    /// <summary><c>/start</c> argument prefix: open the Mini App, for this candidate or for all.</summary>
+    private const string CouncilOpenStart = "km_";
+
+    private const int MaxCouncilButtons = 90;
+
+    private static readonly TimeSpan CouncilRetryPause = TimeSpan.FromMinutes(10);
+
+    /// <summary>The bound group, refreshed each round; <c>null</c> until a group is bound or the state is read.</summary>
+    private long? _councilChatId;
+
+    private DateTimeOffset _councilRetryAt = DateTimeOffset.MinValue;
 
     private readonly TelegramClient _telegram;
     private readonly TelegramToken _token;
@@ -542,6 +563,7 @@ public sealed partial class BotWorker : BackgroundService
         await SendRejectionNoticesAsync(cancellationToken).ConfigureAwait(false);
         await SendInterviewNoticesAsync(cancellationToken).ConfigureAwait(false);
         await SendInterviewRemindersAsync(cancellationToken).ConfigureAwait(false);
+        await SendCouncilDigestAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -843,9 +865,216 @@ public sealed partial class BotWorker : BackgroundService
         }
     }
 
-    /// <summary>A group gets no answer. The council group binding is added here (SPEC-kengash-guruhi §2).</summary>
-    private static Task HandleGroupAsync(TelegramChat chat, TelegramMessage? message, CancellationToken cancellationToken)
-        => Task.CompletedTask;
+    /// <summary>
+    /// A group gets no answer except the binding command (SPEC-kengash-guruhi §2). Once the council
+    /// group is known, the bot leaves any other.
+    /// </summary>
+    private async Task HandleGroupAsync(TelegramChat chat, TelegramMessage? message, CancellationToken cancellationToken)
+    {
+        if (BindCode(message?.Text) is { } code)
+        {
+            var bound = await _bonvi.BindCouncilGroupAsync(code, chat.Id, chat.Title, cancellationToken).ConfigureAwait(false);
+
+            if (bound)
+            {
+                _councilChatId = chat.Id;
+            }
+
+            await _telegram
+                .SendMessageAsync(chat.Id, bound ? BotTexts.CouncilBound : BotTexts.CouncilBindFailed, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        if (_councilChatId is { } council && council != chat.Id)
+        {
+            await _telegram.LeaveChatAsync(chat.Id, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>The code in <c>/kengash_ulash[@bot] code</c>.</summary>
+    private static string? BindCode(string? text)
+    {
+        var parts = text?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts is [var command, var code]
+            && (command.Equals(CouncilBindCommand, StringComparison.OrdinalIgnoreCase)
+                || command.StartsWith(CouncilBindCommand + "@", StringComparison.OrdinalIgnoreCase))
+            ? code
+            : null;
+    }
+
+    /// <summary>The parts of <c>/start</c> that belong to the council, not to the questionnaire.</summary>
+    /// <returns><c>true</c> when it was the council's.</returns>
+    private async Task<bool> HandleCouncilStartAsync(long chatId, string text, CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts is not [_, var argument])
+        {
+            return false;
+        }
+
+        if (argument == CouncilLinkStart)
+        {
+            _conversations.Save(chatId, new ConversationState { Step = ConversationStep.CouncilContact });
+            await _telegram
+                .SendMessageAsync(
+                    chatId,
+                    BotTexts.CouncilAskContact,
+                    requestContact: true,
+                    contactButtonText: BotTexts.CouncilContactButton,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return true;
+        }
+
+        if (!argument.StartsWith(CouncilOpenStart, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var target = argument[CouncilOpenStart.Length..];
+        await SendCouncilOpenAsync(chatId, BotTexts.CouncilOpenText, Guid.TryParseExact(target, "N", out var id) ? id : null, cancellationToken)
+            .ConfigureAwait(false);
+
+        return true;
+    }
+
+    private async Task SendCouncilOpenAsync(long chatId, string text, Guid? candidateId, CancellationToken cancellationToken)
+    {
+        var url = candidateId is { } id ? $"{_options.CouncilWebAppUrl}?nomzod={id:N}" : _options.CouncilWebAppUrl;
+
+        await _telegram
+            .SendMessageAsync(
+                chatId,
+                text,
+                [[InlineButton.WebApp(BotTexts.CouncilOpenButton, url)]],
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>A member sent the contact they were asked for. Only their own number counts.</summary>
+    private async Task HandleCouncilContactAsync(long chatId, TelegramMessage message, CancellationToken cancellationToken)
+    {
+        if (message.Contact is not { } contact || contact.UserId is null || contact.UserId != message.From?.Id)
+        {
+            await _telegram
+                .SendMessageAsync(
+                    chatId,
+                    BotTexts.CouncilContactNotOwn,
+                    requestContact: true,
+                    contactButtonText: BotTexts.CouncilContactButton,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        var result = await _bonvi.LinkCouncilMemberAsync(contact.UserId.Value, contact.PhoneNumber, cancellationToken).ConfigureAwait(false);
+
+        if (result is null)
+        {
+            await _telegram.SendMessageAsync(chatId, BotTexts.CouncilContactRetry, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        _conversations.Forget(chatId);
+
+        if (result is { Linked: true, FullName: { } name })
+        {
+            await SendCouncilOpenAsync(chatId, BotTexts.CouncilLinked(name), null, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await _telegram.SendMessageAsync(chatId, BotTexts.CouncilContactUnknown, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Posts or edits the council group's message. After a refusal (the bot was removed from the group)
+    /// it waits a while: the server keeps reporting the message as due.
+    /// </summary>
+    private async Task SendCouncilDigestAsync(CancellationToken cancellationToken)
+    {
+        var state = await _bonvi.GetCouncilStateAsync(cancellationToken).ConfigureAwait(false);
+
+        if (state is null)
+        {
+            return;
+        }
+
+        _councilChatId = state.ChatId;
+
+        if (state is not { ChatId: { } chat, Digest: { } digest, BotUsername: { } username } || DateTimeOffset.UtcNow < _councilRetryAt)
+        {
+            return;
+        }
+
+        var text = BotTexts.CouncilDigest(digest.Date, digest.IsToday, digest.Rows.Count);
+        var buttons = CouncilButtons(digest, username, state.MiniAppName);
+        long? messageId = null;
+
+        if (digest.MessageId is { } existing)
+        {
+            var edited = await _telegram.EditAsync(chat, existing, text, buttons, cancellationToken).ConfigureAwait(false);
+
+            if (edited == TelegramDelivery.Unreachable)
+            {
+                return;
+            }
+
+            messageId = edited == TelegramDelivery.Delivered ? existing : null;
+        }
+
+        if (messageId is null)
+        {
+            var (outcome, posted) = await _telegram.PostAsync(chat, text, buttons, cancellationToken).ConfigureAwait(false);
+
+            if (outcome == TelegramDelivery.Rejected)
+            {
+                _councilRetryAt = DateTimeOffset.UtcNow.Add(CouncilRetryPause);
+                LogCouncilDigestRefused();
+            }
+
+            if (posted is null)
+            {
+                return;
+            }
+
+            messageId = posted;
+        }
+
+        await _bonvi.MarkCouncilDigestSentAsync(digest.Date, chat, messageId.Value, digest.Signature, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>One row per candidate and one for everybody. Telegram allows 100 buttons, «all» reaches the rest.</summary>
+    internal static IReadOnlyList<IReadOnlyList<InlineButton>> CouncilButtons(CouncilDigest digest, string username, string? miniApp)
+    {
+        string Link(Guid? candidate)
+        {
+            var id = candidate?.ToString("N");
+
+            return miniApp is { Length: > 0 }
+                ? id is null ? $"https://t.me/{username}/{miniApp}" : $"https://t.me/{username}/{miniApp}?startapp={id}"
+                : $"https://t.me/{username}?start={CouncilOpenStart}{id ?? "all"}";
+        }
+
+        var rows = digest.Rows
+            .Take(MaxCouncilButtons)
+            .Select(row => (IReadOnlyList<InlineButton>)
+                [InlineButton.Link($"{row.Name} · {BotClock.Local(row.At):HH:mm}", Link(row.CandidateId))])
+            .ToList();
+
+        if (digest.Rows.Count > 0)
+        {
+            rows.Add([InlineButton.Link(BotTexts.CouncilAllButton, Link(null))]);
+        }
+
+        return rows;
+    }
 
     private async Task HandleCallbackAsync(TelegramCallbackQuery callback, CancellationToken cancellationToken)
     {
@@ -1678,6 +1907,11 @@ public sealed partial class BotWorker : BackgroundService
         // adashib qolgan odam uchun yagona ishonchli chiqish yo'li.
         if (message.Text?.StartsWith("/start", StringComparison.OrdinalIgnoreCase) == true)
         {
+            if (await HandleCouncilStartAsync(chatId, message.Text, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             if (await LinkFromStartAsync(chatId, message, cancellationToken).ConfigureAwait(false))
             {
                 return;
@@ -1723,6 +1957,10 @@ public sealed partial class BotWorker : BackgroundService
 
         switch (state.Step)
         {
+            case ConversationStep.CouncilContact:
+                await HandleCouncilContactAsync(chatId, message, cancellationToken).ConfigureAwait(false);
+                break;
+
             case ConversationStep.Name:
                 await HandleNameAsync(chatId, state, message.Text, cancellationToken).ConfigureAwait(false);
                 break;

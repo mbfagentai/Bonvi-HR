@@ -288,12 +288,46 @@ public sealed partial class TelegramClient
         {
             inline_keyboard = buttons
                 .Select(row => row
-                    .Select(button => button.Url is { Length: > 0 } url
-                        ? (object)new { text = button.Text, url }
-                        : new { text = button.Text, callback_data = button.CallbackData ?? string.Empty })
+                    .Select(button => button switch
+                    {
+                        { WebAppUrl: { Length: > 0 } webApp } => (object)new { text = button.Text, web_app = new { url = webApp } },
+                        { Url: { Length: > 0 } url } => new { text = button.Text, url },
+                        _ => new { text = button.Text, callback_data = button.CallbackData ?? string.Empty },
+                    })
                     .ToArray())
                 .ToArray(),
         };
+
+    /// <summary>Posts to a group, with the id the message can later be edited by.</summary>
+    public async Task<(TelegramDelivery Outcome, long? MessageId)> PostAsync(
+        long chatId,
+        string text,
+        IReadOnlyList<IReadOnlyList<InlineButton>> buttons,
+        CancellationToken cancellationToken)
+    {
+        var body = new { chat_id = chatId, text, parse_mode = "HTML", reply_markup = InlineMarkup(buttons) };
+        var (result, outcome) = await CallWithOutcomeAsync<JsonElement>("sendMessage", body, cancellationToken).ConfigureAwait(false);
+
+        return (outcome, outcome == TelegramDelivery.Delivered && result.TryGetProperty("message_id", out var id) ? id.GetInt64() : null);
+    }
+
+    /// <summary>Replaces a posted message's text and buttons, silently.</summary>
+    public async Task<TelegramDelivery> EditAsync(
+        long chatId,
+        long messageId,
+        string text,
+        IReadOnlyList<IReadOnlyList<InlineButton>> buttons,
+        CancellationToken cancellationToken)
+    {
+        var body = new { chat_id = chatId, message_id = messageId, text, parse_mode = "HTML", reply_markup = InlineMarkup(buttons) };
+        var (_, outcome) = await CallWithOutcomeAsync<JsonElement>("editMessageText", body, cancellationToken).ConfigureAwait(false);
+
+        return outcome;
+    }
+
+    /// <summary>Leaves a group the bot does not belong in. It may already be out, so the outcome is not read.</summary>
+    public async Task LeaveChatAsync(long chatId, CancellationToken cancellationToken)
+        => await CallWithOutcomeAsync<JsonElement>("leaveChat", new { chat_id = chatId }, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Telegram'da ALLAQACHON yotgan rasmni yuboradi.

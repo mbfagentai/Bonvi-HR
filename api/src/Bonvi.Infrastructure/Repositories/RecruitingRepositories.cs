@@ -1,3 +1,4 @@
+using Bonvi.Domain.ValueObjects;
 using System.Diagnostics.CodeAnalysis;
 using Bonvi.Domain.Abstractions;
 using Bonvi.Domain.Recruiting;
@@ -84,6 +85,45 @@ public sealed class PipelineStageRepository : ReferenceRepository<PipelineStage>
 public sealed class VacancyRequestRepository : Repository<VacancyRequest>, IVacancyRequestRepository
 {
     public VacancyRequestRepository(AppDbContext context) : base(context) { }
+}
+
+public sealed class CouncilGroupRepository : ICouncilGroupRepository
+{
+    private readonly AppDbContext _context;
+
+    public CouncilGroupRepository(AppDbContext context) => _context = context;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilMember>> ListMembersAsync(CancellationToken cancellationToken = default)
+        => await _context.CouncilMembers.AsNoTracking()
+            .OrderBy(member => member.FullName)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<CouncilMember?> FindMemberAsync(Guid id, CancellationToken cancellationToken = default)
+        => _context.CouncilMembers.FirstOrDefaultAsync(member => member.Id == id, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<CouncilMember?> FindMemberByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken = default)
+        => _context.CouncilMembers.FirstOrDefaultAsync(member => member.Phone == phone, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<CouncilMember?> FindMemberByTelegramAsync(long telegramUserId, CancellationToken cancellationToken = default)
+        => _context.CouncilMembers.FirstOrDefaultAsync(member => member.TelegramUserId == telegramUserId, cancellationToken);
+
+    /// <inheritdoc />
+    public void AddMember(CouncilMember member) => _context.CouncilMembers.Add(member);
+
+    /// <inheritdoc />
+    public void AddOpinion(CouncilOpinion opinion) => _context.CouncilOpinions.Add(opinion);
+
+    /// <inheritdoc />
+    public Task<CouncilDigest?> FindDigestAsync(DateOnly meetingDate, CancellationToken cancellationToken = default)
+        => _context.CouncilDigests.FirstOrDefaultAsync(digest => digest.MeetingDate == meetingDate, cancellationToken);
+
+    /// <inheritdoc />
+    public void AddDigest(CouncilDigest digest) => _context.CouncilDigests.Add(digest);
 }
 
 public sealed class CouncilMeetingRepository : Repository<CouncilMeeting>, ICouncilMeetingRepository

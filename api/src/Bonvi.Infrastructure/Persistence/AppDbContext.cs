@@ -278,6 +278,12 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     public DbSet<CouncilDecision> CouncilDecisions => Set<CouncilDecision>();
 
+    public DbSet<CouncilMember> CouncilMembers => Set<CouncilMember>();
+
+    public DbSet<CouncilOpinion> CouncilOpinions => Set<CouncilOpinion>();
+
+    public DbSet<CouncilDigest> CouncilDigests => Set<CouncilDigest>();
+
     /// <summary>Nomzodlar (<c>candidates</c>).</summary>
     public DbSet<Candidate> Candidates => Set<Candidate>();
 

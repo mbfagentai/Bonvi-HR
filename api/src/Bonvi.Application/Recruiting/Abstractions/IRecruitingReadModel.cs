@@ -139,6 +139,24 @@ public interface IRecruitingReadModel
     /// <summary>
     /// Candidates invited for this day or already on this sitting's minutes, by name.
     /// </summary>
+    /// <summary>Open candidates invited in this span, by time; <paramref name="memberId"/> fills «has my opinion».</summary>
+    Task<IReadOnlyList<CouncilInvitedRow>> ListCouncilInvitedAsync(
+        DateTimeOffset start,
+        DateTimeOffset? end,
+        Guid? memberId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>A member's own conclusions on a candidate, latest first.</summary>
+    Task<IReadOnlyList<CouncilMyOpinionDto>> ListMyCouncilOpinionsAsync(
+        Guid candidateId,
+        Guid memberId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Every conclusion of a council day, latest first.</summary>
+    Task<IReadOnlyList<CouncilDayOpinionRow>> ListCouncilOpinionsAsync(
+        DateOnly date,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CouncilCandidateDto>> ListCouncilCandidatesAsync(
         DateOnly date,
         Guid? meetingId,
@@ -713,3 +731,9 @@ public sealed record VacancyRow(
     string? Note,
     int CandidateCount,
     int HiredCount);
+
+/// <summary>An invited candidate.</summary>
+public sealed record CouncilInvitedRow(Guid Id, string ShortName, string FullName, string Position, DateTimeOffset InterviewAt, bool HasMyOpinion);
+
+/// <summary>A conclusion with the candidate it belongs to.</summary>
+public sealed record CouncilDayOpinionRow(Guid CandidateId, CouncilOpinionDto Opinion);

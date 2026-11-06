@@ -362,6 +362,7 @@ public static class DependencyInjection
         services.AddScoped<IVacancyRequestRepository, VacancyRequestRepository>();
         services.AddScoped<ICouncilMeetingRepository, CouncilMeetingRepository>();
         services.AddScoped<ICouncilDecisionRepository, CouncilDecisionRepository>();
+        services.AddScoped<ICouncilGroupRepository, CouncilGroupRepository>();
         services.AddScoped<ICandidateRepository, CandidateRepository>();
         services.AddScoped<ICandidateFormRepository, CandidateFormRepository>();
 

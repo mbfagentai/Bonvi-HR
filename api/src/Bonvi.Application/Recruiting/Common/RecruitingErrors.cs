@@ -18,6 +18,27 @@ public static class RecruitingErrors
 {
     // ---------- Kengash ----------
 
+    public static Error CouncilMemberNotFound { get; } =
+        Error.NotFound("kengash.azo_topilmadi", "Kengash a'zosi topilmadi.");
+
+    public static Error CouncilMemberPhoneTaken { get; } =
+        Error.Conflict("kengash.telefon_band", "Bu telefon raqami boshqa a'zoda bor.");
+
+    public static Error CouncilMemberInvalid { get; } =
+        Error.Validation("kengash.azo_notogri", "A'zoning ismi yoki telefoni noto'g'ri.");
+
+    public static Error CouncilOpinionInvalid { get; } =
+        Error.Validation("kengash.xulosa_notogri", "Xulosa noto'g'ri: shartli qarorda izoh majburiy, izoh 4000 belgidan oshmasin.");
+
+    public static Error CouncilCandidateNotFound { get; } =
+        Error.NotFound("kengash.nomzod_topilmadi", "Bunday nomzod kengashga chaqirilmagan.");
+
+    public static Error CouncilBindCodeInvalid { get; } =
+        Error.Validation("kengash.kod_notogri", "Guruhni ulash kodi noto'g'ri yoki eskirgan.");
+
+    public static Error CouncilMiniAppNameInvalid { get; } =
+        Error.Validation("kengash.miniapp_notogri", "Mini App nomi noto'g'ri.");
+
     public static Error CouncilDecisionRequired { get; } =
         Error.Validation("kengash.qaror_majburiy", "Kengash qarorini tanlang.");
 

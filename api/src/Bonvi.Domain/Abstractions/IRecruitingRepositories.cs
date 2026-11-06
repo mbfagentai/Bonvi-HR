@@ -1,3 +1,4 @@
+using Bonvi.Domain.ValueObjects;
 using Bonvi.Domain.Recruiting;
 
 namespace Bonvi.Domain.Abstractions;
@@ -79,6 +80,26 @@ public interface ICouncilMeetingRepository : IRepository<CouncilMeeting>
 }
 
 /// <summary>Storage port of the candidates' rows on the council's minutes.</summary>
+/// <summary>Council members, their conclusions and the group's messages.</summary>
+public interface ICouncilGroupRepository
+{
+    Task<IReadOnlyList<CouncilMember>> ListMembersAsync(CancellationToken cancellationToken = default);
+
+    Task<CouncilMember?> FindMemberAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<CouncilMember?> FindMemberByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken = default);
+
+    Task<CouncilMember?> FindMemberByTelegramAsync(long telegramUserId, CancellationToken cancellationToken = default);
+
+    void AddMember(CouncilMember member);
+
+    void AddOpinion(CouncilOpinion opinion);
+
+    Task<CouncilDigest?> FindDigestAsync(DateOnly meetingDate, CancellationToken cancellationToken = default);
+
+    void AddDigest(CouncilDigest digest);
+}
+
 public interface ICouncilDecisionRepository : IRepository<CouncilDecision>
 {
     /// <summary>This candidate's row in this sitting, tracked for writing.</summary>

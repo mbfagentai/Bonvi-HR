@@ -258,6 +258,24 @@ public sealed class BotHarness : IDisposable
     /// <summary>Oxirgi xabar.</summary>
     public SentMessage Last => Sent[^1];
 
+    /// <summary>The server's answer to the council state request.</summary>
+    public string CouncilState { get; set; } = "{}";
+
+    /// <summary>Whether the binding code is accepted.</summary>
+    public bool CouncilBindAccepted { get; set; }
+
+    /// <summary>The server's answer to a member's contact.</summary>
+    public string CouncilLinkAnswer { get; set; } = """{"linked":false}""";
+
+    /// <summary>Bodies of council requests to the server.</summary>
+    public List<string> CouncilCalls { get; } = [];
+
+    /// <summary>Telegram methods called besides sending, with their bodies.</summary>
+    public List<(string Method, string Body)> TelegramCalls { get; } = [];
+
+    /// <summary>Whether Telegram refuses an edit, as when the message was deleted.</summary>
+    public bool EditRefused { get; set; }
+
     /// <summary>A raw update, for chats other than the test's private one.</summary>
     public Task HandleAsync(TelegramUpdate update) => _worker.HandleAsync(update, CancellationToken.None);
 
@@ -345,6 +363,27 @@ public sealed class BotHarness : IDisposable
 
             Sent.Add(ReadMessage(body));
             return Json("""{"ok":true,"result":{"message_id":1}}""");
+        }
+
+        if (path.EndsWith("/leaveChat", StringComparison.Ordinal))
+        {
+            TelegramCalls.Add(("leaveChat", body));
+            return Json("""{"ok":true,"result":true}""");
+        }
+
+        if (path.EndsWith("/editMessageText", StringComparison.Ordinal))
+        {
+            TelegramCalls.Add(("editMessageText", body));
+
+            return EditRefused
+                ? new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent(
+                        """{"ok":false,"error_code":400,"description":"Bad Request: message to edit not found"}""",
+                        Encoding.UTF8,
+                        "application/json"),
+                }
+                : Json("""{"ok":true,"result":{"message_id":55}}""");
         }
 
         if (path.EndsWith("/sendLocation", StringComparison.Ordinal))
@@ -514,6 +553,34 @@ public sealed class BotHarness : IDisposable
             MatchRequests.Add(body);
 
             return Json("1");
+        }
+
+        if (path == "/api/recruiting/council-bot/state")
+        {
+            return Json(CouncilState);
+        }
+
+        if (path == "/api/recruiting/council-bot/bind")
+        {
+            CouncilCalls.Add(body);
+
+            return CouncilBindAccepted
+                ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                : new HttpResponseMessage(HttpStatusCode.BadRequest);
+        }
+
+        if (path == "/api/recruiting/council-bot/link")
+        {
+            CouncilCalls.Add(body);
+
+            return Json(CouncilLinkAnswer);
+        }
+
+        if (path == "/api/recruiting/council-bot/digest-sent")
+        {
+            CouncilCalls.Add(body);
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
         if (path == "/api/settings/bot/username")

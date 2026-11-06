@@ -5669,6 +5669,57 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                     b.ToTable("council_decisions", (string)null);
                 });
 
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilDigest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ChatId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("chat_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("MeetingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<long>("MessageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("message_id");
+
+                    b.Property<string>("Signature")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_council_digests");
+
+                    b.HasIndex("MeetingDate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_digests_meeting_date");
+
+                    b.ToTable("council_digests", (string)null);
+                });
+
             modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilMeeting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5722,6 +5773,123 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_council_meetings_number");
 
                     b.ToTable("council_meetings", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("full_name");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTimeOffset?>("LinkedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("linked_at");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone");
+
+                    b.Property<long?>("TelegramUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("telegram_user_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_council_members");
+
+                    b.HasIndex("Phone")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_members_phone");
+
+                    b.HasIndex("TelegramUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_council_members_telegram_user_id");
+
+                    b.ToTable("council_members", (string)null);
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilOpinion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("integer")
+                        .HasColumnName("decision");
+
+                    b.Property<DateOnly>("MeetingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_council_opinions");
+
+                    b.HasIndex("CandidateId", "MeetingDate")
+                        .HasDatabaseName("ix_council_opinions_candidate_id_meeting_date");
+
+                    b.HasIndex("MemberId", "CandidateId")
+                        .HasDatabaseName("ix_council_opinions_member_id_candidate_id");
+
+                    b.ToTable("council_opinions", (string)null);
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.FormDefinitionSnapshot", b =>
@@ -6996,6 +7164,23 @@ namespace Bonvi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_council_decisions_council_meetings_meeting_id");
+                });
+
+            modelBuilder.Entity("Bonvi.Domain.Recruiting.CouncilOpinion", b =>
+                {
+                    b.HasOne("Bonvi.Domain.Recruiting.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_council_opinions_candidates_candidate_id");
+
+                    b.HasOne("Bonvi.Domain.Recruiting.CouncilMember", null)
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_council_opinions_council_members_member_id");
                 });
 
             modelBuilder.Entity("Bonvi.Domain.Recruiting.VacancyRequest", b =>

@@ -152,6 +152,70 @@ public sealed class CouncilDecisionConfiguration : IEntityTypeConfiguration<Coun
     }
 }
 
+public sealed class CouncilMemberConfiguration : IEntityTypeConfiguration<CouncilMember>
+{
+    public void Configure(EntityTypeBuilder<CouncilMember> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("council_members");
+        builder.HasKey(member => member.Id);
+        builder.Ignore(member => member.DomainEvents);
+
+        builder.Property(member => member.FullName).HasMaxLength(CouncilMember.MaxNameLength).IsRequired();
+        builder.Property(member => member.Phone)
+            .HasConversion(phone => phone.Value, value => PhoneNumber.FromTrusted(value))
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.HasIndex(member => member.Phone).IsUnique();
+        builder.HasIndex(member => member.TelegramUserId).IsUnique();
+    }
+}
+
+public sealed class CouncilOpinionConfiguration : IEntityTypeConfiguration<CouncilOpinion>
+{
+    public void Configure(EntityTypeBuilder<CouncilOpinion> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("council_opinions");
+        builder.HasKey(opinion => opinion.Id);
+        builder.Ignore(opinion => opinion.DomainEvents);
+
+        builder.Property(opinion => opinion.Comment).HasMaxLength(CouncilOpinion.MaxCommentLength);
+
+        builder.HasOne<Candidate>()
+            .WithMany()
+            .HasForeignKey(opinion => opinion.CandidateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<CouncilMember>()
+            .WithMany()
+            .HasForeignKey(opinion => opinion.MemberId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(opinion => new { opinion.CandidateId, opinion.MeetingDate });
+        builder.HasIndex(opinion => new { opinion.MemberId, opinion.CandidateId });
+    }
+}
+
+public sealed class CouncilDigestConfiguration : IEntityTypeConfiguration<CouncilDigest>
+{
+    public void Configure(EntityTypeBuilder<CouncilDigest> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("council_digests");
+        builder.HasKey(digest => digest.Id);
+        builder.Ignore(digest => digest.DomainEvents);
+
+        builder.Property(digest => digest.Signature).HasMaxLength(CouncilDigest.MaxSignatureLength).IsRequired();
+
+        builder.HasIndex(digest => digest.MeetingDate).IsUnique();
+    }
+}
+
 public sealed class VacancyRequestConfiguration : IEntityTypeConfiguration<VacancyRequest>
 {
     public void Configure(EntityTypeBuilder<VacancyRequest> builder)

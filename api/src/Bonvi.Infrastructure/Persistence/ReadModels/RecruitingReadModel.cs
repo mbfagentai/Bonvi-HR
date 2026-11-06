@@ -629,6 +629,75 @@ public sealed class RecruitingReadModel : IRecruitingReadModel
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilInvitedRow>> ListCouncilInvitedAsync(
+        DateTimeOffset start,
+        DateTimeOffset? end,
+        Guid? memberId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await (
+            from candidate in _context.Candidates.AsNoTracking()
+            where candidate.ClosedAt == null
+                && candidate.InterviewAt >= start
+                && (end == null || candidate.InterviewAt < end)
+            join vacancy in _context.Vacancies.AsNoTracking()
+                on candidate.VacancyId equals vacancy.Id into vacancyGroup
+            from vacancy in vacancyGroup.DefaultIfEmpty()
+            orderby candidate.InterviewAt, candidate.FullName.LastName, candidate.FullName.FirstName
+            select new
+            {
+                candidate.Id,
+                candidate.FullName.LastName,
+                candidate.FullName.FirstName,
+                candidate.FullName.MiddleName,
+                Position = vacancy.Title,
+                InterviewAt = candidate.InterviewAt!.Value,
+                HasMyOpinion = memberId != null && _context.CouncilOpinions.Any(opinion =>
+                    opinion.CandidateId == candidate.Id && opinion.MemberId == memberId),
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(row => new CouncilInvitedRow(
+                row.Id,
+                row.LastName + " " + row.FirstName,
+                string.Join(' ', new[] { row.LastName, row.FirstName, row.MiddleName }.Where(part => !string.IsNullOrEmpty(part))),
+                row.Position ?? string.Empty,
+                row.InterviewAt,
+                row.HasMyOpinion)),
+        ];
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilMyOpinionDto>> ListMyCouncilOpinionsAsync(
+        Guid candidateId,
+        Guid memberId,
+        CancellationToken cancellationToken = default)
+        => await _context.CouncilOpinions.AsNoTracking()
+            .Where(opinion => opinion.CandidateId == candidateId && opinion.MemberId == memberId)
+            .OrderByDescending(opinion => opinion.CreatedAt)
+            .Select(opinion => new CouncilMyOpinionDto(opinion.Decision, opinion.Comment, opinion.CreatedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CouncilDayOpinionRow>> ListCouncilOpinionsAsync(
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+        => await (
+            from opinion in _context.CouncilOpinions.AsNoTracking()
+            where opinion.MeetingDate == date
+            join member in _context.CouncilMembers.AsNoTracking() on opinion.MemberId equals member.Id
+            orderby opinion.CreatedAt descending
+            select new CouncilDayOpinionRow(
+                opinion.CandidateId,
+                new CouncilOpinionDto(member.Id, member.FullName, opinion.Decision, opinion.Comment, opinion.CreatedAt)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<CouncilCandidateDto>> ListCouncilCandidatesAsync(
         DateOnly date,
         Guid? meetingId,

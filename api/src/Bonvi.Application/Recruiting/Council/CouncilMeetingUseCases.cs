@@ -41,6 +41,7 @@ public sealed record CouncilFollowUpDto(
 /// <param name="StartDate">Start date.</param>
 /// <param name="Condition">Special condition.</param>
 /// <param name="Conclusion">Saved words, or the day's «Кенгаш» entry written earlier.</param>
+/// <param name="Opinions">The members' own conclusions for this day, latest first.</param>
 public sealed record CouncilCandidateDto(
     Guid CandidateId,
     string FullName,
@@ -53,7 +54,8 @@ public sealed record CouncilCandidateDto(
     decimal? OfferedSalary,
     DateOnly? StartDate,
     string? Condition,
-    string? Conclusion);
+    string? Conclusion,
+    IReadOnlyList<CouncilOpinionDto>? Opinions = null);
 
 /// <summary>One sitting with its list.</summary>
 /// <param name="Date">Sitting's day.</param>
@@ -182,13 +184,22 @@ public sealed class GetCouncilMeetingQueryHandler
             .ListCouncilCandidatesAsync(query.Date, meeting?.Id, cancellationToken)
             .ConfigureAwait(false);
 
+        var opinions = await _readModel.ListCouncilOpinionsAsync(query.Date, cancellationToken).ConfigureAwait(false);
+        var byCandidate = opinions.ToLookup(row => row.CandidateId, row => row.Opinion);
+
         return new CouncilMeetingDto(
             query.Date,
             meeting?.Number,
             members,
             CouncilJson.ReadFollowUp(meeting?.FollowUp),
             canSeeSalary,
-            canSeeSalary ? candidates : [.. candidates.Select(row => row with { OfferedSalary = null })]);
+            [
+                .. candidates.Select(row => row with
+                {
+                    OfferedSalary = canSeeSalary ? row.OfferedSalary : null,
+                    Opinions = [.. byCandidate[row.CandidateId]],
+                }),
+            ]);
     }
 }
 

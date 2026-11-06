@@ -89,6 +89,9 @@ public enum ConversationStep
     /// <remarks>Nomi o'zgarmadi: Redis'dagi eski suhbatlar shu nom bilan saqlangan.</remarks>
     ReferralSource = 19,
 
+    /// <summary>A council member is linking: waiting for their own contact, outside the questionnaire.</summary>
+    CouncilContact = 100,
+
     /// <summary>
     /// 20a-qadam: «kim tavsiya qildi / qaysi manba?» — faqat tanlangan kanal aniqlik
     /// so'rasa (<c>asksDetail</c>, masalan «Tanishlar orqali»). Majburiy, o'tkazib bo'lmaydi.
