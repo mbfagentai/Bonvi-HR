@@ -4,6 +4,24 @@ interface TelegramWebApp {
   initDataUnsafe: { start_param?: string }
   ready(): void
   expand(): void
+  /** Since 7.0; older clients lack it. */
+  isVersionAtLeast?(version: string): boolean
+  /** Bot API 8.0: the whole screen, Telegram's own controls float over the top (`--tg-content-safe-area-inset-top`). */
+  requestFullscreen?(): void
+  /** Bot API 7.7: scrolling a long PDF must not swipe the app closed. */
+  disableVerticalSwipes?(): void
+}
+
+/** Whole screen where the client can: a questionnaire page is unreadable in the half-height sheet or a small desktop window. */
+function enlarge(app: TelegramWebApp) {
+  app.expand()
+
+  try {
+    if (app.isVersionAtLeast?.('7.7')) app.disableVerticalSwipes?.()
+    if (app.isVersionAtLeast?.('8.0')) app.requestFullscreen?.()
+  } catch {
+    // An old client throws «WebAppMethodUnsupported»: the expanded sheet stays, which is what it showed before.
+  }
 }
 
 declare global {
@@ -20,7 +38,7 @@ export function loadTelegram(): Promise<TelegramWebApp | null> {
     const done = () => {
       const app = window.Telegram?.WebApp ?? null
       app?.ready()
-      app?.expand()
+      if (app !== null) enlarge(app)
       resolve(app)
     }
 

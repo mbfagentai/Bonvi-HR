@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronLeft, ChevronRight, FileText, Users } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, Maximize2, Users } from 'lucide-react'
 import { Suspense, lazy, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CandidateQuestionnaireCard } from '@/features/recruiting/components/candidate-questionnaire-card'
 import { COUNCIL_DECISIONS, type CouncilDecision } from '@/features/recruiting/api/council-api'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
-import { Alert, Badge, Button, Card, CardContent, EmptyState, Select, Skeleton, TextArea } from '@/shared/ui'
+import { Alert, Badge, Button, Card, CardContent, EmptyState, FileViewer, Select, Skeleton, TextArea } from '@/shared/ui'
 import { CouncilAppError, councilAppClient, type CouncilAppCandidate, type CouncilAppClient } from './council-app-api'
 import { loadTelegram, targetCandidate } from './telegram'
 
@@ -34,7 +34,8 @@ export function CouncilAppPage() {
   }, [i18n])
 
   return (
-    <div className="mx-auto min-h-dvh max-w-xl space-y-4 bg-[var(--bg)] px-4 py-4">
+    // In full screen Telegram's close and menu buttons float over the top: its insets push the page below them (0 elsewhere).
+    <div className="mx-auto min-h-dvh max-w-xl space-y-4 bg-[var(--bg)] px-4 pt-[calc(1rem+var(--tg-safe-area-inset-top,0px)+var(--tg-content-safe-area-inset-top,0px))] pb-[calc(1rem+var(--tg-safe-area-inset-bottom,0px))]">
       {launch === null && <Skeleton className="h-40 w-full rounded-2xl" />}
       {launch === 'none' && <Alert tone="warning">{t('council.app.openInTelegram')}</Alert>}
       {launch !== null && launch !== 'none' && <Launched {...launch} />}
@@ -212,6 +213,8 @@ function usePhoto(client: CouncilAppClient, candidate: CouncilAppCandidate | und
 function FormPdf({ client, candidateId, formId, number }: { client: CouncilAppClient; candidateId: string; formId: string; number: number }) {
   const { t } = useLocale()
   const [shown, setShown] = useState(false)
+  // The frame inside the card is small on a phone: the same bytes open over the whole Mini App.
+  const [fullScreen, setFullScreen] = useState(false)
   const pdf = useQuery({
     queryKey: ['council-app', 'pdf', formId],
     queryFn: () => client.pdf(candidateId, formId),
@@ -235,10 +238,23 @@ function FormPdf({ client, candidateId, formId, number }: { client: CouncilAppCl
   return pdf.data === undefined ? (
     <Skeleton className="h-64 w-full rounded-2xl" />
   ) : (
-    <div className="h-[75dvh] overflow-hidden rounded-2xl border border-[var(--border)]">
-      <Suspense fallback={<Skeleton className="h-full w-full" />}>
-        <PdfView blob={pdf.data} name={`${number}.pdf`} />
-      </Suspense>
+    <div className="space-y-2">
+      <Button type="button" variant="secondary" className="w-full" onClick={() => setFullScreen(true)}>
+        <Maximize2 />
+        {t('council.app.fullScreen')}
+      </Button>
+      <div className="h-[75dvh] overflow-hidden rounded-2xl border border-[var(--border)]">
+        <Suspense fallback={<Skeleton className="h-full w-full" />}>
+          <PdfView blob={pdf.data} name={`${number}.pdf`} />
+        </Suspense>
+      </div>
+      <FileViewer
+        open={fullScreen}
+        onClose={() => setFullScreen(false)}
+        title={t('council.app.openForm', { number })}
+        kind="pdf"
+        blob={pdf.data}
+      />
     </div>
   )
 }
