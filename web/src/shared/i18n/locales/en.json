@@ -4602,6 +4602,7 @@
       "speciality": "Speciality",
       "invitedFor": "Council: {{at}}",
       "openForm": "Form № {{number}} (PDF)",
+      "fullScreen": "Open full screen",
       "yours": "Your conclusion",
       "again": "New conclusion",
       "comment": "Comment",

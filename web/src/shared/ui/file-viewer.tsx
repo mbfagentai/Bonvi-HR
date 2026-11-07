@@ -130,10 +130,11 @@ export function FileViewer({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-[60] flex flex-col bg-neutral-950/95 text-white [animation:fade-in_160ms_var(--ease-ios-out)]"
+      className="fixed inset-0 z-[60] flex flex-col bg-neutral-950/95 pb-[var(--tg-safe-area-inset-bottom,0px)] text-white [animation:fade-in_160ms_var(--ease-ios-out)]"
     >
-      {/* ───────── Yuqori panel ───────── */}
-      <header className="flex shrink-0 items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-5">
+      {/* ───────── Yuqori panel ─────────
+          `--tg-*`: inside a full-screen Telegram Mini App its own buttons float over the top; the panel has neither. */}
+      <header className="flex shrink-0 items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top),calc(var(--tg-safe-area-inset-top,0px)+var(--tg-content-safe-area-inset-top,0px)))] pb-3 sm:px-5">
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="truncate text-callout font-semibold" title={title}>
             {title}
