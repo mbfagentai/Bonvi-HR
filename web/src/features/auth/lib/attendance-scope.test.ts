@@ -40,6 +40,7 @@ describe('isAttendanceScoped', () => {
 describe('attendanceScopeRedirect', () => {
   it('keeps a scoped user inside the attendance section', () => {
     expect(attendanceScopeRedirect(stored(scoped), '/verifikatsiya/tabel')).toBeNull()
+    expect(attendanceScopeRedirect(stored(scoped), '/verifikatsiya/xodim/42')).toBeNull()
   })
 
   it.each([

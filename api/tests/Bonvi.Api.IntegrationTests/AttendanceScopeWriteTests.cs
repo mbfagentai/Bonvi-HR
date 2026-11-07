@@ -307,6 +307,117 @@ public sealed class AttendanceScopeWriteTests : IClassFixture<BonviApiFactory>
         forHr.MaxAge.ShouldBe(TimeSpan.FromDays(1));
     }
 
+    // ── the attendance-only employee page ─────────────────────────
+
+    [Fact]
+    public async Task Employee_header_gives_the_agreed_fields_in_scope_and_not_found_outside_it()
+    {
+        var world = await SeedWorldAsync();
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+
+        using var inside = await scoped.GetAsync(Path($"/employees/{world.InA1}/header"), Ct);
+        inside.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(inside));
+
+        var header = await JsonAsync(inside);
+        header.EnumerateObject().Select(property => property.Name)
+            .ShouldBe(["id", "fullName", "departmentName", "positionName", "hasPhoto"], ignoreOrder: true);
+        header.GetProperty("fullName").GetString().ShouldBe($"Qamrovov Xodim {world.Mark}A1");
+        header.GetProperty("departmentName").GetString().ShouldBe($"Scope A1 {world.Mark}");
+        header.GetProperty("positionName").GetString().ShouldBe($"Scope position {world.Mark}");
+
+        using (var outside = await scoped.GetAsync(Path($"/employees/{world.InB}/header"), Ct))
+        {
+            await ExpectErrorAsync(outside, HttpStatusCode.NotFound, "xodim.topilmadi");
+        }
+
+        using (var unknown = await scoped.GetAsync(Path($"/employees/{Guid.NewGuid()}/header"), Ct))
+        {
+            await ExpectErrorAsync(unknown, HttpStatusCode.NotFound, "xodim.topilmadi");
+        }
+    }
+
+    [Fact]
+    public async Task Employee_header_is_empty_handed_without_an_assignment_and_open_to_hr_everywhere()
+    {
+        var world = await SeedWorldAsync();
+
+        using (var unassigned = Client((await TestAccounts.CreateAsync(_factory, ScopedPermissions)).AccessToken))
+        using (var response = await unassigned.GetAsync(Path($"/employees/{world.InA1}/header"), Ct))
+        {
+            await ExpectErrorAsync(response, HttpStatusCode.NotFound, "xodim.topilmadi");
+        }
+
+        using var hr = await ClientAsync(HrManagerPermissions);
+        using var open = await hr.GetAsync(Path($"/employees/{world.InB}/header"), Ct);
+        open.StatusCode.ShouldBe(HttpStatusCode.OK, await TextAsync(open));
+    }
+
+    [Fact]
+    public async Task Employee_header_requires_attendance_view_and_a_staff_right()
+    {
+        var world = await SeedWorldAsync();
+
+        using var withoutAttendance = await ClientAsync(Permissions.EmployeesView);
+        using (var response = await withoutAttendance.GetAsync(Path($"/employees/{world.InA1}/header"), Ct))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using var withoutStaff = await ClientAsync(Permissions.AttendanceView);
+        using (var response = await withoutStaff.GetAsync(Path($"/employees/{world.InA1}/header"), Ct))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+
+        using var anonymous = _factory.CreateClient();
+        using var unauthorized = await anonymous.GetAsync(Path($"/employees/{world.InA1}/header"), Ct);
+        unauthorized.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory]
+    [InlineData("/api/employees/{0}")]
+    [InlineData("/api/employees/{0}/documents")]
+    [InlineData("/api/employees/{0}/timeline")]
+    [InlineData("/api/employees/{0}/app-access")]
+    public async Task Personal_data_stays_closed_even_for_someone_in_the_scope(string template)
+    {
+        var world = await SeedWorldAsync();
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+
+        var url = string.Format(CultureInfo.InvariantCulture, template, world.InA1);
+        using var response = await scoped.GetAsync(new Uri(url, UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, url);
+    }
+
+    [Fact]
+    public async Task Attendance_data_of_the_page_holds_no_pinfl_or_phone()
+    {
+        var world = await SeedWorldAsync();
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+
+        var today = DateTimeOffset.UtcNow.ToOffset(Tashkent);
+        var day = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        string[] urls =
+        [
+            $"/employees/{world.InA1}/header",
+            $"/timesheet?year={today.Year}&month={today.Month}&employeeId={world.InA1}&page=1&pageSize=1",
+            $"/passes?from={day}&to={day}&employeeId={world.InA1}&page=1&pageSize=50",
+            $"/employees/{world.InA1}/days/{day}/passes",
+        ];
+
+        foreach (var url in urls)
+        {
+            using var response = await scoped.GetAsync(Path(url), Ct);
+            var body = await TextAsync(response);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, $"{url}: {body}");
+            body.ShouldNotContain(world.PinflA1, Case.Sensitive, url);
+            body.ShouldNotContain(world.PhoneA1, Case.Sensitive, url);
+        }
+    }
+
     // ── other roles ───────────────────────────────────────────────
 
     [Fact]

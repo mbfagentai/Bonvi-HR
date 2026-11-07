@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
-import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { toSearchParam, useSearchDraft } from '@/shared/lib/list-search'
@@ -55,6 +54,7 @@ import {
 import { AttendanceDayDialog } from './attendance-day-dialog'
 import { AttendancePassPhotoDialog } from './attendance-pass-photo-dialog'
 import { AttendanceTimesheetGrid, TimesheetLegend } from './attendance-timesheet-grid'
+import { useCanOpenEmployeeAttendance } from './employee-attendance-link'
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -95,8 +95,8 @@ export function AttendanceTimesheetPage() {
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canManage = hasPermission(ATTENDANCE_MANAGE)
   const canExport = hasPermission(REPORTS_EXPORT)
-  // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
+  // HR — xodim kartasiga, «Davomat mas'uli» — faqat davomat sahifasiga; ruxsatsiz ism havola emas
+  const canOpenEmployee = useCanOpenEmployeeAttendance()
 
   const search = route.useSearch()
   const navigate = route.useNavigate()

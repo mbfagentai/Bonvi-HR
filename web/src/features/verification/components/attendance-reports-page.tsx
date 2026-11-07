@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { ChartColumn, FileSpreadsheet, LoaderCircle, SearchX } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -6,7 +6,6 @@ import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
 import { isRateLimited } from '@/features/employees/lib/employee-error'
-import { EMPLOYEES_VIEW } from '@/features/employees/lib/employee-presentation'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -61,6 +60,7 @@ import {
   type ReportsSearch,
 } from '../lib/attendance-search'
 import { DayStatusBadge } from './attendance-timesheet-grid'
+import { EmployeeAttendanceLink, useCanOpenEmployeeAttendance } from './employee-attendance-link'
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -121,8 +121,8 @@ export function AttendanceReportsPage() {
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   const canExport = hasPermission(REPORTS_EXPORT)
-  // Xodim kartasi `employees.view` bilan himoyalangan — ruxsatsiz ism havola emas
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
+  // HR — xodim kartasiga, «Davomat mas'uli» — faqat davomat sahifasiga; ruxsatsiz ism havola emas
+  const canOpenEmployee = useCanOpenEmployeeAttendance()
 
   const search = route.useSearch()
   const navigate = route.useNavigate()
@@ -723,14 +723,9 @@ function EmployeeCell({
     <div className="flex items-center gap-3">
       <EmployeePhoto employeeId={employeeId} photoKey={photoKey} name={name} size="md" />
       {linked ? (
-        <Link
-          to="/xodimlar/$employeeId"
-          params={{ employeeId }}
-          search={{ tab: 'attendance' }}
-          className="font-medium hover:text-[var(--accent-text)]"
-        >
+        <EmployeeAttendanceLink employeeId={employeeId} className="font-medium hover:text-[var(--accent-text)]">
           {name}
-        </Link>
+        </EmployeeAttendanceLink>
       ) : (
         <span className="font-medium">{name}</span>
       )}

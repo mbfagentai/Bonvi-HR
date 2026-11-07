@@ -43,6 +43,46 @@ public sealed class LookupAttendanceEmployeesQueryHandler
     }
 }
 
+/// <summary>The header of one employee's attendance page.</summary>
+/// <param name="EmployeeId">Employee.</param>
+public sealed record GetAttendanceEmployeeHeaderQuery(Guid EmployeeId);
+
+/// <summary>
+/// Name, department, position and whether a photo exists, for a user who cannot open
+/// <c>/api/employees/{id}</c>. This is the only employee data the page adds to what the
+/// attendance lists already show; passport, PINFL, phone and salary have no way in here.
+/// </summary>
+public sealed class GetAttendanceEmployeeHeaderQueryHandler
+{
+    private readonly IAttendanceScope _scope;
+    private readonly IAttendanceReadModel _readModel;
+
+    public GetAttendanceEmployeeHeaderQueryHandler(IAttendanceScope scope, IAttendanceReadModel readModel)
+    {
+        _scope = scope;
+        _readModel = readModel;
+    }
+
+    public async Task<Result<AttendanceEmployeeLookupItemDto>> HandleAsync(
+        GetAttendanceEmployeeHeaderQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Same error as an unknown id, so an id outside the scope does not confirm the person exists.
+        if (!await _scope.CanAccessEmployeeAsync(query.EmployeeId, cancellationToken).ConfigureAwait(false))
+        {
+            return EmployeeErrors.NotFound;
+        }
+
+        var header = await _readModel
+            .GetEmployeeHeaderAsync(query.EmployeeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return header is null ? EmployeeErrors.NotFound : header;
+    }
+}
+
 /// <summary>An employee's photo for the attendance section.</summary>
 /// <param name="EmployeeId">Employee.</param>
 /// <param name="KnownVersion">Version of the client's copy (<c>If-None-Match</c>).</param>

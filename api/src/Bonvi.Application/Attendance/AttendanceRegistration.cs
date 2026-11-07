@@ -48,6 +48,7 @@ internal static class AttendanceRegistration
         services.AddScoped<GetPassQueryHandler>();
         services.AddScoped<GetPassPhotoQueryHandler>();
         services.AddScoped<LookupAttendanceEmployeesQueryHandler>();
+        services.AddScoped<GetAttendanceEmployeeHeaderQueryHandler>();
         services.AddScoped<GetAttendanceEmployeePhotoQueryHandler>();
         services.AddScoped<GetBoardQueryHandler>();
         services.AddScoped<GetFormerEmployeeAlertsQueryHandler>();

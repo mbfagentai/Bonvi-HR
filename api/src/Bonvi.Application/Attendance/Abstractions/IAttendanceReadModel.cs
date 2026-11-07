@@ -351,6 +351,20 @@ public interface IAttendanceReadModel
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// One employee's page header in the attendance section; <c>null</c> for an unknown id.
+    /// Does not check the scope: <see cref="Queries.GetAttendanceEmployeeHeaderQueryHandler"/> does.
+    /// </summary>
+    /// <remarks>
+    /// Former staff included, with their latest ended employment, because a scoped user keeps
+    /// them on past timesheets (<see cref="IAttendanceScope.EmployeeIdsInScopeAsync"/>).
+    /// </remarks>
+    /// <param name="employeeId">Employee.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<AttendanceEmployeeLookupItemDto?> GetEmployeeHeaderAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default);
+
     // ── 7. Jadval biriktirmalari ────────────────────────────────────
 
     /// <summary>Biriktirmalar — nomlari bilan, pog'ona va boshlanish sanasi bo'yicha.</summary>

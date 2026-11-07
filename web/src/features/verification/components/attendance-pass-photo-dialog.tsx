@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import {
   Clock3,
   ImageOff,
@@ -13,6 +12,7 @@ import type { ReactNode } from 'react'
 
 import { useEmployeePhoto } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
+import { useAuth } from '@/features/auth'
 import { problemCode } from '@/shared/api/problem-details'
 import { useErrorMessage, useLocale } from '@/shared/i18n/use-locale'
 import { cn } from '@/shared/lib/cn'
@@ -27,6 +27,7 @@ import {
   formatPassTime,
 } from '../lib/attendance-presentation'
 import { MobileEvidenceDetails } from './attendance-mobile-evidence'
+import { EmployeeAttendanceLink } from './employee-attendance-link'
 
 /*
  * ⭐ Bo'limning nomi — «Verifikatsiya» — aynan shu fayldagi bitta
@@ -243,6 +244,7 @@ export function AttendancePassPhotoDialog({
   onClose: () => void
 }) {
   const { t, dateTime } = useLocale()
+  const { isAttendanceScoped } = useAuth()
   const errorMessage = useErrorMessage()
 
   /*
@@ -271,15 +273,10 @@ export function AttendancePassPhotoDialog({
       }
       footer={
         canOpenEmployee && data?.employeeId != null ? (
-          <Link
-            to="/xodimlar/$employeeId"
-            params={{ employeeId: data.employeeId }}
-            search={{ tab: 'attendance' }}
-            className={buttonVariants({ variant: 'secondary' })}
-          >
+          <EmployeeAttendanceLink employeeId={data.employeeId} className={buttonVariants({ variant: 'secondary' })}>
             <UserRound />
-            {t('attendance.openEmployee')}
-          </Link>
+            {t(isAttendanceScoped ? 'attendance.openEmployeeAttendance' : 'attendance.openEmployee')}
+          </EmployeeAttendanceLink>
         ) : undefined
       }
     >

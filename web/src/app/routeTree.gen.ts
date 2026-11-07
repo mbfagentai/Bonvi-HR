@@ -61,6 +61,7 @@ import { Route as AppVerifikatsiyaSorovlarRouteImport } from './routes/_app/veri
 import { Route as AppVerifikatsiyaTabelRouteImport } from './routes/_app/verifikatsiya/tabel'
 import { Route as AppXodimlarIndexRouteImport } from './routes/_app/xodimlar/index'
 import { Route as AppXodimlarEmployeeIdRouteImport } from './routes/_app/xodimlar/$employeeId'
+import { Route as AppVerifikatsiyaXodimEmployeeIdRouteImport } from './routes/_app/verifikatsiya/xodim/$employeeId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -340,6 +341,12 @@ const AppXodimlarEmployeeIdRoute = AppXodimlarEmployeeIdRouteImport.update({
   path: '/xodimlar/$employeeId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVerifikatsiyaXodimEmployeeIdRoute =
+  AppVerifikatsiyaXodimEmployeeIdRouteImport.update({
+    id: '/verifikatsiya/xodim/$employeeId',
+    path: '/verifikatsiya/xodim/$employeeId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -393,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/mening-ishlarim/': typeof AppMeningIshlarimIndexRoute
   '/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/xodimlar/': typeof AppXodimlarIndexRoute
+  '/verifikatsiya/xodim/$employeeId': typeof AppVerifikatsiyaXodimEmployeeIdRoute
 }
 export interface FileRoutesByTo {
   '/anketa': typeof AnketaRoute
@@ -446,6 +454,7 @@ export interface FileRoutesByTo {
   '/mening-ishlarim': typeof AppMeningIshlarimIndexRoute
   '/nomzodlar': typeof AppNomzodlarIndexRoute
   '/xodimlar': typeof AppXodimlarIndexRoute
+  '/verifikatsiya/xodim/$employeeId': typeof AppVerifikatsiyaXodimEmployeeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -501,6 +510,7 @@ export interface FileRoutesById {
   '/_app/mening-ishlarim/': typeof AppMeningIshlarimIndexRoute
   '/_app/nomzodlar/': typeof AppNomzodlarIndexRoute
   '/_app/xodimlar/': typeof AppXodimlarIndexRoute
+  '/_app/verifikatsiya/xodim/$employeeId': typeof AppVerifikatsiyaXodimEmployeeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/mening-ishlarim/'
     | '/nomzodlar/'
     | '/xodimlar/'
+    | '/verifikatsiya/xodim/$employeeId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/anketa'
@@ -609,6 +620,7 @@ export interface FileRouteTypes {
     | '/mening-ishlarim'
     | '/nomzodlar'
     | '/xodimlar'
+    | '/verifikatsiya/xodim/$employeeId'
   id:
     | '__root__'
     | '/_app'
@@ -663,6 +675,7 @@ export interface FileRouteTypes {
     | '/_app/mening-ishlarim/'
     | '/_app/nomzodlar/'
     | '/_app/xodimlar/'
+    | '/_app/verifikatsiya/xodim/$employeeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1039,6 +1052,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppXodimlarEmployeeIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/verifikatsiya/xodim/$employeeId': {
+      id: '/_app/verifikatsiya/xodim/$employeeId'
+      path: '/verifikatsiya/xodim/$employeeId'
+      fullPath: '/verifikatsiya/xodim/$employeeId'
+      preLoaderRoute: typeof AppVerifikatsiyaXodimEmployeeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1090,6 +1110,7 @@ interface AppRouteChildren {
   AppMeningIshlarimIndexRoute: typeof AppMeningIshlarimIndexRoute
   AppNomzodlarIndexRoute: typeof AppNomzodlarIndexRoute
   AppXodimlarIndexRoute: typeof AppXodimlarIndexRoute
+  AppVerifikatsiyaXodimEmployeeIdRoute: typeof AppVerifikatsiyaXodimEmployeeIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1140,6 +1161,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMeningIshlarimIndexRoute: AppMeningIshlarimIndexRoute,
   AppNomzodlarIndexRoute: AppNomzodlarIndexRoute,
   AppXodimlarIndexRoute: AppXodimlarIndexRoute,
+  AppVerifikatsiyaXodimEmployeeIdRoute: AppVerifikatsiyaXodimEmployeeIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

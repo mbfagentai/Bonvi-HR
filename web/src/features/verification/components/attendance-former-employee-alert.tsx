@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+
+import { useAuth } from '@/features/auth'
 import { ChevronRight, ShieldAlert } from 'lucide-react'
 
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
@@ -10,6 +12,7 @@ import { Badge, buttonVariants } from '@/shared/ui'
 import type { FormerEmployeeAlert } from '../api/attendance-api'
 import { formatPassTime } from '../lib/attendance-presentation'
 import { PassDirectionBadge } from './attendance-pass-photo-dialog'
+import { EmployeeAttendanceLink } from './employee-attendance-link'
 
 /**
  * «Ishdan ketgan xodim binoga kirdi» — modulning YAGONA to'liq kenglikdagi
@@ -36,13 +39,14 @@ export function FormerEmployeeAlertPanel({
 }: {
   alerts: readonly FormerEmployeeAlert[]
   /**
-   * Xodim kartasi ochiladimi (`employees.view`). Yo'q bo'lsa ism HAVOLA
+   * Xodim sahifasi ochiladimi (`useCanOpenEmployeeAttendance`). Yo'q bo'lsa ism HAVOLA
    * EMAS — oddiy matn: 403 ga olib boradigan havola bajarilmaydigan va'da
    * bo'lardi (statistika sahifasidagi qoida).
    */
   canOpenEmployee: boolean
 }) {
   const { t, num, dateTime } = useLocale()
+  const { isAttendanceScoped } = useAuth()
 
   /*
     Oyna — so'nggi 24 SOAT, ya'ni o'tish kechagi bo'lishi mumkin: kechagi
@@ -81,7 +85,14 @@ export function FormerEmployeeAlertPanel({
             key={alert.passId}
             className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-md bg-[var(--bg-elevated)] p-3"
           >
-            {canOpenEmployee ? (
+            {canOpenEmployee && isAttendanceScoped ? (
+              <EmployeeAttendanceLink
+                employeeId={alert.employeeId}
+                className="press flex min-w-[220px] flex-1 items-center gap-3 rounded-md"
+              >
+                <AlertPerson alert={alert} />
+              </EmployeeAttendanceLink>
+            ) : canOpenEmployee ? (
               <Link
                 to="/xodimlar/$employeeId"
                 params={{ employeeId: alert.employeeId }}

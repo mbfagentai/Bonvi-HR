@@ -3083,6 +3083,7 @@
     "weekdayShortSat": "Сб",
     "weekdayShortSun": "Вс",
     "employeeCalendar": "Календарь",
+    "openEmployeeAttendance": "Посещаемость сотрудника",
     "employeeMonthEmpty": "В этом месяце работы нет",
     "employeeMonthEmptyText": "Сотрудник в этом месяце не работал — принят позже или уволен раньше.",
     "employeePassesEmpty": "В этом месяце проходов нет",

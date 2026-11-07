@@ -3464,6 +3464,50 @@ public sealed partial class AttendanceReadModel : IAttendanceReadModel
     }
 
     /// <inheritdoc />
+    public async Task<AttendanceEmployeeLookupItemDto?> GetEmployeeHeaderAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        var person = await _context.Employees
+            .AsNoTracking()
+            .Where(employee => employee.Id == employeeId)
+            .Select(employee => new
+            {
+                employee.FullName.LastName,
+                employee.FullName.FirstName,
+                employee.FullName.MiddleName,
+                HasPhoto = employee.PhotoKey != null,
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (person is null)
+        {
+            return null;
+        }
+
+        var employments = await EmploymentsAsync([employeeId], cancellationToken).ConfigureAwait(false);
+        var own = employments.GetValueOrDefault(employeeId) ?? [];
+
+        var employment = PrimaryEmployment.Select(own, _clock.Today)
+            ?? own.Where(item => item.TerminationDate != null).MaxBy(item => item.TerminationDate);
+
+        var names = await CatalogNamesAsync(
+                [employment?.DepartmentId],
+                [employment?.PositionId],
+                [],
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return new AttendanceEmployeeLookupItemDto(
+            employeeId,
+            FullName.FromTrusted(person.LastName, person.FirstName, person.MiddleName).Full,
+            names.Department(employment?.DepartmentId),
+            names.Position(employment?.PositionId),
+            person.HasPhoto);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlySet<Guid>> ExistingEmployeeIdsAsync(
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken = default)

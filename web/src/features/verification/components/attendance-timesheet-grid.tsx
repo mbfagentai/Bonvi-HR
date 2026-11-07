@@ -1,5 +1,4 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Link } from '@tanstack/react-router'
 import { CalendarMinus, Coffee, FileCheck2, Hourglass } from 'lucide-react'
 import { useSyncExternalStore, type ReactNode } from 'react'
 
@@ -28,6 +27,7 @@ import {
 } from '../lib/attendance-presentation'
 import { AttendanceExitTime } from './attendance-exit-time'
 import { MobileMarksLine } from './attendance-mobile-evidence'
+import { EmployeeAttendanceLink } from './employee-attendance-link'
 
 /*
  * ⭐ Tabel — tizimdagi YAGONA zich narsa (SPEC §8.6). Atrofidagi hamma
@@ -402,22 +402,14 @@ function EmployeeCell({
   const first = row.cells[0]?.date
 
   return (
-    <Link
-      to="/xodimlar/$employeeId"
-      params={{ employeeId: row.employeeId }}
-      search={
-        first === undefined
-          ? { tab: 'attendance' as const }
-          : {
-              tab: 'attendance' as const,
-              year: Number(first.slice(0, 4)),
-              month: Number(first.slice(5, 7)),
-            }
-      }
+    <EmployeeAttendanceLink
+      employeeId={row.employeeId}
+      year={first === undefined ? undefined : Number(first.slice(0, 4))}
+      month={first === undefined ? undefined : Number(first.slice(5, 7))}
       className={layout}
     >
       {content}
-    </Link>
+    </EmployeeAttendanceLink>
   )
 }
 

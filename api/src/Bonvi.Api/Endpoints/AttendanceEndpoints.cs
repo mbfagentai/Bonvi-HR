@@ -1400,6 +1400,28 @@ public static class AttendanceEndpoints
             .Produces<IReadOnlyList<AttendanceEmployeeLookupItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapGet("/employees/{id:guid}/header", async (
+                Guid id,
+                GetAttendanceEmployeeHeaderQueryHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                var natija = await handler
+                    .HandleAsync(new GetAttendanceEmployeeHeaderQuery(id), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return natija.ToHttpResult();
+            })
+            .RequireAuthorization(Permissions.AttendanceView, AuthenticationExtensions.AttendanceStaffLookupPolicy)
+            .WithName("GetAttendanceEmployeeHeader")
+            .WithSummary("Davomat — xodim sahifasining sarlavhasi")
+            .WithDescription(
+                "F.I.Sh., bo'lim, lavozim va rasm bor-yo'qligi. Shaxsiy ma'lumot (JSHSHIR, pasport, telefon, maosh) YO'Q. " +
+                "Xodim yo'q yoki «Davomat mas'uli» bo'limlaridan tashqarida — «xodim.topilmadi» (404). " +
+                "«attendance.view» bilan birga «Davomat mas'uli» yoki «employees.view» kerak.")
+            .Produces<AttendanceEmployeeLookupItemDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/employees/{id:guid}/photo", async (
                 Guid id,
                 HttpContext context,

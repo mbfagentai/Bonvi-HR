@@ -81,6 +81,19 @@ public sealed class AttendanceScopeReadTests : IClassFixture<BonviApiFactory>
     }
 
     [Fact]
+    public async Task Employee_header_of_former_staff_keeps_their_last_department_in_scope_only()
+    {
+        var world = await SeedWorldAsync();
+        using var scoped = await ScopedClientAsync(world.DepartmentA);
+
+        var header = await JsonAsync(scoped, $"/employees/{world.FormerA}/header");
+        header.GetProperty("departmentName").GetString().ShouldNotBeNullOrWhiteSpace();
+
+        using var outside = await scoped.GetAsync(new Uri($"/api/attendance/employees/{world.FormerB}/header", UriKind.Relative), TestContext.Current.CancellationToken);
+        outside.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Filtering_by_an_employee_or_department_outside_the_scope_gives_nothing()
     {
         var world = await SeedWorldAsync();

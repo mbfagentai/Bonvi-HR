@@ -5,6 +5,7 @@ import { problemCode } from '@/shared/api/problem-details'
 import { saveBlobAs } from '@/shared/lib/download'
 
 import {
+  fetchAttendanceEmployeeHeader,
   fetchAttendanceEmployeeLookup,
   fetchUserAttendanceScope,
   putUserAttendanceScope,
@@ -1033,6 +1034,14 @@ export function useAttendanceEmployeeLookup(search: string, limit: number, enabl
     queryKey: [...attendanceKeys.root, 'employee-lookup', search, limit] as const,
     queryFn: ({ signal }) => fetchAttendanceEmployeeLookup(search, limit, signal),
     enabled,
+  })
+}
+
+export function useAttendanceEmployeeHeader(employeeId: string) {
+  return useQuery({
+    queryKey: [...attendanceKeys.root, 'employee-header', employeeId] as const,
+    queryFn: ({ signal }) => fetchAttendanceEmployeeHeader(employeeId, signal),
+    retry: false,
   })
 }
 

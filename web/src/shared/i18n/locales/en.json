@@ -3083,6 +3083,7 @@
     "weekdayShortSat": "Sat",
     "weekdayShortSun": "Sun",
     "employeeCalendar": "Calendar",
+    "openEmployeeAttendance": "Employee attendance",
     "employeeMonthEmpty": "No work this month",
     "employeeMonthEmptyText": "This employee did not work in this month — hired later or left earlier.",
     "employeePassesEmpty": "No passes this month",

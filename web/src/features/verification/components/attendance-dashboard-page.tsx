@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import {
   ArrowDownAZ,
   ArrowUpZA,
@@ -26,7 +26,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { useAuth } from '@/features/auth'
 import { useFilterOptions } from '@/features/employees/api/employees-queries'
 import { EmployeePhoto } from '@/features/employees/components/employee-photo'
-import { EMPLOYEES_VIEW, REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
+import { REPORTS_EXPORT } from '@/features/employees/lib/employee-presentation'
 import { useListExport } from '@/features/reports/api/list-export'
 import { ListExportButton, ListExportError } from '@/features/reports/components/list-export'
 import { problemCode } from '@/shared/api/problem-details'
@@ -112,6 +112,7 @@ import { DeviceHealthBanners } from './attendance-device-health'
 import { AttendanceExitTime } from './attendance-exit-time'
 import { FormerEmployeeAlertPanel } from './attendance-former-employee-alert'
 import { AttendanceLoadError, AttendanceNoAccess } from './attendance-manage-states'
+import { EmployeeAttendanceLink, useCanOpenEmployeeAttendance } from './employee-attendance-link'
 
 /**
  * Marshrut «apisi» — aylanma bog'liqlikdan qochish uchun
@@ -235,11 +236,11 @@ export function AttendanceDashboardPage() {
 
   const canView = hasPermission(ATTENDANCE_VIEW)
   /*
-    Xodim kartasi `employees.view` bilan himoyalangan (server). Ruxsat
-    bo'lmasa ism HAVOLA EMAS — oddiy matn: bosiladigan, lekin 403 ga olib
-    boradigan havola bajarilmaydigan va'da bo'lardi.
+    HR — xodim kartasiga (`employees.view`), «Davomat mas'uli» — faqat davomat
+    sahifasiga. Ikkalasi ham bo'lmasa ism HAVOLA EMAS — oddiy matn: bosiladigan,
+    lekin 403 ga olib boradigan havola bajarilmaydigan va'da bo'lardi.
   */
-  const canOpenEmployee = hasPermission(EMPLOYEES_VIEW) && !isAttendanceScoped
+  const canOpenEmployee = useCanOpenEmployeeAttendance()
   // Jadvalning Excel eksporti — statistikani ko'rish VA `reports.export` (SPEC-excel-eksport §1)
   const canExport = canView && hasPermission(REPORTS_EXPORT)
 
@@ -1018,14 +1019,19 @@ export function AttendanceDashboardPage() {
                     onRowClick={
                       canOpenEmployee
                         ? (item) =>
-                            void navigate({
-                              to: '/xodimlar/$employeeId',
-                              params: { employeeId: item.employeeId },
-                              // Kartaning DAVOMAT bo'limi ochiladi: bu
-                              // ekrandan odam «bugun nega kelmadi» degan
-                              // savol bilan chiqadi, shartnomasi bilan emas.
-                              search: { tab: 'attendance' },
-                            })
+                            isAttendanceScoped
+                              ? void navigate({
+                                  to: '/verifikatsiya/xodim/$employeeId',
+                                  params: { employeeId: item.employeeId },
+                                })
+                              : void navigate({
+                                  to: '/xodimlar/$employeeId',
+                                  params: { employeeId: item.employeeId },
+                                  // Kartaning DAVOMAT bo'limi ochiladi: bu
+                                  // ekrandan odam «bugun nega kelmadi» degan
+                                  // savol bilan chiqadi, shartnomasi bilan emas.
+                                  search: { tab: 'attendance' },
+                                })
                         : undefined
                     }
                     rowLabel={(item) => item.fullName}
@@ -2094,16 +2100,14 @@ function EmployeeName({
   }
 
   return (
-    <Link
-      to="/xodimlar/$employeeId"
-      params={{ employeeId: item.employeeId }}
-      search={{ tab: 'attendance' }}
+    <EmployeeAttendanceLink
+      employeeId={item.employeeId}
       // Qatorning o'zi ham kartani ochadi — havola bosilganda ikki marta o'tilmasin
       onClick={(event) => event.stopPropagation()}
       className="press flex min-w-0 items-center gap-3 rounded-md hover:underline"
     >
       {content}
-    </Link>
+    </EmployeeAttendanceLink>
   )
 }
 

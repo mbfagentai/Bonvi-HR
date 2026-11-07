@@ -1473,6 +1473,15 @@ export async function fetchAttendanceEmployeeLookup(
   return data
 }
 
+/** Header of the attendance-only employee page; the server answers 404 outside the caller's departments. */
+export async function fetchAttendanceEmployeeHeader(
+  id: string,
+  signal?: AbortSignal,
+): Promise<AttendanceEmployeeLookupItem> {
+  const { data } = await api.get<AttendanceEmployeeLookupItem>(`${BASE}/employees/${id}/header`, { signal })
+  return data
+}
+
 /** Same reasoning and same `404 → null` as `fetchPassPhoto`. */
 export async function fetchAttendanceEmployeePhoto(
   id: string,
